@@ -70,7 +70,7 @@ export default function StartScreen({ onRegistered }) {
       // 2. Create new team
       const { data: newTeam, error: insertError } = await supabase
         .from('teams')
-        .insert([{ name: trimmedName, color: color }])
+        .insert([{ name: trimmedName, color: color, waiting_for_qr: true }])
         .select()
         .single();
 

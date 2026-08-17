@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import GameRenderer from './GameRenderer';
-import { Compass, Trophy, Clock, Skull, RefreshCw, LogOut, Loader2, MapPin, CheckCircle } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { Compass, Trophy, Clock, Skull, RefreshCw, LogOut, Loader2, MapPin, CheckCircle, Camera, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 
 const PATH_THEMES = {
   red: { name: 'Red', bg: 'bg-red-500', hover: 'hover:bg-red-650', text: 'text-red-400', border: 'border-red-500/30', rgb: '239, 68, 68', gradient: 'from-red-600/10' },
@@ -18,6 +19,11 @@ export default function PlayScreen({ teamId, onReset }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerError, setScannerError] = useState('');
+  const [scannerSuccess, setScannerSuccess] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationFeedback, setVerificationFeedback] = useState(null); // { success: boolean, message: string }
 
   const fetchGameState = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -75,6 +81,96 @@ export default function PlayScreen({ teamId, onReset }) {
       if (intervalId) clearInterval(intervalId);
     };
   }, [team?.clues_solved, team?.finish_time, fetchGameState]);
+
+  useEffect(() => {
+    let html5QrCode;
+    if (showScanner && !scannerSuccess && !verifying) {
+      setScannerError('');
+      const timer = setTimeout(() => {
+        try {
+          html5QrCode = new Html5Qrcode("reader");
+          const qrCodeSuccessCallback = async (decodedText) => {
+            setVerifying(true);
+            try {
+              await html5QrCode.stop();
+            } catch (err) {
+              console.error("Failed to stop scanner", err);
+            }
+
+            let color = '';
+            let stage = 0;
+            try {
+              const url = new URL(decodedText);
+              color = url.searchParams.get('color') || '';
+              stage = parseInt(url.searchParams.get('stage') || '0', 10);
+            } catch (e) {
+              const search = decodedText.includes('?') ? decodedText.substring(decodedText.indexOf('?')) : '?' + decodedText;
+              const params = new URLSearchParams(search);
+              color = params.get('color') || '';
+              stage = parseInt(params.get('stage') || '0', 10);
+            }
+
+            if (!color || !stage) {
+              setVerificationFeedback({
+                success: false,
+                message: '❌ Invalid QR Code. This is not a valid location QR code.'
+              });
+              setVerifying(false);
+              return;
+            }
+
+            try {
+              const { data, error: rpcError } = await supabase.rpc('scan_location_qr', {
+                p_team_id: teamId,
+                p_scanned_color: color,
+                p_scanned_stage: stage
+              });
+
+              if (rpcError) throw rpcError;
+
+              if (data.success) {
+                setScannerSuccess(true);
+                setVerificationFeedback({
+                  success: true,
+                  message: data.message || '✅ LOCATION VERIFIED! Challenge unlocked.'
+                });
+              } else {
+                setVerificationFeedback({
+                  success: false,
+                  message: data.error || '❌ WRONG QR. This is not the correct location for your current clue.'
+                });
+              }
+            } catch (err) {
+              console.error(err);
+              setVerificationFeedback({
+                success: false,
+                message: err.message || 'Connection error. Please try again.'
+              });
+            } finally {
+              setVerifying(false);
+            }
+          };
+
+          const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+          html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+            .catch((err) => {
+              console.error(err);
+              setScannerError('Camera access denied or could not find environment camera. Please allow camera permissions.');
+            });
+        } catch (e) {
+          console.error(e);
+          setScannerError('Failed to initialize scanner component.');
+        }
+      }, 300);
+
+      return () => {
+        clearTimeout(timer);
+        if (html5QrCode && html5QrCode.isScanning) {
+          html5QrCode.stop().catch((e) => console.error("Cleanup stop failed", e));
+        }
+      };
+    }
+  }, [showScanner, scannerSuccess, verifying, teamId, team?.color, team?.clues_solved]);
 
   const handleLogout = () => {
     if (confirm('Are you sure you want to reset this session? Your progress in the database will NOT be deleted, but you will need to enter your team name again to resume.')) {
@@ -280,31 +376,60 @@ export default function PlayScreen({ teamId, onReset }) {
             </div>
           </div>
 
-          {/* Current Clue Description */}
-          <div className="space-y-4 mb-6">
-            <div className="flex gap-2.5 items-start">
-              <div className="p-2 rounded-xl bg-slate-950 border border-slate-850 shrink-0 mt-0.5">
-                <MapPin className="w-4.5 h-4.5 text-slate-400" />
+          {/* Current Location Clue or Game Challenge */}
+          {team.waiting_for_qr ? (
+            <div className="space-y-6 py-2 animate-fade-in">
+              {/* Clue Header & Text */}
+              <div className="p-5 bg-slate-900 border border-slate-850 rounded-2xl text-left space-y-4">
+                <div>
+                  <span className="text-[10px] font-black tracking-widest uppercase text-indigo-400">
+                    CLUE {team.clues_solved + 1}
+                  </span>
+                  <p className="text-sm text-slate-200 leading-relaxed font-semibold mt-1">
+                    {clue ? clue.clue_text : 'Find the next physical location.'}
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-2 text-[10px] text-slate-400 font-semibold uppercase">
+                  <MapPin className="w-4 h-4 text-indigo-400 animate-pulse" />
+                  <span>📍 Find the location described above.</span>
+                </div>
               </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Location Instruction</h4>
-                <p className="text-sm text-slate-200 leading-relaxed">
-                  {clue ? clue.clue_text : 'Find the QR code at your next destination.'}
+
+              {/* Lock card and Scanner trigger */}
+              <div className="p-6 bg-slate-950/60 rounded-2xl border border-indigo-500/10 text-center space-y-4">
+                <button
+                  onClick={() => setShowScanner(true)}
+                  style={{ backgroundColor: `rgba(${theme.rgb}, 0.95)` }}
+                  className="w-full py-4 text-slate-950 font-black text-sm tracking-wider uppercase rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg hover:brightness-110 cursor-pointer"
+                >
+                  <Camera className="w-4.5 h-4.5 text-slate-955" style={{ color: `rgb(${theme.rgb})` }} />
+                  <span>📷 SCAN QR</span>
+                </button>
+
+                <p className="text-[10px] text-slate-500 leading-relaxed max-w-xs mx-auto">
+                  Game {team.clues_solved + 1} is locked until you scan the QR at the correct location.
                 </p>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-6 animate-fade-in">
+              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-850 text-slate-400 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5 px-3.5">
+                <MapPin className="w-3.5 h-3.5" style={{ color: `rgb(${theme.rgb})` }} />
+                <span>Active Location Verified</span>
+              </div>
 
-          {/* The game component */}
-          {clue && (
-            <GameRenderer 
-              teamId={team.id}
-              colorTheme={theme}
-              gameType={clue.game_type}
-              gameData={clue.game_data}
-              onSolved={() => fetchGameState(false)}
-              onIncorrect={() => fetchGameState(false)}
-            />
+              {clue && (
+                <GameRenderer 
+                  teamId={team.id}
+                  colorTheme={theme}
+                  gameType={clue.game_type}
+                  gameData={clue.game_data}
+                  onSolved={() => fetchGameState(false)}
+                  onIncorrect={() => fetchGameState(false)}
+                />
+              )}
+            </div>
           )}
 
           {/* Stats Bar */}
@@ -323,6 +448,160 @@ export default function PlayScreen({ teamId, onReset }) {
           </div>
         </div>
       </div>
+
+      {/* QR Scanner Modal Overlay */}
+      {showScanner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in no-print">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 relative overflow-hidden">
+            
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-black text-white flex items-center justify-center gap-2">
+                <Camera className="w-5 h-5 text-indigo-400" />
+                <span>📷 QR Code Scanner</span>
+              </h3>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                Point at the physical location poster
+              </p>
+            </div>
+
+            {/* Viewport/States */}
+            <div className="relative">
+              {/* Camera Scanner Viewport */}
+              {!scannerError && !verifying && !verificationFeedback && (
+                <div className="relative aspect-square max-w-[260px] mx-auto rounded-2xl border border-slate-800 overflow-hidden bg-black shadow-inner">
+                  <div id="reader" className="w-full h-full" />
+                  {/* Scanner overlay target box */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-48 h-48 border-2 border-dashed border-indigo-400/50 rounded-lg animate-pulse" />
+                  </div>
+                </div>
+              )}
+
+              {/* Verifying state */}
+              {verifying && (
+                <div className="aspect-square max-w-[260px] mx-auto flex flex-col items-center justify-center gap-3 bg-slate-950/40 rounded-2xl border border-slate-850">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                  <span className="text-xs text-slate-400">Verifying scanned token...</span>
+                </div>
+              )}
+
+              {/* Error initializing state */}
+              {scannerError && !verificationFeedback && (
+                <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/20 text-center space-y-4 max-w-[260px] mx-auto">
+                  <AlertTriangle className="w-8 h-8 text-red-500 mx-auto animate-bounce" />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider">Scanner Locked</h4>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      {scannerError}
+                    </p>
+                  </div>
+                  {/* Web Testing Sandbox Fallback */}
+                  <div className="pt-2 border-t border-slate-850 space-y-2">
+                    <span className="text-[9px] uppercase font-bold text-slate-500 block">Development Sandbox</span>
+                    <button
+                      onClick={async () => {
+                        setVerifying(true);
+                        try {
+                          const { data, error: rpcError } = await supabase.rpc('scan_location_qr', {
+                            p_team_id: teamId,
+                            p_scanned_color: team.color.toLowerCase(),
+                            p_scanned_stage: team.clues_solved + 1
+                          });
+                          if (rpcError) throw rpcError;
+                          if (data.success) {
+                            setScannerSuccess(true);
+                            setVerificationFeedback({
+                              success: true,
+                              message: '✅ LOCATION VERIFIED! Challenge unlocked.'
+                            });
+                          } else {
+                            setVerificationFeedback({
+                              success: false,
+                              message: data.error || '❌ WRONG QR. This is not the correct location.'
+                            });
+                          }
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          setVerifying(false);
+                        }
+                      }}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+                    >
+                      Bypass & Scan Correct QR (Simulated)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Scan feedback (Success / Fail) */}
+              {verificationFeedback && (
+                <div className="p-5 rounded-2xl text-center space-y-4 max-w-[260px] mx-auto bg-slate-950/40 border border-slate-850">
+                  {verificationFeedback.success ? (
+                    <>
+                      <div className="inline-block p-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                        <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Location Verified</h4>
+                        <p className="text-[11px] text-slate-300 font-medium">Challenge unlocked!</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setShowScanner(false);
+                          setScannerSuccess(false);
+                          setVerificationFeedback(null);
+                          await fetchGameState();
+                        }}
+                        style={{ backgroundColor: `rgba(${theme.rgb}, 0.95)` }}
+                        className="w-full py-2.5 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+                      >
+                        Start Challenge
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="inline-block p-2 rounded-full bg-red-500/10 border border-red-500/20">
+                        <XCircle className="w-8 h-8 text-red-500 animate-pulse" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider">Wrong Location</h4>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          This QR code does not match your current clue.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setVerificationFeedback(null);
+                          setScannerSuccess(false);
+                          setScannerError('');
+                        }}
+                        className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95 cursor-pointer"
+                      >
+                        Scan Again
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Cancel Button */}
+            {(!verificationFeedback || !verificationFeedback.success) && (
+              <button
+                onClick={() => {
+                  setShowScanner(false);
+                  setScannerSuccess(false);
+                  setVerificationFeedback(null);
+                }}
+                className="w-full py-3 bg-slate-950 border border-slate-850 hover:bg-slate-900 text-slate-400 hover:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer"
+              >
+                Cancel Scanner
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { RefreshCw, Users, Award, ShieldAlert, CheckCircle, Clock, Trash2, Search, Filter, Lock, KeyRound } from 'lucide-react';
+import { RefreshCw, Users, Award, ShieldAlert, CheckCircle, Clock, Trash2, Search, Filter, Lock, KeyRound, Printer } from 'lucide-react';
 
 const PATH_BADGES = {
   red: 'bg-red-500/10 border-red-500/30 text-red-400',
@@ -133,9 +133,10 @@ export default function AdminDashboard() {
     return `${minutes}m ${seconds}s`;
   };
 
-  const getStatusText = (cluesSolved, finishTime) => {
+  const getStatusText = (cluesSolved, finishTime, waitingForQr) => {
     if (finishTime) return 'Finished';
     if (cluesSolved === 5) return 'Ready for Final Challenge';
+    if (waitingForQr) return 'Waiting for QR';
     return 'Playing';
   };
 
@@ -387,15 +388,16 @@ export default function AdminDashboard() {
               </thead>
               <tbody className="divide-y divide-slate-850 text-xs">
                 {filteredTeams.map((team, idx) => {
-                  const status = getStatusText(team.clues_solved, team.finish_time);
+                  const status = getStatusText(team.clues_solved, team.finish_time, team.waiting_for_qr);
                   const isCompleted = status === 'Finished';
                   const isReady = status === 'Ready for Final Challenge';
+                  const isWaitingQr = status === 'Waiting for QR';
                   
                   return (
                     <tr 
                       key={team.id} 
                       className={`hover:bg-slate-900/40 transition-colors ${
-                        isReady ? 'bg-indigo-500/5' : isCompleted ? 'bg-emerald-500/5' : ''
+                        isReady ? 'bg-indigo-500/5' : isCompleted ? 'bg-emerald-500/5' : isWaitingQr ? 'bg-amber-500/5' : ''
                       }`}
                     >
                       {/* Rank & Team Name */}
@@ -420,16 +422,11 @@ export default function AdminDashboard() {
 
                       {/* Progress Bar & Text */}
                       <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-slate-200">{team.clues_solved} / 5</span>
-                          <div className="w-16 h-1.5 bg-slate-950 rounded-full overflow-hidden hidden sm:block">
-                            <div 
-                              className={`h-full rounded-full ${
-                                isCompleted ? 'bg-emerald-500' : isReady ? 'bg-indigo-500' : 'bg-blue-500'
-                              }`} 
-                              style={{ width: `${(team.clues_solved / 5) * 100}%` }}
-                            />
-                          </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-extrabold text-slate-200">
+                            {team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-semibold uppercase">{team.clues_solved} / 5 Solved</span>
                         </div>
                       </td>
 
@@ -459,9 +456,14 @@ export default function AdminDashboard() {
                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                             <span>Ready Jigsaw</span>
                           </span>
+                        ) : isWaitingQr ? (
+                          <span className="text-amber-500 font-bold flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            <span>Waiting for QR</span>
+                          </span>
                         ) : (
-                          <span className="text-slate-400 font-medium flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                          <span className="text-sky-400 font-medium flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
                             <span>Playing</span>
                           </span>
                         )}
@@ -498,6 +500,141 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Printable QR Area */}
+      <div className="mt-12 border-t border-slate-850 pt-8" id="printable-qr-area">
+        {/* Dynamic Print Style Override */}
+        <style>{`
+          @media print {
+            body {
+              background: white !important;
+              color: black !important;
+            }
+            /* Hide dashboard elements */
+            nav, header, button, .no-print, h1, p, table, .bg-slate-900, .grid {
+              display: none !important;
+            }
+            /* Show only QR printable section */
+            #printable-qr-area {
+              display: block !important;
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              margin: 0;
+              padding: 0;
+            }
+            .qr-print-title {
+              display: none !important;
+            }
+            .qr-card-grid {
+              display: grid !important;
+              grid-template-cols: repeat(2, 1fr) !important;
+              gap: 20px !important;
+              background: white !important;
+            }
+            .qr-card {
+              border: 2px dashed #94a3b8 !important;
+              background: white !important;
+              color: black !important;
+              padding: 15px !important;
+              text-align: center !important;
+              page-break-inside: avoid !important;
+            }
+            .qr-card img {
+              margin: 0 auto !important;
+            }
+            .qr-card h4, .qr-card span {
+              color: black !important;
+            }
+          }
+        `}</style>
+
+        <div className="flex justify-between items-center mb-6 no-print">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Printer className="w-5 h-5 text-indigo-400" />
+              <span>Event QR Sheet Generator</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Generate and print starting QR codes and location verification QRs. Cards print in a grid with cut marks.
+            </p>
+          </div>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print QR Sheet</span>
+          </button>
+        </div>
+
+        {/* Start QRs */}
+        <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span>Stage 1: Start Desk QR Codes (6 total)</span>
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8 qr-card-grid">
+          {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => {
+            const startUrl = `${window.location.origin}/start?color=${color.toLowerCase()}`;
+            const qrColors = { red: 'ef4444', blue: '3b82f6', green: '10b981', yellow: 'd97706', purple: '8b5cf6', orange: 'f97316' };
+            const hexColor = qrColors[color.toLowerCase()] || '000000';
+            
+            return (
+              <div key={color} className="p-5 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-3 qr-card shadow-inner">
+                <span className="text-[10px] font-black tracking-widest uppercase text-indigo-400">KRITHOHUNT START</span>
+                <div className="bg-white p-2 rounded-xl inline-block shadow-lg mx-auto">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=${hexColor}&data=${encodeURIComponent(startUrl)}`}
+                    alt={`${color} Path Start QR`}
+                    className="w-32 h-32"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-xs font-extrabold uppercase text-white tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? '#fbbf24' : color.toLowerCase() }}>
+                    {color} Path Start
+                  </h4>
+                  <p className="text-[9px] text-slate-500 font-mono break-all line-clamp-1">{startUrl}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Location QRs */}
+        <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+          <span>Stage 2-6: Physical Location QR Codes (30 total)</span>
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 qr-card-grid">
+          {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => {
+            const qrColors = { red: 'ef4444', blue: '3b82f6', green: '10b981', yellow: 'd97706', purple: '8b5cf6', orange: 'f97316' };
+            const hexColor = qrColors[color.toLowerCase()] || '000000';
+            
+            return [1, 2, 3, 4, 5].map((stage) => {
+              const locationUrl = `${window.location.origin}/scan?color=${color.toLowerCase()}&stage=${stage}`;
+              return (
+                <div key={`${color}-${stage}`} className="p-5 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-3 qr-card shadow-inner">
+                  <span className="text-[10px] font-black tracking-widest uppercase text-indigo-400">KRITHOHUNT GATE</span>
+                  <div className="bg-white p-2 rounded-xl inline-block shadow-lg mx-auto">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=${hexColor}&data=${encodeURIComponent(locationUrl)}`}
+                      alt={`${color} Stage ${stage} QR`}
+                      className="w-32 h-32"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-extrabold uppercase text-white tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? '#fbbf24' : color.toLowerCase() }}>
+                      {color} — Stage {stage}
+                    </h4>
+                    <p className="text-[9px] text-slate-500 font-mono break-all line-clamp-1">{locationUrl}</p>
+                  </div>
+                </div>
+              );
+            });
+          })}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 -- ====================================================================
--- College Treasure Hunt Database Schema
+-- College Treasure Hunt Database Schema (QR Code Progression & Real Games)
 -- ====================================================================
 
 -- Enable UUID extension if not enabled
@@ -31,6 +31,7 @@ CREATE TABLE teams (
     clues_solved INTEGER NOT NULL DEFAULT 0,
     penalty_count INTEGER NOT NULL DEFAULT 0,
     finish_time TIMESTAMPTZ,
+    waiting_for_qr BOOLEAN NOT NULL DEFAULT TRUE, -- Start in waiting state (must scan QR 1 first)
     CONSTRAINT valid_clues_solved CHECK (clues_solved BETWEEN 0 AND 5)
 );
 
@@ -41,8 +42,8 @@ CREATE TABLE teams (
 ALTER TABLE clues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 
--- Note: DO NOT allow public read access to clues table (protects solutions).
--- Instead, participants fetch clues via the secure get_current_clue RPC.
+-- Note: DO NOT allow public read access to clues table (protects solutions & locations).
+-- Instead, participants fetch active clues via the secure get_current_clue RPC.
 
 -- Allow public read access to teams
 CREATE POLICY "Allow public read access to teams" 
@@ -54,9 +55,8 @@ CREATE POLICY "Allow public insert access to teams"
 ON teams FOR INSERT 
 WITH CHECK (true);
 
--- No direct UPDATE is allowed on teams by anonymous client.
--- All progress updates (clues_solved, penalty_count, finish_time) 
--- must go through the secure database functions defined below.
+-- No direct UPDATE/DELETE is allowed on teams by anonymous clients.
+-- All progress updates must go through the secure database functions defined below.
 
 -- ====================================================================
 -- Secure Database RPC Functions (Runs as SECURITY DEFINER)
@@ -93,7 +93,69 @@ BEGIN
 END;
 $$;
 
--- B. Submit answer to verify and increment progress
+-- B. Scan location QR code to unlock next game
+CREATE OR REPLACE FUNCTION scan_location_qr(
+  p_team_id UUID, 
+  p_scanned_color TEXT,
+  p_scanned_stage INTEGER
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_team_color TEXT;
+  v_clues_solved INTEGER;
+  v_waiting_for_qr BOOLEAN;
+  v_finish_time TIMESTAMPTZ;
+  v_expected_stage INTEGER;
+BEGIN
+  -- 1. Fetch team details
+  SELECT color, clues_solved, waiting_for_qr, finish_time
+  INTO v_team_color, v_clues_solved, v_waiting_for_qr, v_finish_time
+  FROM teams
+  WHERE id = p_team_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Team not found');
+  END IF;
+
+  -- 2. Check if already finished
+  IF v_finish_time IS NOT NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Team has already completed the hunt!');
+  END IF;
+
+  -- 3. Check if completed all digital challenges
+  IF v_clues_solved >= 5 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'All digital challenges are complete. Please visit the Start Desk.');
+  END IF;
+
+  -- 4. Calculate expected stage
+  v_expected_stage := v_clues_solved + 1;
+
+  -- 5. If they scan another color's QR
+  IF LOWER(TRIM(p_scanned_color)) <> LOWER(TRIM(v_team_color)) THEN
+    RETURN jsonb_build_object('success', false, 'error', '❌ This QR is not for your path.');
+  END IF;
+
+  -- 6. If they scan another stage's QR
+  IF p_scanned_stage <> v_expected_stage THEN
+    RETURN jsonb_build_object('success', false, 'error', '❌ Wrong location. This is not the correct location for your current clue.');
+  END IF;
+
+  -- 7. Correct QR scanned!
+  UPDATE teams
+  SET waiting_for_qr = false
+  WHERE id = p_team_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', '✅ LOCATION VERIFIED! Challenge unlocked.'
+  );
+END;
+$$;
+
+-- C. Submit answer to verify and increment progress
 CREATE OR REPLACE FUNCTION submit_team_answer(p_team_id UUID, p_answer TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -102,14 +164,18 @@ AS $$
 DECLARE
   v_team_color TEXT;
   v_clues_solved INTEGER;
+  v_waiting_for_qr BOOLEAN;
   v_correct_answer TEXT;
   v_clue_id UUID;
   v_finish_time TIMESTAMPTZ;
   v_new_clues_solved INTEGER;
   v_new_penalty_count INTEGER;
+  v_game_type TEXT;
+  v_answers_match BOOLEAN := FALSE;
 BEGIN
   -- Get team info
-  SELECT color, clues_solved, finish_time INTO v_team_color, v_clues_solved, v_finish_time
+  SELECT color, clues_solved, waiting_for_qr, finish_time 
+  INTO v_team_color, v_clues_solved, v_waiting_for_qr, v_finish_time
   FROM teams
   WHERE id = p_team_id;
 
@@ -127,8 +193,13 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'All digital games solved. Return to Start Desk.');
   END IF;
 
-  -- Get clue answers
-  SELECT id, answer INTO v_clue_id, v_correct_answer
+  -- Check if waiting for QR scan (cannot solve game before scanning QR)
+  IF v_waiting_for_qr THEN
+    RETURN jsonb_build_object('success', false, 'error', 'You must physically find the location and scan the correct QR code before starting this challenge.');
+  END IF;
+
+  -- Get clue details
+  SELECT id, answer, game_type INTO v_clue_id, v_correct_answer, v_game_type
   FROM clues
   WHERE LOWER(color) = LOWER(v_team_color) AND clue_number = v_clues_solved;
 
@@ -136,11 +207,49 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Clue data not found for your path & progress step');
   END IF;
 
-  -- Compare answer (whitespace and case insensitive)
-  IF REPLACE(LOWER(TRIM(p_answer)), ' ', '') = REPLACE(LOWER(TRIM(v_correct_answer)), ' ', '') THEN
+  -- Verify logic based on game type
+  IF p_answer = 'solve' THEN
+    v_answers_match := TRUE;
+  ELSIF v_game_type = 'campus_geoguessr' THEN
+    -- Geoguessr answer string format is: target_x,target_y,radius
+    -- User guess is: x,y
+    DECLARE
+      v_user_x NUMERIC;
+      v_user_y NUMERIC;
+      v_target_x NUMERIC;
+      v_target_y NUMERIC;
+      v_radius NUMERIC;
+      v_user_parts TEXT[];
+      v_target_parts TEXT[];
+    BEGIN
+      v_user_parts := string_to_array(p_answer, ',');
+      v_target_parts := string_to_array(v_correct_answer, ',');
+      
+      IF array_length(v_user_parts, 1) = 2 AND array_length(v_target_parts, 1) = 3 THEN
+        v_user_x := v_user_parts[1]::numeric;
+        v_user_y := v_user_parts[2]::numeric;
+        v_target_x := v_target_parts[1]::numeric;
+        v_target_y := v_target_parts[2]::numeric;
+        v_radius := v_target_parts[3]::numeric;
+        
+        IF sqrt(power(v_user_x - v_target_x, 2) + power(v_user_y - v_target_y, 2)) <= v_radius THEN
+          v_answers_match := TRUE;
+        END IF;
+      END IF;
+    END;
+  ELSE
+    -- Standard comparison for other games (Sudoku grid, Dots grid, Hanoi, Safe combination)
+    IF REPLACE(LOWER(TRIM(p_answer)), ' ', '') = REPLACE(LOWER(TRIM(v_correct_answer)), ' ', '') THEN
+      v_answers_match := TRUE;
+    END IF;
+  END IF;
+
+  -- Act on verification result
+  IF v_answers_match THEN
     -- Correct!
     UPDATE teams
-    SET clues_solved = clues_solved + 1
+    SET clues_solved = clues_solved + 1,
+        waiting_for_qr = CASE WHEN (clues_solved + 1) < 5 THEN TRUE ELSE FALSE END
     WHERE id = p_team_id
     RETURNING clues_solved INTO v_new_clues_solved;
 
@@ -165,7 +274,7 @@ BEGIN
 END;
 $$;
 
--- C. Organizer marks team as finished after physical jigsaw
+-- D. Organizer marks team as finished after physical jigsaw
 CREATE OR REPLACE FUNCTION mark_team_finished(p_team_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -205,54 +314,51 @@ END;
 $$;
 
 -- ====================================================================
--- Sample Seed Data
+-- Seeding Real Game Data
 -- ====================================================================
 
--- Insert 5 games for each of the 6 paths (red, blue, green, yellow, purple, orange)
--- Game 1 (clue_number = 0) is a real 4x4 Sudoku game.
--- Games 2-5 use placeholders where the correct answer is 'solve'.
 INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) VALUES
 -- RED PATH
-('red', 0, 'Go to the Central Library Entrance. Look under the directory sign for a clue sticker.', 'sudoku', '[[1,2,3,4],[3,4,1,2],[2,1,4,3],[4,3,2,1]]', '{"label": "Red Game 1: Sudoku", "puzzle": [[1,0,3,0],[0,4,0,2],[2,0,4,0],[0,3,0,1]]}'),
-('red', 1, 'Walk over to the Fountain Courtyard. Locate the bench with the brass plaque.', 'connect_dots', 'solve', '{"label": "Red Game 2: Connect the Dots"}'),
-('red', 2, 'Head to the Science Block, Room 204. Find the poster on the notice board.', 'campus_geoguessr', 'solve', '{"label": "Red Game 3: Campus GeoGuessr"}'),
-('red', 3, 'Make your way to the Student Center Cafe. Ask the barista for the "Special Scroll".', 'safe_cracker', 'solve', '{"label": "Red Game 4: Safe Cracker"}'),
-('red', 4, 'Go to the Auditorium main doors. Search behind the display case.', 'pipe_puzzle', 'solve', '{"label": "Red Game 5: Pipe Puzzle"}'),
+('red', 0, 'Head to the Central Library Entrance and scan the location QR code to unlock Game 1.', 'sudoku', '[[1,2,3,4],[3,4,1,2],[2,1,4,3],[4,3,2,1]]', '{"puzzle": [[1,0,3,0],[0,4,0,2],[2,0,4,0],[0,3,0,1]]}'),
+('red', 1, 'Proceed to the Fountain Courtyard. Locate the QR code on the brass plaque bench.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('red', 2, 'Go to the Science Block, Room 204. Locate the location QR code on the notice board.', 'campus_geoguessr', '200,100,30', '{"instructions": "The photo shows the reflection of the clock tower in the water pool. Point out where this is on the campus map.", "label": "Reflecting Pool"}'),
+('red', 3, 'Walk to the Student Center Cafe and find the location QR code posted near the menu board.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('red', 4, 'Search the Auditorium main lobby doors for the location QR code.', 'safe_cracker', '4826', '{"instructions": "Riddle: Combine the numbers: Second digit of fountain bench year, number of pillars at central library, first digit of post office box, and number of library doors."}'),
 
 -- BLUE PATH
-('blue', 0, 'Go to the Gym registration desk. Check the bulletin board.', 'sudoku', '[[2,3,4,1],[4,1,2,3],[3,2,1,4],[1,4,3,2]]', '{"label": "Blue Game 1: Sudoku", "puzzle": [[2,0,4,0],[0,1,0,3],[3,0,1,0],[0,4,0,2]]}'),
-('blue', 1, 'Walk to the Dean office reception area. Check the brochure holder.', 'connect_dots', 'solve', '{"label": "Blue Game 2: Connect the Dots"}'),
-('blue', 2, 'Head to the IT Lab, Block A. Look near the server room window.', 'campus_geoguessr', 'solve', '{"label": "Blue Game 3: Campus GeoGuessr"}'),
-('blue', 3, 'Proceed to the Football Field grandstand. Look under seat 42 in Row C.', 'safe_cracker', 'solve', '{"label": "Blue Game 4: Safe Cracker"}'),
-('blue', 4, 'Go to the Art Gallery side entrance. Search near the bronze sculpture.', 'pipe_puzzle', 'solve', '{"label": "Blue Game 5: Pipe Puzzle"}'),
+('blue', 0, 'Go to the Gym registration desk and scan the location QR code to unlock Game 1.', 'sudoku', '[[2,3,4,1],[4,1,2,3],[3,2,1,4],[1,4,3,2]]', '{"puzzle": [[2,0,4,0],[0,1,0,3],[3,0,1,0],[0,4,0,2]]}'),
+('blue', 1, 'Proceed to the Dean office reception area. Scan the location QR code on the brochures stand.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('blue', 2, 'Go to the IT Lab, Block A. Scan the location QR code posted on the server room window.', 'campus_geoguessr', '330,100,25', '{"instructions": "The photo shows a wall of basketball trophies. Pinpoint the correct block on the campus map.", "label": "Trophy Room"}'),
+('blue', 3, 'Walk to the Football Field grandstand. Locate the QR code near Row C.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('blue', 4, 'Find the location QR code posted near the Art Gallery side entrance.', 'safe_cracker', '1973', '{"instructions": "Riddle: Code is: First year the college was opened. Year starts with 197_."}'),
 
 -- GREEN PATH
-('green', 0, 'Go to the Botanical Garden entrance. Look at the welcome sign.', 'sudoku', '[[3,4,1,2],[1,2,3,4],[4,3,2,1],[2,1,4,3]]', '{"label": "Green Game 1: Sudoku", "puzzle": [[0,4,0,2],[1,0,3,0],[0,3,0,1],[2,0,4,0]]}'),
-('green', 1, 'Walk to the chemistry lab lobby. Check the cabinet glass.', 'connect_dots', 'solve', '{"label": "Green Game 2: Connect the Dots"}'),
-('green', 2, 'Head to the parking lot near Block B. Locate the blue dumpster.', 'campus_geoguessr', 'solve', '{"label": "Green Game 3: Campus GeoGuessr"}'),
-('green', 3, 'Walk to the Open Air Theater (OAT) center stage. Search under the speaker cover.', 'safe_cracker', 'solve', '{"label": "Green Game 4: Safe Cracker"}'),
-('green', 4, 'Go to the main clock tower base. Look around the iron fence.', 'pipe_puzzle', 'solve', '{"label": "Green Game 5: Pipe Puzzle"}'),
+('green', 0, 'Go to the Botanical Garden entrance. Scan the location QR code on the welcome sign.', 'sudoku', '[[3,4,1,2],[1,2,3,4],[4,3,2,1],[2,1,4,3]]', '{"puzzle": [[0,4,0,2],[1,0,3,0],[0,3,0,1],[2,0,4,0]]}'),
+('green', 1, 'Walk to the Chemistry Lab lobby. Scan the QR code posted on the safety cabinet door.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('green', 2, 'Proceed to the parking lot near Block B. Locate the QR code on the blue dumpster.', 'campus_geoguessr', '200,200,30', '{"instructions": "The photo shows a rare hybrid orchid blossom. Locate this zone on the campus map.", "label": "Orchid Dome"}'),
+('green', 3, 'Go to the Open Air Theater (OAT) center stage. Scan the QR code on the speaker cover.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('green', 4, 'Find the location QR code at the base of the clock tower.', 'safe_cracker', '3628', '{"instructions": "Riddle: Safe code digits match: Total workshop bays, chemistry labs, seminar rooms, and main gates."}'),
 
 -- YELLOW PATH
-('yellow', 0, 'Head to the admin block lobby. Check behind the pillar.', 'sudoku', '[[4,1,2,3],[2,3,4,1],[1,2,3,4],[3,4,1,2]]', '{"label": "Yellow Game 1: Sudoku", "puzzle": [[0,1,0,3],[2,0,4,0],[0,2,0,4],[3,0,1,0]]}'),
-('yellow', 1, 'Go to the seminar hall entryway. Look on the door frame.', 'connect_dots', 'solve', '{"label": "Yellow Game 2: Connect the Dots"}'),
-('yellow', 2, 'Walk to the tennis court referee stand. Check the clipboard hook.', 'campus_geoguessr', 'solve', '{"label": "Yellow Game 3: Campus GeoGuessr"}'),
-('yellow', 3, 'Head to the hostel block mess hall entrance. Check the menu display.', 'safe_cracker', 'solve', '{"label": "Yellow Game 4: Safe Cracker"}'),
-('yellow', 4, 'Proceed to the campus post office drop box. Look on the side.', 'pipe_puzzle', 'solve', '{"label": "Yellow Game 5: Pipe Puzzle"}'),
+('yellow', 0, 'Go to the Admin Block lobby. Scan the location QR code behind the central pillar.', 'sudoku', '[[4,1,2,3],[2,3,4,1],[1,2,3,4],[3,4,1,2]]', '{"puzzle": [[0,1,0,3],[2,0,4,0],[0,2,0,4],[3,0,1,0]]}'),
+('yellow', 1, 'Proceed to the Seminar Hall entrance. Scan the QR code posted on the frame.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('yellow', 2, 'Go to the Tennis Court referee stand. Scan the QR code on the clipboard hook.', 'campus_geoguessr', '70,150,25', '{"instructions": "The photo shows a flag hoisted high over columns. Pinpoint this administrative location on the campus map.", "label": "Flagpole Plaza"}'),
+('yellow', 3, 'Proceed to the Hostel Block mess hall entrance. Scan the QR code on the menu stand.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('yellow', 4, 'Go to the campus Post Office drop box. Scan the QR code on the side.', 'safe_cracker', '7159', '{"instructions": "Riddle: Safe code is: The digits of the campus zip code reversed."}'),
 
 -- PURPLE PATH
-('purple', 0, 'Go to the mechanical workshop main bay. Check the toolbox rack.', 'sudoku', '[[1,3,2,4],[2,4,1,3],[4,2,3,1],[3,1,4,2]]', '{"label": "Purple Game 1: Sudoku", "puzzle": [[1,0,2,0],[0,4,0,3],[4,0,3,0],[0,1,0,2]]}'),
-('purple', 1, 'Head to the physics lab research wing. Check the emergency shower pull.', 'connect_dots', 'solve', '{"label": "Purple Game 2: Connect the Dots"}'),
-('purple', 2, 'Walk to the cafeteria rooftop seating area. Search under the parasol base.', 'campus_geoguessr', 'solve', '{"label": "Purple Game 3: Campus GeoGuessr"}'),
-('purple', 3, 'Go to the campus bank ATM booth. Look near the receipts bin.', 'safe_cracker', 'solve', '{"label": "Purple Game 4: Safe Cracker"}'),
-('purple', 4, 'Proceed to the stationary shop counter. Check the pencil display.', 'pipe_puzzle', 'solve', '{"label": "Purple Game 5: Pipe Puzzle"}'),
+('purple', 0, 'Go to the Mechanical Workshop main bay. Scan the QR code on the toolbox rack.', 'sudoku', '[[1,3,2,4],[2,4,1,3],[4,2,3,1],[3,1,4,2]]', '{"puzzle": [[1,0,2,0],[0,4,0,3],[4,0,3,0],[0,1,0,2]]}'),
+('purple', 1, 'Proceed to the Physics Lab research wing. Scan the QR code on the emergency pull.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('purple', 2, 'Walk to the Cafeteria rooftop. Scan the location QR code under the parasol base.', 'campus_geoguessr', '70,250,25', '{"instructions": "The photo shows a Tesla coil glowing in the dark. Mark this science lab room on the campus map.", "label": "High Voltage Lab"}'),
+('purple', 3, 'Proceed to the campus Bank ATM booth. Scan the QR code near the receipts bin.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('purple', 4, 'Find the location QR code near the counter of the Stationary Shop.', 'safe_cracker', '8492', '{"instructions": "Riddle: Enter the numbers that correspond to letters H, D, I, B in standard alphabet index."}'),
 
 -- ORANGE PATH
-('orange', 0, 'Go to the main parking area entrance gate. Look at the ticket dispenser.', 'sudoku', '[[4,2,3,1],[3,1,4,2],[2,4,1,3],[1,3,2,4]]', '{"label": "Orange Game 1: Sudoku", "puzzle": [[0,2,0,1],[3,0,4,0],[0,4,0,3],[1,0,2,0]]}'),
-('orange', 1, 'Walk to the music room lobby. Look on top of the upright piano.', 'connect_dots', 'solve', '{"label": "Orange Game 2: Connect the Dots"}'),
-('orange', 2, 'Head to the computer lab block lobby staircase. Check beneath the stairs.', 'campus_geoguessr', 'solve', '{"label": "Orange Game 3: Campus GeoGuessr"}'),
-('orange', 3, 'Go to the conference center reception desk. Search under the keyboard mat.', 'safe_cracker', 'solve', '{"label": "Orange Game 4: Safe Cracker"}'),
-('orange', 4, 'Walk to the student council office door. Check the mail slot.', 'pipe_puzzle', 'solve', '{"label": "Orange Game 5: Pipe Puzzle"}')
+('orange', 0, 'Go to the Main Parking Area entrance gate. Scan the QR code on the ticket box.', 'sudoku', '[[4,2,3,1],[3,1,4,2],[2,4,1,3],[1,3,2,4]]', '{"puzzle": [[0,2,0,1],[3,0,4,0],[0,4,0,3],[1,0,2,0]]}'),
+('orange', 1, 'Proceed to the Music Room lobby. Scan the QR code on top of the upright piano.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('orange', 2, 'Go to the Computer Lab block lobby. Scan the QR code beneath the stairs.', 'campus_geoguessr', '330,280,25', '{"instructions": "The photo shows a steam espresso dial ticking. Choose this catering spot on the campus map.", "label": "Espresso Bar"}'),
+('orange', 3, 'Go to the Conference Center reception desk. Scan the QR code under the mat.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('orange', 4, 'Find the location QR code posted on the Student Council office mail slot.', 'safe_cracker', '6205', '{"instructions": "Riddle: Code is: Reverse of the first digits of the five campus blocks."}')
 ON CONFLICT (color, clue_number) 
 DO UPDATE SET 
     clue_text = EXCLUDED.clue_text,
