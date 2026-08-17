@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  @apply bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white overflow-x-hidden;
+}
+
+/* Custom premium pulse animation */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(var(--theme-color-rgb), 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(var(--theme-color-rgb), 0.6);
+  }
+}
+
+.glow-active {
+  animation: glowPulse 2s infinite ease-in-out;
+}
+
+/* Custom scrollbar for premium look */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
