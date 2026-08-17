@@ -171,6 +171,7 @@ DECLARE
   v_new_clues_solved INTEGER;
   v_new_penalty_count INTEGER;
   v_game_type TEXT;
+  v_db_game_data JSONB;
   v_answers_match BOOLEAN := FALSE;
 BEGIN
   -- Get team info
@@ -199,7 +200,7 @@ BEGIN
   END IF;
 
   -- Get clue details
-  SELECT id, answer, game_type INTO v_clue_id, v_correct_answer, v_game_type
+  SELECT id, answer, game_type, game_data INTO v_clue_id, v_correct_answer, v_game_type, v_db_game_data
   FROM clues
   WHERE LOWER(color) = LOWER(v_team_color) AND clue_number = v_clues_solved;
 
@@ -235,6 +236,148 @@ BEGIN
         IF sqrt(power(v_user_x - v_target_x, 2) + power(v_user_y - v_target_y, 2)) <= v_radius THEN
           v_answers_match := TRUE;
         END IF;
+      END IF;
+    END;
+  ELSIF v_game_type = 'connect_dots' THEN
+    DECLARE
+      v_paths JSONB;
+      v_dots JSONB;
+      v_path JSONB;
+      v_dot JSONB;
+      v_p1 JSONB;
+      v_p2 JSONB;
+      v_cell JSONB;
+      v_prev JSONB;
+      v_c_id INT;
+      v_r INT;
+      v_c INT;
+      v_pr INT;
+      v_pc INT;
+      v_len INT;
+      v_is_valid BOOLEAN := TRUE;
+      v_visited TEXT[] := ARRAY[]::TEXT[];
+      v_key TEXT;
+      v_rows INT;
+      v_cols INT;
+    BEGIN
+      -- Parse submitted answer
+      BEGIN
+        v_paths := p_answer::jsonb;
+      EXCEPTION WHEN OTHERS THEN
+        v_is_valid := FALSE;
+      END;
+
+      IF v_is_valid THEN
+        -- Fetch game data dots
+        v_dots := v_db_game_data->'dots';
+        v_rows := COALESCE((v_db_game_data->>'rows')::int, 7);
+        v_cols := COALESCE((v_db_game_data->>'cols')::int, 7);
+        
+        -- Loop through color IDs 1 to 4
+        FOR v_c_id IN 1..4 LOOP
+          -- Find endpoints for this color
+          v_p1 := NULL;
+          v_p2 := NULL;
+          FOR i IN 0..jsonb_array_length(v_dots)-1 LOOP
+            v_dot := v_dots->i;
+            IF (v_dot->>2)::int = v_c_id THEN
+              IF v_p1 IS NULL THEN
+                v_p1 := v_dot;
+              ELSE
+                v_p2 := v_dot;
+              END IF;
+            END IF;
+          END LOOP;
+
+          -- Get path for this color
+          v_path := v_paths->(v_c_id::text);
+          IF v_path IS NULL OR jsonb_array_length(v_path) < 2 THEN
+            v_is_valid := FALSE;
+            EXIT;
+          END IF;
+
+          v_len := jsonb_array_length(v_path);
+          
+          -- Check start and end endpoints match (p1 and p2 can be start/end or vice-versa)
+          DECLARE
+            v_start_cell JSONB := v_path->0;
+            v_end_cell JSONB := v_path->(v_len - 1);
+            v_s_r INT := (v_start_cell->>0)::int;
+            v_s_c INT := (v_start_cell->>1)::int;
+            v_e_r INT := (v_end_cell->>0)::int;
+            v_e_c INT := (v_end_cell->>1)::int;
+            v_p1_r INT := (v_p1->>0)::int;
+            v_p1_c INT := (v_p1->>1)::int;
+            v_p2_r INT := (v_p2->>0)::int;
+            v_p2_c INT := (v_p2->>1)::int;
+          BEGIN
+            IF NOT (
+              ((v_s_r = v_p1_r AND v_s_c = v_p1_c) AND (v_e_r = v_p2_r AND v_e_c = v_p2_c)) OR
+              ((v_s_r = v_p2_r AND v_s_c = v_p2_c) AND (v_e_r = v_p1_r AND v_e_c = v_p1_c))
+            ) THEN
+              v_is_valid := FALSE;
+            END IF;
+          END;
+
+          IF NOT v_is_valid THEN
+            EXIT;
+          END IF;
+
+          -- Check path steps
+          FOR j IN 0..v_len-1 LOOP
+            v_cell := v_path->j;
+            v_r := (v_cell->>0)::int;
+            v_c := (v_cell->>1)::int;
+
+            -- Check bounds
+            IF v_r < 0 OR v_r >= v_rows OR v_c < 0 OR v_c >= v_cols THEN
+              v_is_valid := FALSE;
+              EXIT;
+            END IF;
+
+            -- Check unique cells (no overlaps or crossings)
+            v_key := v_r::text || ',' || v_c::text;
+            IF v_key = ANY(v_visited) THEN
+              v_is_valid := FALSE;
+              EXIT;
+            END IF;
+            v_visited := array_append(v_visited, v_key);
+
+            -- Check another color's endpoint
+            FOR k IN 0..jsonb_array_length(v_dots)-1 LOOP
+              v_dot := v_dots->k;
+              IF (v_dot->>2)::int <> v_c_id AND (v_dot->>0)::int = v_r AND (v_dot->>1)::int = v_c THEN
+                v_is_valid := FALSE;
+                EXIT;
+              END IF;
+            END LOOP;
+            
+            IF NOT v_is_valid THEN
+              EXIT;
+            END IF;
+
+            -- Check orthogonal move
+            IF j > 0 THEN
+              v_prev := v_path->(j-1);
+              v_pr := (v_prev->>0)::int;
+              v_pc := (v_prev->>1)::int;
+              IF abs(v_r - v_pr) + abs(v_c - v_pc) <> 1 THEN
+                v_is_valid := FALSE;
+                EXIT;
+              END IF;
+            END IF;
+          END LOOP;
+
+          IF NOT v_is_valid THEN
+            EXIT;
+          END IF;
+        END LOOP;
+      ELSE
+        v_is_valid := FALSE;
+      END IF;
+
+      IF v_is_valid THEN
+        v_answers_match := TRUE;
       END IF;
     END;
   ELSE
@@ -313,6 +456,250 @@ BEGIN
 END;
 $$;
 
+-- D. Submit connect the dots answer securely
+CREATE OR REPLACE FUNCTION submit_connect_dots(p_team_id UUID, p_paths JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_team_color TEXT;
+  v_clues_solved INTEGER;
+  v_waiting_for_qr BOOLEAN;
+  v_finish_time TIMESTAMPTZ;
+  v_clue_id UUID;
+  v_game_type TEXT;
+  v_db_game_data JSONB;
+  
+  v_dots JSONB;
+  v_rows INT;
+  v_cols INT;
+  v_c_id INT;
+  v_dot1 JSONB;
+  v_dot2 JSONB;
+  v_path JSONB;
+  v_len INT;
+  v_cell JSONB;
+  v_r INT;
+  v_c INT;
+  v_prev JSONB;
+  v_pr INT;
+  v_pc INT;
+  v_key TEXT;
+  v_visited TEXT[] := ARRAY[]::TEXT[];
+  v_is_valid BOOLEAN := TRUE;
+  v_reason TEXT := NULL;
+  
+  v_new_clues_solved INT;
+  v_new_penalty_count INT;
+BEGIN
+  -- Fetch team details with row lock to prevent double-submission / race conditions
+  SELECT color, clues_solved, waiting_for_qr, finish_time
+  INTO v_team_color, v_clues_solved, v_waiting_for_qr, v_finish_time
+  FROM teams
+  WHERE id = p_team_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Team not found');
+  END IF;
+
+  -- Check if already finished
+  IF v_finish_time IS NOT NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Team has already completed the hunt!');
+  END IF;
+
+  -- Get current clue details
+  SELECT id, game_type, game_data INTO v_clue_id, v_game_type, v_db_game_data
+  FROM clues
+  WHERE LOWER(color) = LOWER(v_team_color) AND clue_number = v_clues_solved;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Clue data not found for your path & progress step');
+  END IF;
+
+  -- Verify stage is Connect Dots
+  IF v_game_type <> 'connect_dots' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'You are not currently on the Connect Dots stage (perhaps already solved).');
+  END IF;
+
+  -- Verify game is unlocked
+  IF v_waiting_for_qr THEN
+    RETURN jsonb_build_object('success', false, 'error', 'You must physically find the location and scan the correct QR code before starting this challenge.');
+  END IF;
+
+  -- Perform rule-based path validation
+  v_dots := v_db_game_data->'dots';
+  v_rows := COALESCE((v_db_game_data->>'rows')::int, 7);
+  v_cols := COALESCE((v_db_game_data->>'cols')::int, 7);
+
+  FOR v_c_id IN 1..4 LOOP
+    -- Find endpoints for this color ID
+    v_dot1 := NULL;
+    v_dot2 := NULL;
+    FOR i IN 0..jsonb_array_length(v_dots)-1 LOOP
+      IF (v_dots->i->>2)::int = v_c_id THEN
+        IF v_dot1 IS NULL THEN
+          v_dot1 := v_dots->i;
+        ELSE
+          v_dot2 := v_dots->i;
+        END IF;
+      END IF;
+    END LOOP;
+
+    IF v_dot1 IS NULL OR v_dot2 IS NULL THEN
+      v_is_valid := FALSE;
+      v_reason := 'Invalid puzzle config: endpoints missing';
+      EXIT;
+    END IF;
+
+    -- Get path
+    v_path := p_paths->(v_c_id::text);
+    IF v_path IS NULL OR jsonb_array_length(v_path) < 2 THEN
+      v_is_valid := FALSE;
+      v_reason := CASE v_c_id 
+        WHEN 1 THEN 'Red pair is not connected'
+        WHEN 2 THEN 'Blue pair is not connected'
+        WHEN 3 THEN 'Green pair is not connected'
+        WHEN 4 THEN 'Yellow pair is not connected'
+        ELSE 'A pair is not connected'
+      END;
+      EXIT;
+    END IF;
+
+    v_len := jsonb_array_length(v_path);
+    
+    -- Check endpoints match (p1 and p2 can be start/end or vice-versa)
+    DECLARE
+      v_s_r INT := (v_path->0->>0)::int;
+      v_s_c INT := (v_path->0->>1)::int;
+      v_e_r INT := (v_path->(v_len-1)->>0)::int;
+      v_e_c INT := (v_path->(v_len-1)->>1)::int;
+      v_p1_r INT := (v_dot1->>0)::int;
+      v_p1_c INT := (v_dot1->>1)::int;
+      v_p2_r INT := (v_dot2->>0)::int;
+      v_p2_c INT := (v_dot2->>1)::int;
+    BEGIN
+      IF NOT (
+        ((v_s_r = v_p1_r AND v_s_c = v_p1_c) AND (v_e_r = v_p2_r AND v_e_c = v_p2_c)) OR
+        ((v_s_r = v_p2_r AND v_s_c = v_p2_c) AND (v_e_r = v_p1_r AND v_e_c = v_p1_c))
+      ) THEN
+        v_is_valid := FALSE;
+        v_reason := CASE v_c_id 
+          WHEN 1 THEN 'Red path does not connect matching endpoints'
+          WHEN 2 THEN 'Blue path does not connect matching endpoints'
+          WHEN 3 THEN 'Green path does not connect matching endpoints'
+          WHEN 4 THEN 'Yellow path does not connect matching endpoints'
+          ELSE 'Path does not connect matching endpoints'
+        END;
+      END IF;
+    END;
+
+    IF NOT v_is_valid THEN
+      EXIT;
+    END IF;
+
+    -- Check path steps
+    FOR j IN 0..v_len-1 LOOP
+      v_cell := v_path->j;
+      v_r := (v_cell->>0)::int;
+      v_c := (v_cell->>1)::int;
+
+      -- Check grid boundaries
+      IF v_r < 0 OR v_r >= v_rows OR v_c < 0 OR v_c >= v_cols THEN
+        v_is_valid := FALSE;
+        v_reason := CASE v_c_id 
+          WHEN 1 THEN 'Red path leaves the grid'
+          WHEN 2 THEN 'Blue path leaves the grid'
+          WHEN 3 THEN 'Green path leaves the grid'
+          WHEN 4 THEN 'Yellow path leaves the grid'
+          ELSE 'Path leaves the grid'
+        END;
+        EXIT;
+      END IF;
+
+      -- Check orthogonal move (adjacent cells only)
+      IF j > 0 THEN
+        v_prev := v_path->(j-1);
+        v_pr := (v_prev->>0)::int;
+        v_pc := (v_prev->>1)::int;
+        IF abs(v_r - v_pr) + abs(v_c - v_pc) <> 1 THEN
+          v_is_valid := FALSE;
+          v_reason := CASE v_c_id 
+            WHEN 1 THEN 'Red path has non-adjacent moves'
+            WHEN 2 THEN 'Blue path has non-adjacent moves'
+            WHEN 3 THEN 'Green path has non-adjacent moves'
+            WHEN 4 THEN 'Yellow path has non-adjacent moves'
+            ELSE 'Path has non-adjacent moves'
+          END;
+          EXIT;
+        END IF;
+      END IF;
+
+      -- Check another color's endpoint
+      FOR k IN 0..jsonb_array_length(v_dots)-1 LOOP
+        IF (v_dots->k->>2)::int <> v_c_id AND (v_dots->k->>0)::int = v_r AND (v_dots->k->>1)::int = v_c THEN
+          v_is_valid := FALSE;
+          v_reason := CASE v_c_id 
+            WHEN 1 THEN 'Red path passes through another endpoint'
+            WHEN 2 THEN 'Blue path passes through another endpoint'
+            WHEN 3 THEN 'Green path passes through another endpoint'
+            WHEN 4 THEN 'Yellow path passes through another endpoint'
+            ELSE 'Path passes through another endpoint'
+          END;
+          EXIT;
+        END IF;
+      END LOOP;
+
+      IF NOT v_is_valid THEN
+        EXIT;
+      END IF;
+
+      -- Check collisions/overlaps between paths
+      v_key := v_r::text || ',' || v_c::text;
+      IF v_key = ANY(v_visited) THEN
+        v_is_valid := FALSE;
+        v_reason := 'Paths overlap or collide';
+        EXIT;
+      END IF;
+      v_visited := array_append(v_visited, v_key);
+    END LOOP;
+
+    IF NOT v_is_valid THEN
+      EXIT;
+    END IF;
+  END LOOP;
+
+  -- Act on validation result
+  IF v_is_valid THEN
+    -- Correct! Advance progress
+    UPDATE teams
+    SET clues_solved = clues_solved + 1,
+        waiting_for_qr = CASE WHEN (clues_solved + 1) < 5 THEN TRUE ELSE FALSE END
+    WHERE id = p_team_id
+    RETURNING clues_solved INTO v_new_clues_solved;
+
+    RETURN jsonb_build_object(
+      'success', true,
+      'clues_solved', v_new_clues_solved,
+      'message', 'Correct answer! Next clue unlocked.'
+    );
+  ELSE
+    -- Incorrect! Increment penalty count
+    UPDATE teams
+    SET penalty_count = penalty_count + 1
+    WHERE id = p_team_id
+    RETURNING penalty_count INTO v_new_penalty_count;
+
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', v_reason,
+      'penalty_count', v_new_penalty_count
+    );
+  END IF;
+END;
+$$;
+
 -- ====================================================================
 -- Seeding Real Game Data
 -- ====================================================================
@@ -320,42 +707,42 @@ $$;
 INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) VALUES
 -- RED PATH
 ('red', 0, 'Head to the Central Library Entrance and scan the location QR code to unlock Game 1.', 'sudoku', '[[1,2,3,4],[3,4,1,2],[2,1,4,3],[4,3,2,1]]', '{"puzzle": [[1,0,3,0],[0,4,0,2],[2,0,4,0],[0,3,0,1]]}'),
-('red', 1, 'Proceed to the Fountain Courtyard. Locate the QR code on the brass plaque bench.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('red', 1, 'Proceed to the Fountain Courtyard. Locate the QR code on the brass plaque bench.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('red', 2, 'Go to the Science Block, Room 204. Locate the location QR code on the notice board.', 'campus_geoguessr', '200,100,30', '{"instructions": "The photo shows the reflection of the clock tower in the water pool. Point out where this is on the campus map.", "label": "Reflecting Pool"}'),
 ('red', 3, 'Walk to the Student Center Cafe and find the location QR code posted near the menu board.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('red', 4, 'Search the Auditorium main lobby doors for the location QR code.', 'safe_cracker', '4826', '{"instructions": "Riddle: Combine the numbers: Second digit of fountain bench year, number of pillars at central library, first digit of post office box, and number of library doors."}'),
 
 -- BLUE PATH
 ('blue', 0, 'Go to the Gym registration desk and scan the location QR code to unlock Game 1.', 'sudoku', '[[2,3,4,1],[4,1,2,3],[3,2,1,4],[1,4,3,2]]', '{"puzzle": [[2,0,4,0],[0,1,0,3],[3,0,1,0],[0,4,0,2]]}'),
-('blue', 1, 'Proceed to the Dean office reception area. Scan the location QR code on the brochures stand.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('blue', 1, 'Proceed to the Dean office reception area. Scan the location QR code on the brochures stand.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('blue', 2, 'Go to the IT Lab, Block A. Scan the location QR code posted on the server room window.', 'campus_geoguessr', '330,100,25', '{"instructions": "The photo shows a wall of basketball trophies. Pinpoint the correct block on the campus map.", "label": "Trophy Room"}'),
 ('blue', 3, 'Walk to the Football Field grandstand. Locate the QR code near Row C.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('blue', 4, 'Find the location QR code posted near the Art Gallery side entrance.', 'safe_cracker', '1973', '{"instructions": "Riddle: Code is: First year the college was opened. Year starts with 197_."}'),
 
 -- GREEN PATH
 ('green', 0, 'Go to the Botanical Garden entrance. Scan the location QR code on the welcome sign.', 'sudoku', '[[3,4,1,2],[1,2,3,4],[4,3,2,1],[2,1,4,3]]', '{"puzzle": [[0,4,0,2],[1,0,3,0],[0,3,0,1],[2,0,4,0]]}'),
-('green', 1, 'Walk to the Chemistry Lab lobby. Scan the QR code posted on the safety cabinet door.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('green', 1, 'Walk to the Chemistry Lab lobby. Scan the QR code posted on the safety cabinet door.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('green', 2, 'Proceed to the parking lot near Block B. Locate the QR code on the blue dumpster.', 'campus_geoguessr', '200,200,30', '{"instructions": "The photo shows a rare hybrid orchid blossom. Locate this zone on the campus map.", "label": "Orchid Dome"}'),
 ('green', 3, 'Go to the Open Air Theater (OAT) center stage. Scan the QR code on the speaker cover.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('green', 4, 'Find the location QR code at the base of the clock tower.', 'safe_cracker', '3628', '{"instructions": "Riddle: Safe code digits match: Total workshop bays, chemistry labs, seminar rooms, and main gates."}'),
 
 -- YELLOW PATH
 ('yellow', 0, 'Go to the Admin Block lobby. Scan the location QR code behind the central pillar.', 'sudoku', '[[4,1,2,3],[2,3,4,1],[1,2,3,4],[3,4,1,2]]', '{"puzzle": [[0,1,0,3],[2,0,4,0],[0,2,0,4],[3,0,1,0]]}'),
-('yellow', 1, 'Proceed to the Seminar Hall entrance. Scan the QR code posted on the frame.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('yellow', 1, 'Proceed to the Seminar Hall entrance. Scan the QR code posted on the frame.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('yellow', 2, 'Go to the Tennis Court referee stand. Scan the QR code on the clipboard hook.', 'campus_geoguessr', '70,150,25', '{"instructions": "The photo shows a flag hoisted high over columns. Pinpoint this administrative location on the campus map.", "label": "Flagpole Plaza"}'),
 ('yellow', 3, 'Proceed to the Hostel Block mess hall entrance. Scan the QR code on the menu stand.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('yellow', 4, 'Go to the campus Post Office drop box. Scan the QR code on the side.', 'safe_cracker', '7159', '{"instructions": "Riddle: Safe code is: The digits of the campus zip code reversed."}'),
 
 -- PURPLE PATH
 ('purple', 0, 'Go to the Mechanical Workshop main bay. Scan the QR code on the toolbox rack.', 'sudoku', '[[1,3,2,4],[2,4,1,3],[4,2,3,1],[3,1,4,2]]', '{"puzzle": [[1,0,2,0],[0,4,0,3],[4,0,3,0],[0,1,0,2]]}'),
-('purple', 1, 'Proceed to the Physics Lab research wing. Scan the QR code on the emergency pull.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('purple', 1, 'Proceed to the Physics Lab research wing. Scan the QR code on the emergency pull.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('purple', 2, 'Walk to the Cafeteria rooftop. Scan the location QR code under the parasol base.', 'campus_geoguessr', '70,250,25', '{"instructions": "The photo shows a Tesla coil glowing in the dark. Mark this science lab room on the campus map.", "label": "High Voltage Lab"}'),
 ('purple', 3, 'Proceed to the campus Bank ATM booth. Scan the QR code near the receipts bin.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('purple', 4, 'Find the location QR code near the counter of the Stationary Shop.', 'safe_cracker', '8492', '{"instructions": "Riddle: Enter the numbers that correspond to letters H, D, I, B in standard alphabet index."}'),
 
 -- ORANGE PATH
 ('orange', 0, 'Go to the Main Parking Area entrance gate. Scan the QR code on the ticket box.', 'sudoku', '[[4,2,3,1],[3,1,4,2],[2,4,1,3],[1,3,2,4]]', '{"puzzle": [[0,2,0,1],[3,0,4,0],[0,4,0,3],[1,0,2,0]]}'),
-('orange', 1, 'Proceed to the Music Room lobby. Scan the QR code on top of the upright piano.', 'connect_dots', '[[1,1,1,2],[1,4,4,2],[1,0,0,2],[3,3,3,0]]', '{"dots": [[0,0,1],[2,0,1],[0,3,2],[2,3,2],[3,0,3],[3,2,3],[1,1,4],[1,2,4]]}'),
+('orange', 1, 'Proceed to the Music Room lobby. Scan the QR code on top of the upright piano.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('orange', 2, 'Go to the Computer Lab block lobby. Scan the QR code beneath the stairs.', 'campus_geoguessr', '330,280,25', '{"instructions": "The photo shows a steam espresso dial ticking. Choose this catering spot on the campus map.", "label": "Espresso Bar"}'),
 ('orange', 3, 'Go to the Conference Center reception desk. Scan the QR code under the mat.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('orange', 4, 'Find the location QR code posted on the Student Council office mail slot.', 'safe_cracker', '6205', '{"instructions": "Riddle: Code is: Reverse of the first digits of the five campus blocks."}')
@@ -365,3 +752,4 @@ DO UPDATE SET
     game_type = EXCLUDED.game_type,
     answer = EXCLUDED.answer,
     game_data = EXCLUDED.game_data;
+

@@ -1,87 +1,202 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { AlertTriangle, CheckCircle2, Loader2, RotateCcw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, RotateCcw, HelpCircle } from 'lucide-react';
 
 export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved, onIncorrect }) {
-  // Dot fixed positions (e.g. [[row, col, color_id], ...])
+  const rows = gameData?.rows || 7;
+  const cols = gameData?.cols || 7;
+
+  // Dot positions (e.g. [[row, col, color_id], ...])
   // Colors: 1 = Red, 2 = Blue, 3 = Green, 4 = Yellow
   const initialDots = gameData?.dots || [
-    [0, 0, 1], [2, 0, 1], // Red
-    [0, 3, 2], [2, 3, 2], // Blue
-    [3, 0, 3], [3, 2, 3], // Green
-    [1, 1, 4], [1, 2, 4]  // Yellow
+    [0, 1, 1], [4, 5, 1], // Red (1)
+    [1, 5, 2], [5, 1, 2], // Blue (2)
+    [2, 0, 3], [4, 2, 3], // Green (3)
+    [3, 5, 4], [6, 2, 4]  // Yellow (4)
   ];
 
-  // Map of color IDs to tailwind class names
+  // Map of color IDs to themes and CSS classes
   const COLOR_MAP = {
-    0: { name: 'Empty', bg: 'bg-slate-900/60', text: 'text-slate-500', fill: 'bg-transparent', border: 'border-slate-800' },
-    1: { name: 'Red', bg: 'bg-red-500/10', text: 'text-red-400', fill: 'bg-red-500', border: 'border-red-500/30' },
-    2: { name: 'Blue', bg: 'bg-blue-500/10', text: 'text-blue-400', fill: 'bg-blue-500', border: 'border-blue-500/30' },
-    3: { name: 'Green', bg: 'bg-emerald-500/10', text: 'text-emerald-400', fill: 'bg-emerald-500', border: 'border-emerald-500/30' },
-    4: { name: 'Yellow', bg: 'bg-amber-500/10', text: 'text-amber-400', fill: 'bg-amber-500', border: 'border-amber-500/30' }
+    0: { name: 'Empty', bg: 'bg-slate-900/60', text: 'text-slate-500', fill: 'bg-transparent', border: 'border-slate-800/80', hex: 'transparent' },
+    1: { name: 'Red', bg: 'bg-red-500/10', text: 'text-red-400', fill: 'bg-red-500', border: 'border-red-500/30', hex: '#ef4444' },
+    2: { name: 'Blue', bg: 'bg-blue-500/10', text: 'text-blue-400', fill: 'bg-blue-500', border: 'border-blue-500/30', hex: '#3b82f6' },
+    3: { name: 'Green', bg: 'bg-emerald-500/10', text: 'text-emerald-400', fill: 'bg-emerald-500', border: 'border-emerald-500/30', hex: '#10b981' },
+    4: { name: 'Yellow', bg: 'bg-amber-500/10', text: 'text-amber-400', fill: 'bg-amber-500', border: 'border-amber-500/30', hex: '#f59e0b' }
   };
 
-  // Initialize the board grid (4x4)
-  const initialBoard = () => {
-    const grid = Array(4).fill(0).map(() => Array(4).fill(0));
-    initialDots.forEach(([r, c, colId]) => {
-      grid[r][c] = colId;
-    });
-    return grid;
-  };
-
-  const [board, setBoard] = useState(() => {
-    const saved = localStorage.getItem(`krithohunt_connectdots_${teamId}`);
+  // Paths state: keys are color IDs (1-4)
+  const [paths, setPaths] = useState(() => {
+    const saved = localStorage.getItem(`krithohunt_connectdots_paths_${teamId}`);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Ensure all required keys exist
+        return {
+          1: parsed[1] || [],
+          2: parsed[2] || [],
+          3: parsed[3] || [],
+          4: parsed[4] || []
+        };
       } catch (e) {
         console.error(e);
       }
     }
-    return initialBoard();
+    return { 1: [], 2: [], 3: [], 4: [] };
   });
 
-  const [selectedColor, setSelectedColor] = useState(1); // Default Red
+  const [drawingColor, setDrawingColor] = useState(null); // colorId of active path being drawn
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Persist board state in localStorage
-  useEffect(() => {
-    localStorage.setItem(`krithohunt_connectdots_${teamId}`, JSON.stringify(board));
-  }, [board, teamId]);
+  const gridRef = useRef(null);
 
-  // Check if a cell is one of the initial fixed dots
-  const isDotCell = (r, c) => {
-    return initialDots.some(([dr, dc]) => dr === r && dc === c);
+  // Persist paths state in localStorage
+  useEffect(() => {
+    localStorage.setItem(`krithohunt_connectdots_paths_${teamId}`, JSON.stringify(paths));
+  }, [paths, teamId]);
+
+  // Helper: check if a cell contains an initial fixed dot
+  const getDotAtCell = (r, c) => {
+    return initialDots.find(([dr, dc]) => dr === r && dc === c);
   };
 
-  const handleCellClick = (r, c) => {
-    if (isDotCell(r, c)) {
-      // Tapping a fixed dot selects its color!
-      const dot = initialDots.find(([dr, dc]) => dr === r && dc === c);
-      if (dot) setSelectedColor(dot[2]);
+  // Helper: check if cell is in any path of another color
+  const isCellOccupiedByOtherPath = (r, c, excludeColorId) => {
+    return Object.entries(paths).some(([cid, path]) => {
+      if (parseInt(cid, 10) === excludeColorId) return false;
+      return path.some(([pr, pc]) => pr === r && pc === c);
+    });
+  };
+
+  // Start drawing path
+  const handlePointerDown = (e, r, c) => {
+    setErrorMsg('');
+    const dot = getDotAtCell(r, c);
+    if (!dot) return;
+
+    const colorId = dot[2];
+    setDrawingColor(colorId);
+
+    // Initialize path with starting dot
+    setPaths(prev => ({
+      ...prev,
+      [colorId]: [[r, c]]
+    }));
+
+    // Capture pointer to track dragging outside the container
+    try {
+      e.target.setPointerCapture(e.pointerId);
+    } catch (err) {
+      console.warn('Pointer capture failed:', err);
+    }
+  };
+
+  // Handle drag movement
+  const handlePointerMove = (e) => {
+    if (drawingColor === null || !gridRef.current) return;
+
+    const rect = gridRef.current.getBoundingClientRect();
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    const cellW = rect.width / cols;
+    const cellH = rect.height / rows;
+
+    const c = Math.floor(x / cellW);
+    const r = Math.floor(y / cellH);
+
+    // Ignore if outside grid bounds
+    if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+
+    const currentPath = paths[drawingColor] || [];
+    if (currentPath.length === 0) return;
+
+    const lastCell = currentPath[currentPath.length - 1];
+    if (r === lastCell[0] && c === lastCell[1]) return; // Same cell, no move
+
+    // Orthogonal moves only
+    const isAdjacent = Math.abs(r - lastCell[0]) + Math.abs(c - lastCell[1]) === 1;
+    if (!isAdjacent) return;
+
+    // Check backtracking (moving to the second to last cell in the current path)
+    if (currentPath.length > 1) {
+      const secondLastCell = currentPath[currentPath.length - 2];
+      if (r === secondLastCell[0] && c === secondLastCell[1]) {
+        // Backtrack: remove the last segment
+        setPaths(prev => ({
+          ...prev,
+          [drawingColor]: currentPath.slice(0, -1)
+        }));
+        return;
+      }
+    }
+
+    // Check if cell has another color's endpoint
+    const dot = getDotAtCell(r, c);
+    if (dot && dot[2] !== drawingColor) {
+      return; // Cannot move through another color's endpoint
+    }
+
+    // Check if cell is occupied by another color's path
+    if (isCellOccupiedByOtherPath(r, c, drawingColor)) {
+      return; // Cannot overlap another color's path
+    }
+
+    // Check if cell is already in our own path (self-overlap/loop)
+    const selfIdx = currentPath.findIndex(([pr, pc]) => pr === r && pc === c);
+    if (selfIdx !== -1) {
+      // Loop back to our own path: truncate the path back to this cell
+      setPaths(prev => ({
+        ...prev,
+        [drawingColor]: currentPath.slice(0, selfIdx + 1)
+      }));
       return;
     }
 
-    // Toggle color in empty cells
-    const newBoard = [...board.map(row => [...row])];
-    if (newBoard[r][c] === selectedColor) {
-      newBoard[r][c] = 0; // Clear if tapped again with same color
-    } else {
-      newBoard[r][c] = selectedColor; // Apply selected color
+    // Check if matching target endpoint reached
+    if (dot && dot[2] === drawingColor) {
+      // Complete path
+      setPaths(prev => ({
+        ...prev,
+        [drawingColor]: [...currentPath, [r, c]]
+      }));
+      setDrawingColor(null); // Finish drawing
+      return;
     }
-    setBoard(newBoard);
-    setErrorMsg('');
+
+    // Otherwise, move to empty cell: extend path
+    setPaths(prev => ({
+      ...prev,
+      [drawingColor]: [...currentPath, [r, c]]
+    }));
+  };
+
+  const handlePointerUp = (e) => {
+    setDrawingColor(null);
+    try {
+      if (e.target.hasPointerCapture(e.pointerId)) {
+        e.target.releasePointerCapture(e.pointerId);
+      }
+    } catch (err) {
+      // Ignore
+    }
   };
 
   const handleResetBoard = () => {
     if (confirm('Are you sure you want to clear all your paths?')) {
-      setBoard(initialBoard());
+      setPaths({ 1: [], 2: [], 3: [], 4: [] });
       setErrorMsg('');
       setSuccessMsg('');
     }
+  };
+
+  // Check if a path is fully connected according to rules
+  const isColorConnected = (cid) => {
+    return isColorPathValid(cid, paths, initialDots, rows, cols).valid;
   };
 
   const checkPuzzleSolved = async () => {
@@ -89,26 +204,27 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     setErrorMsg('');
     setSuccessMsg('');
 
-    try {
-      // Serialize completed board
-      const serializedAnswer = JSON.stringify(board);
+    // Run frontend validation for immediate feedback
+    const clientVal = validateConnectDots(paths, initialDots, rows, cols);
 
-      // Call database RPC
-      const { data, error } = await supabase.rpc('submit_team_answer', {
+    try {
+      // Call secure database RPC submit_connect_dots
+      const { data, error } = await supabase.rpc('submit_connect_dots', {
         p_team_id: teamId,
-        p_answer: serializedAnswer
+        p_paths: paths
       });
 
       if (error) throw error;
 
       if (data.success) {
         setSuccessMsg('🎉 Connect the Dots solved!');
-        localStorage.removeItem(`krithohunt_connectdots_${teamId}`);
+        localStorage.removeItem(`krithohunt_connectdots_paths_${teamId}`);
         setTimeout(() => {
           onSolved();
         }, 1500);
       } else {
-        setErrorMsg(data.error || 'Incorrect connections. Penalty count increased (+1)!');
+        const errorReason = data.error || clientVal.reason || 'Incorrect connections. Penalty count increased (+1)!';
+        setErrorMsg(errorReason);
         onIncorrect();
       }
     } catch (err) {
@@ -124,52 +240,87 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
       {/* Description */}
       <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-850 text-left space-y-1">
         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-          Game 2: Connect the Dots
+          CONNECT THE DOTS
         </h4>
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          Tap matching colored dots to select a path color, then tap empty cells orthogonally to draw lines. Paths cannot cross or overlap!
+          Connect each matching pair without crossing another path. Drag from any colored dot to draw. Moves must be orthogonal. Drag backward to backtrack.
         </p>
       </div>
 
-      {/* The 4x4 Drawing Board */}
-      <div className="flex flex-col items-center">
-        <div className="bg-slate-950/45 p-3 rounded-3xl border border-slate-850 shadow-inner w-full max-w-[280px]">
-          <div className="grid grid-cols-4 gap-1.5 aspect-square">
-            {board.map((rowArr, rIdx) =>
-              rowArr.map((cellValue, cIdx) => {
-                const isDot = isDotCell(rIdx, cIdx);
-                const theme = COLOR_MAP[cellValue];
+      {/* The Grid Board */}
+      <div className="flex flex-col items-center select-none">
+        <div 
+          ref={gridRef}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          style={{
+            touchAction: 'none',
+            display: 'grid',
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+            gap: '2px'
+          }}
+          className="relative bg-slate-950/80 p-2.5 rounded-3xl border border-slate-800/80 shadow-inner w-full max-w-[340px] aspect-square"
+        >
+          {/* SVG path overlay */}
+          <svg 
+            className="absolute inset-0 w-full h-full pointer-events-none p-2.5"
+            viewBox={`0 0 ${cols * 100} ${rows * 100}`}
+          >
+            {Object.entries(paths).map(([cid, path]) => {
+              if (!path || path.length < 2) return null;
+              const pathStr = path.map((cell, idx) => {
+                const x = cell[1] * 100 + 50;
+                const y = cell[0] * 100 + 50;
+                return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+              }).join(' ');
 
-                return (
-                  <button
-                    key={`${rIdx}-${cIdx}`}
-                    onClick={() => handleCellClick(rIdx, cIdx)}
-                    className={`
-                      relative flex items-center justify-center rounded-xl transition-all select-none focus:outline-none aspect-square border
-                      ${theme.bg} ${theme.border}
-                    `}
-                  >
-                    {isDot ? (
-                      // Render a nice dot circle
-                      <span className={`w-5 h-5 rounded-full ${theme.fill} shadow-lg ring-4 ring-slate-950 animate-pulse`} />
-                    ) : cellValue !== 0 ? (
-                      // Render a smaller colored line track
-                      <span className={`w-3.5 h-3.5 rounded-md ${theme.fill} opacity-80`} />
-                    ) : null}
-                  </button>
-                );
-              })
-            )}
-          </div>
+              return (
+                <path
+                  key={cid}
+                  d={pathStr}
+                  stroke={COLOR_MAP[cid].hex}
+                  strokeWidth={20}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                  className="opacity-90"
+                />
+              );
+            })}
+          </svg>
+
+          {/* Grid Cells */}
+          {Array(rows).fill(null).map((_, r) =>
+            Array(cols).fill(null).map((_, c) => {
+              const dot = getDotAtCell(r, c);
+              const isDot = !!dot;
+              const colorId = isDot ? dot[2] : 0;
+              const theme = COLOR_MAP[colorId];
+
+              return (
+                <div
+                  key={`${r}-${c}`}
+                  onPointerDown={(e) => handlePointerDown(e, r, c)}
+                  className="relative flex items-center justify-center rounded-lg aspect-square border border-slate-900/60 bg-slate-900/30 transition-colors select-none focus:outline-none cursor-pointer"
+                >
+                  {isDot && (
+                    <span 
+                      className={`w-6 h-6 rounded-full ${theme.fill} shadow-lg ring-4 ring-slate-950 animate-pulse`} 
+                    />
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
-      {/* Palette Selector */}
+      {/* Connection Status & Reset */}
       <div className="space-y-4">
         <div className="flex flex-col items-center">
-          <div className="w-full max-w-[280px] bg-slate-950/60 border border-slate-850/80 p-3 rounded-2xl flex flex-col gap-2.5">
+          <div className="w-full max-w-[340px] bg-slate-950/60 border border-slate-850/80 p-3 rounded-2xl flex flex-col gap-2.5">
             <div className="flex justify-between items-center text-[10px] uppercase font-bold text-slate-500 px-1">
-              <span>Selected Drawing Color</span>
+              <span>Connection Status</span>
               <button 
                 onClick={handleResetBoard}
                 className="flex items-center gap-1 text-slate-500 hover:text-slate-400 transition-colors"
@@ -179,26 +330,27 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
               </button>
             </div>
 
-            {/* Colors picker */}
+            {/* Colors picker / status indicator */}
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4].map((colorId) => {
                 const cTheme = COLOR_MAP[colorId];
-                const isSelected = selectedColor === colorId;
+                const connected = isColorConnected(colorId);
                 return (
-                  <button
+                  <div
                     key={colorId}
-                    onClick={() => setSelectedColor(colorId)}
                     className={`
-                      py-2 rounded-xl border text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1
-                      ${isSelected 
-                        ? 'bg-slate-900 border-slate-700 text-white shadow-lg ring-2 ring-indigo-500/20' 
-                        : 'bg-slate-950/40 border-slate-900 text-slate-500 hover:bg-slate-900/60'
+                      py-2 rounded-xl border text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1
+                      ${connected 
+                        ? 'bg-slate-900/80 border-slate-700/80 text-white shadow-lg' 
+                        : 'bg-slate-950/40 border-slate-900/80 text-slate-500'
                       }
                     `}
                   >
-                    <span className={`w-3.5 h-3.5 rounded-full ${cTheme.fill}`} />
+                    <span className={`w-3.5 h-3.5 rounded-full ${cTheme.fill} flex items-center justify-center text-[8px] text-slate-950`}>
+                      {connected && '✓'}
+                    </span>
                     <span>{cTheme.name}</span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -232,7 +384,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
             disabled={loading || !!successMsg}
             style={!successMsg ? { backgroundColor: `rgba(${colorTheme.rgb}, 0.9)` } : {}}
             className={`
-              w-full py-4 rounded-2xl text-slate-950 font-bold text-xs tracking-wider uppercase shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50
+              w-full py-4 rounded-2xl text-slate-950 font-bold text-xs tracking-wider uppercase shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer
               ${successMsg ? 'bg-emerald-500 text-slate-950' : 'hover:brightness-110'}
             `}
           >
@@ -246,4 +398,89 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
       </div>
     </div>
   );
+}
+
+// Standalone rule-based validation helper functions
+function isColorPathValid(colorId, paths, dots, rows, cols) {
+  const path = paths[colorId];
+  if (!path || path.length < 2) return { valid: false, reason: "Not connected" };
+  
+  const colorDots = dots.filter(([,, cid]) => cid === colorId);
+  if (colorDots.length !== 2) return { valid: false, reason: "Endpoints missing" };
+  const [dot1, dot2] = colorDots;
+
+  // Check endpoints match
+  const first = path[0];
+  const last = path[path.length - 1];
+  const connects1to2 = (first[0] === dot1[0] && first[1] === dot1[1] && last[0] === dot2[0] && last[1] === dot2[1]);
+  const connects2to1 = (first[0] === dot2[0] && first[1] === dot2[1] && last[0] === dot1[0] && last[1] === dot1[1]);
+  
+  if (!connects1to2 && !connects2to1) {
+    return { valid: false, reason: "Does not connect matching endpoints" };
+  }
+
+  // Check path steps
+  for (let i = 0; i < path.length; i++) {
+    const [r, c] = path[i];
+    
+    // Bounds check
+    if (r < 0 || r >= rows || c < 0 || c >= cols) {
+      return { valid: false, reason: "Leaves the grid" };
+    }
+
+    // Orthogonal adjacency check
+    if (i > 0) {
+      const [pr, pc] = path[i - 1];
+      const dist = Math.abs(r - pr) + Math.abs(c - pc);
+      if (dist !== 1) {
+        return { valid: false, reason: "Has non-adjacent moves" };
+      }
+    }
+
+    // Pass through other endpoints check
+    const otherDot = dots.find(([dr, dc, cid]) => dr === r && dc === c && cid !== colorId);
+    if (otherDot) {
+      return { valid: false, reason: "Passes through another endpoint" };
+    }
+  }
+
+  return { valid: true, reason: null };
+}
+
+function validateConnectDots(paths, dots, rows, cols) {
+  const COLOR_NAMES = {
+    1: 'Red',
+    2: 'Blue',
+    3: 'Green',
+    4: 'Yellow'
+  };
+
+  for (let colorId = 1; colorId <= 4; colorId++) {
+    const colorName = COLOR_NAMES[colorId];
+    const res = isColorPathValid(colorId, paths, dots, rows, cols);
+    if (!res.valid) {
+      if (res.reason === "Not connected") {
+        return { valid: false, reason: `${colorName} pair is not connected` };
+      }
+      return { valid: false, reason: `${colorName} path: ${res.reason.toLowerCase()}` };
+    }
+  }
+
+  // Check overlaps
+  const occupied = {};
+  for (let colorId = 1; colorId <= 4; colorId++) {
+    const path = paths[colorId] || [];
+    for (const [r, c] of path) {
+      const key = `${r},${c}`;
+      if (occupied[key] && occupied[key] !== colorId) {
+        return { 
+          valid: false, 
+          reason: `Paths of ${COLOR_NAMES[occupied[key]]} and ${COLOR_NAMES[colorId]} overlap at (${r}, ${c})` 
+        };
+      }
+      occupied[key] = colorId;
+    }
+  }
+
+  return { valid: true, reason: null };
 }

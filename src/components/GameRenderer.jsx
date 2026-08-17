@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { HelpCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import ConnectDotsGame from './ConnectDotsGame';
+import SudokuGame from './SudokuGame';
+import TowerOfHanoiGame from './games/TowerOfHanoiGame';
 
 export default function GameRenderer({ teamId, colorTheme, gameType, gameData, onSolved, onIncorrect }) {
   const [loading, setLoading] = useState(false);
@@ -33,6 +36,41 @@ export default function GameRenderer({ teamId, colorTheme, gameType, gameData, o
       setLoading(false);
     }
   };
+
+  if (gameType === 'sudoku') {
+    return (
+      <SudokuGame
+        teamId={teamId}
+        colorTheme={colorTheme}
+        gameData={gameData}
+        onSolved={onSolved}
+        onIncorrect={onIncorrect}
+      />
+    );
+  }
+
+  if (gameType === 'connect_dots') {
+    return (
+      <ConnectDotsGame
+        teamId={teamId}
+        colorTheme={colorTheme}
+        gameData={gameData}
+        onSolved={onSolved}
+        onIncorrect={onIncorrect}
+      />
+    );
+  }
+
+  if (gameType === 'tower_hanoi' || gameType === 'tower_of_hanoi') {
+    return (
+      <TowerOfHanoiGame
+        teamId={teamId}
+        colorTheme={colorTheme}
+        onSolved={onSolved}
+        onIncorrect={onIncorrect}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
