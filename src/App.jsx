@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import StartScreen from './components/StartScreen';
 import PlayScreen from './components/PlayScreen';
 import AdminDashboard from './components/AdminDashboard';
+import ScanScreen from './components/ScanScreen';
 import { Compass, HelpCircle } from 'lucide-react';
 
 export default function App() {
@@ -40,6 +41,16 @@ export default function App() {
 
     if (currentPath === '/start') {
       return <StartScreen onRegistered={handleStartRegistered} />;
+    }
+
+    if (currentPath === '/scan') {
+      return (
+        <ScanScreen 
+          teamId={teamId} 
+          onVerified={() => navigate('/play')} 
+          onGoToStart={() => navigate('/')} 
+        />
+      );
     }
 
     if (currentPath === '/play') {
