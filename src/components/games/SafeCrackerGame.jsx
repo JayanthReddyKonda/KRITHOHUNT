@@ -9,12 +9,83 @@ import {
   ScrollText,
 } from 'lucide-react';
 
-export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved, onIncorrect }) {
+const LOCAL_SAFE_CLUES = {
+  red: {
+    completionTitle: 'FINAL CLUE',
+    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    clues: [
+      { type: 'math', question: '(9 × 2) - 14 = ?', answer: '4' },
+      { type: 'digit_sum', question: '998', answer: '8' },
+      { type: 'riddle', question: 'I am the number of wheels on a bicycle. What digit am I?', answer: '2' },
+      { type: 'roman', question: 'VI', answer: '6' },
+    ],
+  },
+  blue: {
+    completionTitle: 'FINAL CLUE',
+    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    clues: [
+      { type: 'math', question: '(8 + 5) - 12 = ?', answer: '1' },
+      { type: 'digit_sum', question: '349', answer: '7' },
+      { type: 'riddle', question: 'I am the number of days in a week. What digit am I?', answer: '7' },
+      { type: 'roman', question: 'III', answer: '3' },
+    ],
+  },
+  green: {
+    completionTitle: 'FINAL CLUE',
+    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    clues: [
+      { type: 'math', question: '(4 × 2) - 5 = ?', answer: '3' },
+      { type: 'digit_sum', question: '699', answer: '6' },
+      { type: 'riddle', question: 'I am the only even prime number. What digit am I?', answer: '2' },
+      { type: 'roman', question: 'VIII', answer: '8' },
+    ],
+  },
+  yellow: {
+    completionTitle: 'FINAL CLUE',
+    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    clues: [
+      { type: 'math', question: '(6 + 4) - 3 = ?', answer: '7' },
+      { type: 'digit_sum', question: '334', answer: '1' },
+      { type: 'riddle', question: 'I am the number of fingers on one hand. What digit am I?', answer: '5' },
+      { type: 'roman', question: 'IX', answer: '9' },
+    ],
+  },
+  purple: {
+    completionTitle: 'FINAL CLUE',
+    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    clues: [
+      { type: 'math', question: '(3 × 4) - 4 = ?', answer: '8' },
+      { type: 'digit_sum', question: '499', answer: '4' },
+      { type: 'riddle', question: 'I am one less than ten. What digit am I?', answer: '9' },
+      { type: 'roman', question: 'II', answer: '2' },
+    ],
+  },
+  orange: {
+    completionTitle: 'FINAL CLUE',
+    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    clues: [
+      { type: 'math', question: '(9 - 1) - 2 = ?', answer: '6' },
+      { type: 'digit_sum', question: '2000', answer: '2' },
+      { type: 'riddle', question: 'Add nothing to five and I stay the same. What digit am I?', answer: '0' },
+      { type: 'roman', question: 'V', answer: '5' },
+    ],
+  },
+};
+
+export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved, onIncorrect, isDemo = false }) {
   const instructions =
     gameData?.instructions ||
     'Solve the clue and enter the exact 4-digit code into the safe lock.';
 
-  const clueCards = [gameData?.clue1, gameData?.clue2, gameData?.clue3, gameData?.clue4];
+  const scenarioKey = String(colorTheme?.name || '').toLowerCase();
+  const localScenario = LOCAL_SAFE_CLUES[scenarioKey] || LOCAL_SAFE_CLUES.red;
+  const clueCards = Array.isArray(gameData?.clues) && gameData.clues.length === 4
+    ? gameData.clues
+    : [gameData?.clue1, gameData?.clue2, gameData?.clue3, gameData?.clue4].every(Boolean)
+      ? [gameData?.clue1, gameData?.clue2, gameData?.clue3, gameData?.clue4]
+      : localScenario.clues;
+  const completionTitle = gameData?.completion_clue?.title || localScenario.completionTitle;
+  const completionMessage = gameData?.completion_clue?.message || localScenario.completionMessage;
   const normalizeDigit = (v) => {
     const s = String(v ?? '').trim();
     if (!/^\d$/.test(s)) return null;
@@ -32,6 +103,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
   const [errorMsg, setErrorMsg] = useState('');
   const [clueErrorMsg, setClueErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showFinalClue, setShowFinalClue] = useState(false);
 
   const comboReady = combination.every((digit) => digit !== null);
   const activeIndex = combination.findIndex((d) => d === null);
@@ -132,10 +204,27 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
     setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
+    setShowFinalClue(false);
 
     try {
       // Safe codes must be treated as strings so leading zeroes are preserved.
-      const guess = combination.map((digit) => String(digit)).join('').trim();
+      const guess = `${combination[0]}${combination[1]}${combination[2]}${combination[3]}`.trim();
+
+      if (isDemo) {
+        const expectedCode = activeAnswerDigits.join('');
+        if (guess === expectedCode) {
+          setSuccessMsg('SAFE CRACKED! 🔓');
+          setShowFinalClue(true);
+          setTimeout(() => {
+            onSolved();
+          }, 3500);
+        } else {
+          setErrorMsg('Incorrect Safe Code');
+          onIncorrect();
+          submittingRef.current = false;
+        }
+        return;
+      }
 
       const { data, error } = await supabase.rpc('submit_team_answer', {
         p_team_id: teamId,
@@ -145,10 +234,11 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
       if (error) throw error;
 
       if (data.success) {
-        setSuccessMsg(data.message || 'Correct answer! Next clue unlocked.');
+        setSuccessMsg('SAFE CRACKED! 🔓');
+        setShowFinalClue(true);
         setTimeout(() => {
           onSolved();
-        }, 1500);
+        }, 3500);
       } else {
         setErrorMsg('Incorrect Safe Code');
         onIncorrect();
@@ -336,6 +426,15 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
               <span className="font-bold">Access Granted: </span>
               <span>{successMsg}</span>
             </div>
+          </div>
+        )}
+
+        {showFinalClue && (
+          <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 text-sm space-y-1">
+            <div className="font-bold text-indigo-300 uppercase tracking-wider text-xs">
+              {completionTitle}
+            </div>
+            <div>{completionMessage}</div>
           </div>
         )}
 
