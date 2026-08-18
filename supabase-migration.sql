@@ -156,8 +156,8 @@ RETURNS TABLE(
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_color TEXT; v_clues_solved INTEGER;
 BEGIN
-  SELECT LOWER(color), clues_solved INTO v_color, v_clues_solved
-  FROM teams WHERE id = p_team_id;
+  SELECT LOWER(t.color), t.clues_solved INTO v_color, v_clues_solved
+  FROM public.teams AS t WHERE t.id = p_team_id;
   IF FOUND AND v_clues_solved < 5 THEN
     RETURN QUERY SELECT c.id, c.color, c.clue_number, c.clue_text, c.game_type, c.game_data
     FROM public.clues AS c WHERE LOWER(c.color) = v_color AND c.clue_number = v_clues_solved;
