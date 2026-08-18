@@ -114,8 +114,8 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
     }
   };
 
-  const accentColor = `rgba(${colorTheme?.rgb || '99, 102, 241'}, 0.9)`;
-  const accentBorder = `rgba(${colorTheme?.rgb || '99, 102, 241'}, 0.25)`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
+  const accentBorder = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}) / 0.25)`;
 
   return (
     <div className="space-y-5">
@@ -184,7 +184,7 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
             onClick={handleClearCell}
             disabled={!selectedCell}
             className="text-caption font-bold"
-            style={selectedCell ? { borderColor: 'rgba(239, 59, 59, 0.25)' } : {}}
+            style={selectedCell ? { borderColor: `hsl(var(--accent-${colorTheme?.accent || 'indigo'}) / 0.25)` } : {}}
             aria-label={selectedCell ? 'Clear selected cell' : 'Select a cell first'}
           >
             Clear

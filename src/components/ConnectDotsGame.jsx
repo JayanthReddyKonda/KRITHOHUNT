@@ -22,14 +22,6 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     4: { name: 'Yellow', accent: 'yellow' }
   };
 
-  const ACCENT_RGB = {
-    red: '239, 59, 59',
-    blue: '58, 134, 255',
-    green: '34, 197, 94',
-    yellow: '234, 179, 8',
-    indigo: '99, 102, 241'
-  };
-
   const [paths, setPaths] = useState(() => {
     const saved = localStorage.getItem(`krithohunt_connectdots_paths_${teamId}`);
     if (saved) {
@@ -218,7 +210,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     }
   };
 
-  const accentColor = `rgba(${colorTheme?.rgb || '99, 102, 241'}, 0.9)`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
 
   return (
     <div className="space-y-5">
@@ -259,8 +251,8 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
               }).join(' ');
 
               const accentKey = COLOR_MAP[cid]?.accent || 'indigo';
-              const strokeColor = `rgb(${ACCENT_RGB[accentKey]})`;
               const isYellowOrOrange = accentKey === 'yellow' || accentKey === 'orange';
+              const strokeColor = `hsl(var(--accent-${accentKey}))`;
 
               return (
                 <path
@@ -273,7 +265,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
                   fill="none"
                   style={{
                     filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
-                    stroke: isYellowOrOrange ? '#000' : strokeColor
+                    stroke: isYellowOrOrange ? 'hsl(var(--text-inverse))' : strokeColor
                   }}
                   className="opacity-90"
                 />
@@ -287,8 +279,9 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
               const isDot = !!dot;
               const colorId = isDot ? dot[2] : 0;
               const accentKey = COLOR_MAP[colorId]?.accent || 'indigo';
-              const bgColor = `rgb(${ACCENT_RGB[accentKey]})`;
               const isYellowOrOrange = accentKey === 'yellow' || accentKey === 'orange';
+              const bgColor = `hsl(var(--accent-${accentKey}))`;
+              const textColor = isYellowOrOrange ? 'hsl(var(--text-inverse))' : 'hsl(var(--text-primary))';
 
               return (
                 <GameCell
@@ -299,7 +292,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
                   className="touch-target aspect-square"
                   style={{
                     backgroundColor: isDot ? bgColor : undefined,
-                    color: isDot && isYellowOrOrange ? '#060a12' : undefined
+                    color: isDot ? textColor : undefined
                   }}
                   aria-label={isDot ? `${COLOR_MAP[colorId].name} endpoint, row ${r + 1}, column ${c + 1}` : `Empty cell, row ${r + 1}, column ${c + 1}`}
                 >
@@ -327,8 +320,9 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
             const cTheme = COLOR_MAP[colorId];
             const connected = isColorConnected(colorId);
             const accentKey = cTheme.accent;
-            const accentRgb = ACCENT_RGB[accentKey];
             const isYellowOrOrange = accentKey === 'yellow' || accentKey === 'orange';
+            const bgColor = `hsl(var(--accent-${accentKey}))`;
+            const textColor = isYellowOrOrange ? 'hsl(var(--text-inverse))' : 'hsl(var(--text-primary))';
 
             return (
               <div
@@ -340,15 +334,15 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
                     : 'bg-surface-2 border-border-subtle text-secondary'
                   }
                 `}
-                style={{ '--theme-color-rgb': accentRgb }}
+                style={{ '--theme-color-rgb': bgColor }}
                 role="status"
                 aria-label={`${cTheme.name} path ${connected ? 'connected' : 'not connected'}`}
               >
                 <span
                   className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-micro font-black ${connected ? 'ring-2 ring-current' : ''}`}
                   style={{
-                    backgroundColor: `rgb(${accentRgb})`,
-                    color: isYellowOrOrange ? '#060a12' : '#f1f5f9'
+                    backgroundColor: bgColor,
+                    color: textColor
                   }}
                 >
                   {connected && '✓'}

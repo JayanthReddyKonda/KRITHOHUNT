@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { Button } from '@/components/primitives';
 
 export default function Modal({
   isOpen,
@@ -97,13 +98,15 @@ export default function Modal({
               </h2>
             )}
             {showCloseButton && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={onClose}
-                className="btn-ghost p-2 min-h-[40px] min-w-[40px]"
                 aria-label="Close"
+                className="p-2 min-h-[40px] min-w-[40px]"
               >
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             )}
           </div>
         )}

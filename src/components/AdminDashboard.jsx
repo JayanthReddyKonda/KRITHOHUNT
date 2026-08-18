@@ -258,13 +258,15 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-surface-0 flex flex-col">
       {/* Mobile Header - Hamburger Menu */}
       <header className="md:hidden sticky top-0 z-40 h-[56px] flex items-center justify-between px-4 bg-surface-0/80 backdrop-blur-md border-b border-border-subtle">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setSidebarOpen(true)}
-          className="btn-ghost p-2 min-h-[44px] min-w-[44px]"
           aria-label="Open menu"
+          className="p-2 min-h-[44px] min-w-[44px]"
         >
           <Menu className="w-6 h-6" />
-        </button>
+        </Button>
         <span className="text-h2 font-black text-primary tracking-tight">Admin</span>
         <div className="w-10" />
       </header>
@@ -770,62 +772,6 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* Print Styles */}
-      <style>{`
-        @media print {
-          body {
-            background: white !important;
-            color: black !important;
-          }
-          /* Hide dashboard elements */
-          header, aside, button, .no-print, h1, h2, h3, p, .grid, .flex, .bg-surface-0, .bg-surface-1, .bg-surface-2, .bg-surface-3 {
-            display: none !important;
-          }
-          /* Show only QR printable section */
-          #printable-qr-area {
-            display: block !important;
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-          }
-          .qr-print-title {
-            display: none !important;
-          }
-          .qr-card-grid {
-            display: grid !important;
-            grid-template-cols: repeat(2, 1fr) !important;
-            gap: 20px !important;
-            background: white !important;
-          }
-          .qr-card {
-            border: 2px dashed #94a3b8 !important;
-            background: white !important;
-            color: black !important;
-            padding: 15px !important;
-            text-align: center !important;
-            page-break-inside: avoid !important;
-            box-shadow: none !important;
-          }
-          .qr-card img {
-            margin: 0 auto !important;
-          }
-          .qr-card h4, .qr-card span {
-            color: black !important;
-          }
-          .qr-card .text-accent-indigo,
-          .qr-card .text-accent-red,
-          .qr-card .text-accent-blue,
-          .qr-card .text-accent-green,
-          .qr-card .text-accent-yellow,
-          .qr-card .text-accent-purple,
-          .qr-card .text-accent-orange {
-            color: black !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

@@ -114,6 +114,8 @@ export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onInco
     3: 'accent-purple'
   };
 
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
+
   return (
     <div className="space-y-5">
       <Card variant="panel" padding="md" className="space-y-2">
@@ -172,7 +174,7 @@ export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onInco
                 >
                   <div className={`
                     absolute bottom-2 w-2 h-[200px] rounded-full transition-all duration-base
-                    ${isSelected ? 'bg-accent-indigo shadow-[0_0_12px_rgba(99,102,241,0.5)]' : 'bg-border-subtle group-hover:bg-border-strong'}
+                    ${isSelected ? `bg-[${accentColor}] shadow-[0_0_12px_${accentColor}/0.5]` : 'bg-border-subtle group-hover:bg-border-strong'}
                   `} />
 
                   <div className="flex flex-col-reverse items-center gap-2 w-full z-10 pb-2">

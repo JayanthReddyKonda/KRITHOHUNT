@@ -269,7 +269,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
                     {solved ? (
                       <CheckCircle2 className="w-4 h-4 text-feedback-success" />
                     ) : unlocked ? (
-                      <Unlock className="w-4 h-4 text-accent-indigo" />
+                      <Unlock className="w-4 h-4" style={{ color: accentColor }} />
                     ) : (
                       <Lock className="w-4 h-4 text-muted" />
                     )}

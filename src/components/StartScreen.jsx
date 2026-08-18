@@ -4,12 +4,12 @@ import { Compass, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
 import { Card, Input, Button } from '@/components/primitives';
 
 const PATH_THEMES = {
-  red: { name: 'RED', accent: 'red', rgb: '239, 68, 68', badgeClass: 'path-badge-red' },
-  blue: { name: 'BLUE', accent: 'blue', rgb: '59, 130, 246', badgeClass: 'path-badge-blue' },
-  green: { name: 'GREEN', accent: 'green', rgb: '16, 185, 129', badgeClass: 'path-badge-green' },
-  yellow: { name: 'YELLOW', accent: 'yellow', rgb: '245, 158, 11', badgeClass: 'path-badge-yellow' },
-  purple: { name: 'PURPLE', accent: 'purple', rgb: '139, 92, 246', badgeClass: 'path-badge-purple' },
-  orange: { name: 'ORANGE', accent: 'orange', rgb: '249, 115, 22', badgeClass: 'path-badge-orange' },
+  red: { name: 'RED', accent: 'red', badgeClass: 'path-badge-red' },
+  blue: { name: 'BLUE', accent: 'blue', badgeClass: 'path-badge-blue' },
+  green: { name: 'GREEN', accent: 'green', badgeClass: 'path-badge-green' },
+  yellow: { name: 'YELLOW', accent: 'yellow', badgeClass: 'path-badge-yellow' },
+  purple: { name: 'PURPLE', accent: 'purple', badgeClass: 'path-badge-purple' },
+  orange: { name: 'ORANGE', accent: 'orange', badgeClass: 'path-badge-orange' },
 };
 
 export default function StartScreen({ onRegistered }) {
@@ -91,8 +91,8 @@ export default function StartScreen({ onRegistered }) {
   if (!color && error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
-        <Card variant="elevated" className="w-full max-w-md text-center p-6" style={{ '--theme-color-rgb': '239, 68, 68' }}>
-          <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-4" />
+        <Card variant="elevated" className="w-full max-w-md text-center p-6" style={{ '--theme-color-rgb': 'var(--accent-red)' }}>
+          <ShieldAlert className="w-16 h-16 text-accent-red mx-auto mb-4" />
           <h2 className="text-h2 text-primary mb-2">Access Error</h2>
           <p className="text-secondary text-body-sm mb-6">{error}</p>
           <div className="text-caption text-muted bg-surface-2 p-3 rounded-xl border border-border-subtle text-left">

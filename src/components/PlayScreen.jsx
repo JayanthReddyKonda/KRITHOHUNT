@@ -6,12 +6,12 @@ import { Trophy, Clock, Skull, RefreshCw, Loader2, MapPin, CheckCircle, Camera, 
 import { Card, Button, BottomSheet } from '@/components/primitives';
 
 const PATH_THEMES = {
-  red: { name: 'RED', accent: 'red', rgb: '239, 68, 68', badgeClass: 'path-badge-red' },
-  blue: { name: 'BLUE', accent: 'blue', rgb: '59, 130, 246', badgeClass: 'path-badge-blue' },
-  green: { name: 'GREEN', accent: 'green', rgb: '16, 185, 129', badgeClass: 'path-badge-green' },
-  yellow: { name: 'YELLOW', accent: 'yellow', rgb: '245, 158, 11', badgeClass: 'path-badge-yellow' },
-  purple: { name: 'PURPLE', accent: 'purple', rgb: '139, 92, 246', badgeClass: 'path-badge-purple' },
-  orange: { name: 'ORANGE', accent: 'orange', rgb: '249, 115, 22', badgeClass: 'path-badge-orange' },
+  red: { name: 'RED', accent: 'red', badgeClass: 'path-badge-red' },
+  blue: { name: 'BLUE', accent: 'blue', badgeClass: 'path-badge-blue' },
+  green: { name: 'GREEN', accent: 'green', badgeClass: 'path-badge-green' },
+  yellow: { name: 'YELLOW', accent: 'yellow', badgeClass: 'path-badge-yellow' },
+  purple: { name: 'PURPLE', accent: 'purple', badgeClass: 'path-badge-purple' },
+  orange: { name: 'ORANGE', accent: 'orange', badgeClass: 'path-badge-orange' },
 };
 
 export default function PlayScreen({ teamId, onReset }) {
@@ -548,10 +548,10 @@ export default function PlayScreen({ teamId, onReset }) {
                 <div id="qr-reader" className="w-full h-full" ref={readerRef} />
                 {/* CSS-only corner brackets overlay with animated pulse */}
                 <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-                  <div className="absolute top-4 left-4 w-12 h-12 border-2 border-transparent border-t-[hsl(var(--accent-indigo))] border-l-[hsl(var(--accent-indigo))] animate-pulse" style={{ animationDuration: '2s' }} />
-                  <div className="absolute top-4 right-4 w-12 h-12 border-2 border-transparent border-t-[hsl(var(--accent-indigo))] border-r-[hsl(var(--accent-indigo))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
-                  <div className="absolute bottom-4 left-4 w-12 h-12 border-2 border-transparent border-b-[hsl(var(--accent-indigo))] border-l-[hsl(var(--accent-indigo))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '1s' }} />
-                  <div className="absolute bottom-4 right-4 w-12 h-12 border-2 border-transparent border-b-[hsl(var(--accent-indigo))] border-r-[hsl(var(--accent-indigo))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '1.5s' }} />
+                  <div className="absolute top-4 left-4 w-12 h-12 border-2 border-transparent border-t-[hsl(var(--accent-${theme.accent}))] border-l-[hsl(var(--accent-${theme.accent}))] animate-pulse" style={{ animationDuration: '2s' }} />
+                  <div className="absolute top-4 right-4 w-12 h-12 border-2 border-transparent border-t-[hsl(var(--accent-${theme.accent}))] border-r-[hsl(var(--accent-${theme.accent}))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+                  <div className="absolute bottom-4 left-4 w-12 h-12 border-2 border-transparent border-b-[hsl(var(--accent-${theme.accent}))] border-l-[hsl(var(--accent-${theme.accent}))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '1s' }} />
+                  <div className="absolute bottom-4 right-4 w-12 h-12 border-2 border-transparent border-b-[hsl(var(--accent-${theme.accent}))] border-r-[hsl(var(--accent-${theme.accent}))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '1.5s' }} />
                 </div>
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-caption text-secondary/60 uppercase tracking-wider font-semibold">
                   Align QR code within frame

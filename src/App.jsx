@@ -5,8 +5,9 @@ import AdminDashboard from './components/AdminDashboard';
 import ScanScreen from './components/ScanScreen';
 const SafeCrackerGame = lazy(() => import('./components/games/SafeCrackerGame'));
 import { Compass, HelpCircle } from 'lucide-react';
+import { Card, Button } from '@/components/primitives';
 
-const DEMO_COLOR_THEME = { name: 'Indigo', rgb: '99, 102, 241' };
+const DEMO_COLOR_THEME = { name: 'Indigo', accent: 'indigo', rgb: '99, 102, 241' };
 const DEMO_SAFE_CRACKER_DATA = {
   instructions: 'Solve the four clues, build the 4-digit code, and unlock the demo safe.',
   clues: [
@@ -41,7 +42,6 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [teamId, setTeamId] = useState(localStorage.getItem('treasure_hunt_team_id') || '');
 
-  // Handle URL navigation updates without reloading
   useEffect(() => {
     const handlePopState = () => {
       setCurrentPath(window.location.pathname);
@@ -65,7 +65,6 @@ export default function App() {
     navigate('/');
   };
 
-  // Simple router based on pathnames
   const renderScreen = () => {
     if (currentPath === '/admin') {
       return <AdminDashboard />;
@@ -77,10 +76,10 @@ export default function App() {
 
     if (currentPath === '/scan') {
       return (
-        <ScanScreen 
-          teamId={teamId} 
-          onVerified={() => navigate('/play')} 
-          onGoToStart={() => navigate('/')} 
+        <ScanScreen
+          teamId={teamId}
+          onVerified={() => navigate('/play')}
+          onGoToStart={() => navigate('/')}
         />
       );
     }
@@ -91,19 +90,22 @@ export default function App() {
       } else {
         return (
           <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 text-center">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm shadow-2xl">
-              <HelpCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-              <h2 className="text-lg font-extrabold text-white mb-2">No Active Session</h2>
-              <p className="text-slate-400 text-xs leading-relaxed mb-6">
+            <Card variant="elevated" className="w-full max-w-sm p-6">
+              <HelpCircle className="w-12 h-12 text-accent-indigo mx-auto mb-4" />
+              <h2 className="text-h2 text-primary mb-2">No Active Session</h2>
+              <p className="text-secondary text-body-sm mb-6">
                 You have not registered your team yet. Please scan the starting QR code provided by the organizers to choose your color path and start.
               </p>
-              <button
+              <Button
+                variant="secondary"
+                size="lg"
+                fullWidth
                 onClick={() => navigate('/')}
-                className="w-full py-3 bg-slate-950 hover:bg-slate-900 border border-slate-850 rounded-xl text-xs font-semibold text-white transition-all"
+                className="touch-target"
               >
                 Go to Homepage
-              </button>
-            </div>
+              </Button>
+            </Card>
           </div>
         );
       }
@@ -112,7 +114,15 @@ export default function App() {
     if (currentPath === '/demo/safe-cracker') {
       return (
         <div className="max-w-lg mx-auto px-4 py-8">
-          <Suspense fallback={<div className="flex flex-col items-center justify-center py-12 gap-3"><svg className="animate-spin w-8 h-8 text-accent-indigo" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg><span className="text-caption text-muted">Loading demo...</span></div>}>
+          <Suspense fallback={
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <svg className="animate-spin w-8 h-8 text-accent-indigo" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+              </svg>
+              <span className="text-caption text-muted">Loading demo...</span>
+            </div>
+          }>
             <SafeCrackerGame
               teamId="demo"
               colorTheme={DEMO_COLOR_THEME}
@@ -125,90 +135,88 @@ export default function App() {
         </div>
       );
     }
-    // Default or root Path "/"
+
     if (teamId) {
-      // If team session exists, auto redirect to play
       return <PlayScreen teamId={teamId} onReset={handleResetSession} />;
     }
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
-        <div className="w-full max-w-md bg-slate-900/60 border border-slate-850 rounded-3xl p-8 shadow-2xl backdrop-blur-lg">
-          <div className="inline-flex p-3 rounded-full bg-slate-950 border border-slate-850 mb-4">
-            <Compass className="w-8 h-8 text-indigo-400 animate-pulse" />
+        <Card variant="elevated" className="w-full max-w-md p-8 space-y-6">
+          <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-4 shadow-inner">
+            <Compass className="w-8 h-8 text-accent-indigo animate-pulse" />
           </div>
-          
-          <h1 className="text-3xl font-black text-white tracking-tight">
+
+          <h1 className="text-display font-black text-primary tracking-tight">
             KRITHOHUNT
           </h1>
-          <p className="text-indigo-400 text-xs font-bold uppercase tracking-widest mt-1 mb-6">
+          <p className="text-accent-indigo text-micro font-bold uppercase tracking-widest mt-1 mb-6">
             College Treasure Hunt
           </p>
 
-          <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-850 text-left space-y-4">
-            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">How to Play:</h3>
-            <ol className="list-decimal list-inside text-xs text-slate-400 space-y-2.5 leading-relaxed">
-              <li>Meet organizers at the <strong className="text-slate-200">Start Desk</strong> to assign your team color.</li>
-              <li>Scan the <strong className="text-indigo-400">Starting QR Code</strong> for your assigned color path.</li>
+          <Card variant="panel" padding="lg" className="text-left space-y-4">
+            <h3 className="text-caption font-bold text-secondary uppercase tracking-wider">How to Play:</h3>
+            <ol className="list-decimal list-inside text-body-sm text-secondary space-y-2.5 leading-relaxed">
+              <li>Meet organizers at the <strong className="text-primary">Start Desk</strong> to assign your team color.</li>
+              <li>Scan the <strong className="text-accent-indigo">Starting QR Code</strong> for your assigned color path.</li>
               <li>Enter your unique Team Name to register.</li>
               <li>Solve the 5 campus clue locations and their corresponding digital challenges.</li>
               <li>Submit answers securely to unlock the next destination.</li>
             </ol>
-          </div>
+          </Card>
 
-          <div className="mt-8 pt-4 border-t border-slate-850 flex justify-center gap-4 text-[10px] font-semibold text-slate-500 uppercase">
+          <div className="mt-8 pt-4 border-t border-border-subtle flex justify-center gap-4 text-micro font-semibold text-muted uppercase">
             <span>KRITHOHUNT Edition</span>
-            <span>•</span>
-            <button 
+            <span aria-hidden="true">•</span>
+            <button
               onClick={() => navigate('/admin')}
-              className="hover:text-slate-400 underline decoration-indigo-500 underline-offset-4"
+              className="hover:text-secondary underline underline-offset-4"
             >
               Organizers Panel
             </button>
           </div>
-        </div>
+        </Card>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
-      {/* Navbar header */}
-      <header className="py-5 px-6 border-b border-slate-900 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
+    <div className="min-h-screen bg-surface-0 text-text-primary flex flex-col selection:bg-accent-indigo selection:text-inverse">
+      <header className="py-5 px-6 border-b border-border-subtle bg-surface-0/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div 
-            onClick={() => navigate('/')} 
+          <div
+            onClick={() => navigate('/')}
             className="flex items-center gap-2 cursor-pointer select-none"
           >
-            <Compass className="w-5 h-5 text-indigo-500" />
-            <span className="font-extrabold text-sm tracking-widest uppercase bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+            <Compass className="w-5 h-5 text-accent-indigo" />
+            <span className="font-extrabold text-sm tracking-widest uppercase bg-gradient-to-r from-text-primary to-text-secondary bg-clip-text text-transparent">
               KRITHOHUNT
             </span>
           </div>
 
           {currentPath === '/admin' ? (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate('/')}
-              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 underline underline-offset-4"
+              className="text-caption font-semibold text-accent-indigo hover:text-accent-indigo hover:brightness-110 underline underline-offset-4"
             >
               Back to Game
-            </button>
+            </Button>
           ) : (
-            <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+            <div className="text-micro text-muted font-medium uppercase tracking-wider">
               {teamId ? 'Game Active' : 'Waiting for Team'}
             </div>
           )}
         </div>
       </header>
 
-      {/* Main Screen Content */}
       <main className="flex-1 relative z-10">
         {renderScreen()}
       </main>
 
-      {/* Mini footer */}
-      <footer className="py-6 px-6 border-t border-slate-900 bg-slate-950 text-center text-[10px] text-slate-600 font-medium">
-        &copy; {new Date().getFullYear()} KRITHOHUNT. Built for mobile-first speed.
+      <footer className="py-6 px-6 border-t border-border-subtle bg-surface-0 text-center text-micro text-muted font-medium">
+        &copy; {new Date().getFullYear()} KRITHOHUNT
       </footer>
     </div>
   );
