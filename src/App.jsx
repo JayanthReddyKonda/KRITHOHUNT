@@ -7,7 +7,7 @@ const SafeCrackerGame = lazy(() => import('./components/games/SafeCrackerGame'))
 import { Compass, HelpCircle } from 'lucide-react';
 import { Card, Button } from '@/components/primitives';
 
-const DEMO_COLOR_THEME = { name: 'Violet', accent: 'violet', rgb: '139, 92, 246' };
+const DEMO_COLOR_THEME = { name: 'Demo', accent: 'brand' };
 const DEMO_SAFE_CRACKER_DATA = {
   instructions: 'Solve the four clues, build the 4-digit code, and unlock the demo safe.',
   clues: [
@@ -91,7 +91,7 @@ export default function App() {
         return (
           <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 text-center">
             <Card variant="elevated" className="w-full max-w-sm p-6">
-              <HelpCircle className="w-12 h-12 text-accent-indigo mx-auto mb-4" />
+              <HelpCircle className="w-12 h-12 text-accent-brand mx-auto mb-4" />
               <h2 className="text-h2 text-primary mb-2">No Active Session</h2>
               <p className="text-secondary text-body-sm mb-6">
                 You have not registered your team yet. Please scan the starting QR code provided by the organizers to choose your color path and start.
@@ -116,9 +116,9 @@ export default function App() {
         <div className="max-w-lg mx-auto px-4 py-8">
           <Suspense fallback={
             <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <svg className="animate-spin w-8 h-8 text-accent-indigo" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+              <svg className="animate-spin w-8 h-8 text-accent-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
               <span className="text-caption text-muted">Loading demo...</span>
             </div>
@@ -129,7 +129,7 @@ export default function App() {
               gameData={DEMO_SAFE_CRACKER_DATA}
               isDemo={true}
               onSolved={() => window.alert('Safe unlocked!')}
-              onIncorrect={() => {}}
+              onIncorrect={() => { }}
             />
           </Suspense>
         </div>
@@ -144,13 +144,13 @@ export default function App() {
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
         <Card variant="elevated" className="w-full max-w-md p-8 space-y-6">
           <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-4 shadow-inner">
-            <Compass className="w-8 h-8 text-accent-indigo animate-pulse" />
+            <Compass className="w-8 h-8 text-accent-brand animate-pulse" />
           </div>
 
           <h1 className="text-display font-black text-primary tracking-tight">
             KRITHOHUNT
           </h1>
-          <p className="text-accent-indigo text-micro font-bold uppercase tracking-widest mt-1 mb-6">
+          <p className="text-accent-brand text-micro font-bold uppercase tracking-widest mt-1 mb-6">
             College Treasure Hunt
           </p>
 
@@ -158,7 +158,7 @@ export default function App() {
             <h3 className="text-caption font-bold text-secondary uppercase tracking-wider">How to Play:</h3>
             <ol className="list-decimal list-inside text-body-sm text-secondary space-y-2.5 leading-relaxed">
               <li>Meet organizers at the <strong className="text-primary">Start Desk</strong> to assign your team color.</li>
-              <li>Scan the <strong className="text-accent-indigo">Starting QR Code</strong> for your assigned color path.</li>
+              <li>Scan the <strong className="text-accent-brand">Starting QR Code</strong> for your assigned color path.</li>
               <li>Enter your unique Team Name to register.</li>
               <li>Solve the 5 campus clue locations and their corresponding digital challenges.</li>
               <li>Submit answers securely to unlock the next destination.</li>
@@ -168,12 +168,14 @@ export default function App() {
           <div className="mt-8 pt-4 border-t border-border-subtle flex justify-center gap-4 text-micro font-semibold text-muted uppercase">
             <span>KRITHOHUNT Edition</span>
             <span aria-hidden="true">•</span>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate('/admin')}
               className="hover:text-secondary underline underline-offset-4"
             >
               Organizers Panel
-            </button>
+            </Button>
           </div>
         </Card>
       </div>
@@ -181,14 +183,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-0 text-text-primary flex flex-col selection:bg-accent-indigo selection:text-inverse">
+    <div className="min-h-screen bg-surface-0 text-text-primary flex flex-col selection:bg-accent-brand selection:text-inverse">
       <header className="py-5 px-6 border-b border-border-subtle bg-surface-0/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div
             onClick={() => navigate('/')}
             className="flex items-center gap-2 cursor-pointer select-none"
           >
-            <Compass className="w-5 h-5 text-accent-indigo" />
+            <Compass className="w-5 h-5 text-accent-brand" />
             <span className="font-extrabold text-sm tracking-widest uppercase bg-gradient-to-r from-text-primary to-text-secondary bg-clip-text text-transparent">
               KRITHOHUNT
             </span>
@@ -199,7 +201,7 @@ export default function App() {
               variant="ghost"
               size="sm"
               onClick={() => navigate('/')}
-              className="text-caption font-semibold text-accent-indigo hover:text-accent-indigo hover:brightness-110 underline underline-offset-4"
+              className="text-caption font-semibold text-accent-brand hover:text-accent-brand hover:brightness-110 underline underline-offset-4"
             >
               Back to Game
             </Button>

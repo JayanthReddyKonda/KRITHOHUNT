@@ -19,6 +19,7 @@
   --color-accent-rose: hsl(345 82% 56%);
   --color-accent-cyan: hsl(188 85% 48%);
   --color-accent-orange: hsl(24 95% 53%);
+  --color-accent-brand: hsl(172 66% 45%);
   --color-feedback-success: hsl(152 72% 42%);
   --color-feedback-warning: hsl(38 92% 52%);
   --color-feedback-error: hsl(355 84% 58%);
@@ -64,6 +65,7 @@
   --accent-rose: 345 82% 56%;
   --accent-cyan: 188 85% 48%;
   --accent-orange: 24 95% 53%;
+  --accent-brand: 172 66% 45%;
   --feedback-success: 152 72% 42%;
   --feedback-warning: 38 92% 52%;
   --feedback-error: 355 84% 58%;
@@ -90,16 +92,17 @@ body {
 }
 
 ::selection {
-  background: hsl(var(--accent-violet));
+  background: hsl(var(--accent-brand));
   color: hsl(var(--text-inverse));
 }
 
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(var(--accent-violet)), 0 0 0 4px hsl(var(--surface-0));
+  box-shadow: 0 0 0 2px hsl(var(--accent-brand)), 0 0 0 4px hsl(var(--surface-0));
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -113,6 +116,88 @@ body {
 .touch-target {
   min-height: 44px;
   min-width: 44px;
+}
+
+.path-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+}
+
+.path-badge-rose {
+  background: hsl(var(--accent-rose) / 0.12);
+  border-color: hsl(var(--accent-rose) / 0.35);
+  color: hsl(var(--accent-rose));
+}
+
+.path-badge-cyan {
+  background: hsl(var(--accent-cyan) / 0.12);
+  border-color: hsl(var(--accent-cyan) / 0.35);
+  color: hsl(var(--accent-cyan));
+}
+
+.path-badge-emerald {
+  background: hsl(var(--accent-emerald) / 0.12);
+  border-color: hsl(var(--accent-emerald) / 0.35);
+  color: hsl(var(--accent-emerald));
+}
+
+.path-badge-amber {
+  background: hsl(var(--accent-amber) / 0.18);
+  border-color: hsl(var(--accent-amber) / 0.4);
+  color: hsl(var(--text-inverse));
+}
+
+.path-badge-violet {
+  background: hsl(var(--accent-violet) / 0.12);
+  border-color: hsl(var(--accent-violet) / 0.35);
+  color: hsl(var(--accent-violet));
+}
+
+.path-badge-orange {
+  background: hsl(var(--accent-orange) / 0.18);
+  border-color: hsl(var(--accent-orange) / 0.4);
+  color: hsl(var(--text-inverse));
+}
+
+@keyframes krithohunt-shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: krithohunt-shake 220ms ease-in-out;
+}
+
+.animate-in {
+  animation: krithohunt-rise 300ms ease-out both;
+}
+
+@keyframes krithohunt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.glow-active {
+  box-shadow: 0 0 0 1px hsl(var(--accent-brand) / 0.2), 0 16px 48px hsl(var(--accent-brand) / 0.12);
 }
 
 @media (min-width: 1024px) {
@@ -133,6 +218,7 @@ body {
     width: 280px;
     max-width: 85vw;
   }
+
   .admin-sidebar.open {
     transform: translateX(0);
   }
@@ -146,49 +232,109 @@ body {
   body {
     background: white !important;
     color: black !important;
+    margin: 0 !important;
+    padding: 20px !important;
   }
-  header, aside, button, .no-print, h1, h2, h3, p, .grid, .flex, .bg-surface-0, .bg-surface-1, .bg-surface-2, .bg-surface-3 {
+
+  /* Hide dashboard UI elements */
+  header,
+  aside,
+  button,
+  .no-print,
+  .bg-surface-0,
+  .bg-surface-1,
+  .bg-surface-2,
+  .bg-surface-3,
+  .admin-sidebar,
+  header,
+  footer,
+  nav {
     display: none !important;
   }
+
+  /* Hide headers and titles */
+  h1,
+  h2,
+  h3,
+  .text-display,
+  .text-h1,
+  .text-h2 {
+    display: none !important;
+  }
+
+  /* Show only QR printable section */
   #printable-qr-area {
     display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
+
   .qr-print-title {
     display: none !important;
   }
+
   .qr-card-grid {
     display: grid !important;
-    grid-template-cols: repeat(2, 1fr) !important;
-    gap: 20px !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px !important;
     background: white !important;
+    padding: 20px !important;
   }
+
   .qr-card {
     border: 2px dashed #94a3b8 !important;
     background: white !important;
     color: black !important;
-    padding: 15px !important;
+    padding: 20px !important;
     text-align: center !important;
     page-break-inside: avoid !important;
     box-shadow: none !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
   }
+
+  .qr-image-frame {
+    display: block !important;
+    background: white !important;
+    padding: 12px !important;
+  }
+
   .qr-card img {
     margin: 0 auto !important;
+    width: 160px !important;
+    max-width: 160px !important;
+    min-height: 160px !important;
+    height: auto !important;
   }
-  .qr-card h4, .qr-card span {
+
+  .qr-card h4,
+  .qr-card span,
+  .qr-card p {
     color: black !important;
+    margin: 0 !important;
   }
+
+  .qr-card .text-accent-brand,
   .qr-card .text-accent-violet,
   .qr-card .text-accent-amber,
   .qr-card .text-accent-emerald,
   .qr-card .text-accent-rose,
   .qr-card .text-accent-cyan,
-  .qr-card .text-accent-orange {
+  .qr-card .text-accent-orange,
+  .qr-card .text-primary,
+  .qr-card .text-secondary,
+  .qr-card .text-muted {
     color: black !important;
+  }
+
+  /* Page breaks */
+  @page {
+    margin: 15mm !important;
+    size: A4 !important;
   }
 }

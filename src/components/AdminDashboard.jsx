@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
-import { RefreshCw, Users, Award, ShieldAlert, CheckCircle, Clock, Trash2, Search, Filter, Lock, KeyRound, Printer, Menu, LogOut, Download, RotateCcw } from 'lucide-react';
+import { RefreshCw, Users, Award, ShieldAlert, CheckCircle, Clock, Trash2, Search, Filter, Lock, KeyRound, Printer, Menu, LogOut, Download, RotateCcw, Share2, Check } from 'lucide-react';
 import { Card, Button, Input } from '@/components/primitives';
+import QRCode from 'qrcode';
 
-// XSS Prevention: Sanitize user-generated content for safe rendering
 function sanitizeHtml(text) {
   if (typeof text !== 'string') return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function escapeCsv(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
 const PATH_BADGES = {
@@ -27,6 +31,94 @@ const PATH_DISPLAY = {
   yellow: 'YELLOW',
   purple: 'PURPLE',
   orange: 'ORANGE'
+};
+
+const pathAccentMap = { red: 'rose', blue: 'cyan', green: 'emerald', yellow: 'amber', purple: 'violet', orange: 'orange' };
+const qrColors = { red: 'ef3b3b', blue: '06b6d4', green: '10b981', yellow: 'f59e0b', purple: 'a855f7', orange: 'f97316' };
+const qrOrigin = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
+
+const getQrEntries = () => [
+  ...['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => ({
+    title: 'KRITHOHUNT START',
+    subtitle: 'Path Start',
+    color,
+    url: `${qrOrigin}/start?color=${color.toLowerCase()}`,
+  })),
+  ...['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].flatMap((color) =>
+    [1, 2, 3, 4, 5].map((stage) => ({
+      title: 'KRITHOHUNT GATE',
+      subtitle: `Stage ${stage}`,
+      color,
+      url: `${qrOrigin}/scan?color=${color.toLowerCase()}&stage=${stage}`,
+    }))
+  ),
+];
+
+const QRCard = ({ title, subtitle, url, color }) => {
+  const accent = pathAccentMap[color.toLowerCase()] || 'brand';
+  const hexColor = qrColors[color.toLowerCase()] || '0f766e';
+  const [qrDataUrl, setQrDataUrl] = React.useState('');
+  const [qrError, setQrError] = React.useState('');
+  const [shared, setShared] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setQrDataUrl('');
+    setQrError('');
+    QRCode.toDataURL(url, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 320,
+      color: { dark: `#${hexColor}`, light: '#ffffff' },
+    })
+      .then((dataUrl) => {
+        if (!cancelled) setQrDataUrl(dataUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setQrError('QR generation failed. Copy the URL below.');
+      });
+
+    return () => { cancelled = true; };
+  }, [url, hexColor]);
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${title} - ${color} ${subtitle}`, text: url, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+      setShared(true);
+      setTimeout(() => setShared(false), 1800);
+    } catch (error) {
+      if (error.name !== 'AbortError') setQrError('Unable to share. Copy the URL below.');
+    }
+  };
+
+  return (
+    <Card key={`${color}-${subtitle}`} variant="elevated" padding="lg" className="text-center space-y-3 qr-card">
+      <span className="text-micro font-black tracking-widest uppercase text-accent-brand">{title}</span>
+      <div className="bg-white p-3 rounded-xl inline-block shadow-lg mx-auto qr-image-frame" data-qr-status={qrDataUrl ? 'ready' : qrError ? 'error' : 'loading'}>
+        {qrDataUrl ? (
+          <img src={qrDataUrl} alt={`${color} ${subtitle} QR`} className="w-36 h-36 mx-auto qr-image" />
+        ) : (
+          <div className="w-36 h-36 flex items-center justify-center text-center text-xs text-slate-700">
+            {qrError || 'Generating QR...'}
+          </div>
+        )}
+      </div>
+      <div className="space-y-1">
+        <h4 className="text-caption font-extrabold uppercase text-primary tracking-wide" style={{ color: `hsl(var(--accent-${accent}))` }}>
+          {color} {subtitle}
+        </h4>
+        <p className="text-micro text-muted font-mono break-all line-clamp-1">{url}</p>
+      </div>
+      <Button variant="ghost" size="sm" onClick={handleShare} className="no-print mx-auto">
+        {shared ? <Check className="w-4 h-4 text-feedback-success" /> : <Share2 className="w-4 h-4" />}
+        <span>{shared ? 'Copied' : 'Share URL'}</span>
+      </Button>
+    </Card>
+  );
 };
 
 export default function AdminDashboard() {
@@ -99,7 +191,7 @@ export default function AdminDashboard() {
 
   const handleExportCSV = () => {
     if (teams.length === 0) return;
-    
+
     const headers = ['Rank', 'Team Name', 'Path', 'Start Time', 'Progress', 'Penalties', 'Duration', 'Status'];
     const rows = sortedTeams.map((team, idx) => {
       const status = getStatusText(team.clues_solved, team.finish_time, team.waiting_for_qr);
@@ -107,7 +199,7 @@ export default function AdminDashboard() {
       const duration = team.finish_time ? getDurationText(team.start_time, team.finish_time) : 'Playing...';
       return [
         idx + 1,
-        `"${team.name}"`,
+        team.name,
         team.color.toUpperCase(),
         new Date(team.start_time).toLocaleString(),
         `${progress} (${team.clues_solved}/5)`,
@@ -116,8 +208,8 @@ export default function AdminDashboard() {
         status
       ];
     });
-    
-    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+
+    const csvContent = [headers, ...rows].map(row => row.map(escapeCsv).join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -129,7 +221,7 @@ export default function AdminDashboard() {
     if (!confirm('WARNING: This will delete ALL teams and reset the entire event. This action is PERMANENT and CANNOT BE UNDONE. Type "RESET ALL" to confirm.')) {
       return;
     }
-    
+
     const confirmation = prompt('Type "RESET ALL" to confirm:');
     if (confirmation !== 'RESET ALL') {
       alert('Reset cancelled. Confirmation text did not match.');
@@ -138,8 +230,9 @@ export default function AdminDashboard() {
 
     setActionLoading('reset-all');
     try {
-      const { error } = await supabase.from('teams').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (error) throw error;
+      for (const team of teams) {
+        await supabase.rpc('admin_delete_team', { p_team_id: team.id });
+      }
       await fetchTeams(false);
       alert('All teams have been deleted. Event reset complete.');
     } catch (err) {
@@ -151,21 +244,61 @@ export default function AdminDashboard() {
   };
 
   const handlePrintQRCodes = async () => {
-    const qrArea = document.getElementById('printable-qr-area');
-    if (!qrArea) { window.print(); return; }
-    
-    const images = qrArea.querySelectorAll('img');
-    const loadPromises = Array.from(images).map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
-    });
-    
+    let printWindow = window.open('', '_blank', 'width=1100,height=800');
+    let fallbackFrame = null;
+    if (!printWindow) {
+      fallbackFrame = document.createElement('iframe');
+      fallbackFrame.title = 'KRITHOHUNT QR print sheet';
+      fallbackFrame.style.position = 'fixed';
+      fallbackFrame.style.width = '1px';
+      fallbackFrame.style.height = '1px';
+      fallbackFrame.style.border = '0';
+      fallbackFrame.style.opacity = '0';
+      document.body.appendChild(fallbackFrame);
+      printWindow = fallbackFrame.contentWindow;
+    }
+
+    printWindow.document.write('<!doctype html><title>KRITHOHUNT QR Sheet</title><p style="font:16px sans-serif;padding:24px">Generating QR sheet...</p>');
+    printWindow.document.close();
+
     try {
-      await Promise.all(loadPromises);
-      await new Promise(r => setTimeout(r, 100));
-      window.print();
-    } catch {
-      window.print();
+      const entries = getQrEntries();
+      const cards = await Promise.all(entries.map(async (entry) => {
+        const colorKey = entry.color.toLowerCase();
+        const dataUrl = await QRCode.toDataURL(entry.url, {
+          errorCorrectionLevel: 'M',
+          margin: 2,
+          width: 320,
+          color: { dark: `#${qrColors[colorKey]}`, light: '#ffffff' },
+        });
+        return `<article class="qr-card"><div class="qr-label">${entry.title}</div><img src="${dataUrl}" alt="${entry.color} ${entry.subtitle} QR"><strong>${entry.color} ${entry.subtitle}</strong><code>${entry.url}</code></article>`;
+      }));
+
+      printWindow.document.open();
+      printWindow.document.write(`<!doctype html><html><head><title>KRITHOHUNT QR Sheet</title><style>
+        @page { size: A4; margin: 12mm; }
+        * { box-sizing: border-box; }
+        body { margin: 0; color: #111827; font-family: Arial, sans-serif; }
+        h1 { font-size: 20px; margin: 0 0 16px; }
+        .sheet { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .section { grid-column: 1 / -1; font-size: 12px; font-weight: 700; margin-top: 10px; padding: 6px 0; border-bottom: 1px solid #9ca3af; }
+        .qr-card { min-height: 230px; border: 1px dashed #6b7280; padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; text-align: center; break-inside: avoid; }
+        .qr-card img { display: block; width: 150px; height: 150px; }
+        .qr-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+        .qr-card strong { font-size: 12px; text-transform: uppercase; }
+        .qr-card code { max-width: 100%; overflow-wrap: anywhere; font-size: 8px; }
+        @media print { .qr-card { page-break-inside: avoid; } }
+      </style></head><body><h1>KRITHOHUNT QR SHEET</h1><main class="sheet"><div class="section">START DESK CODES</div>${cards.slice(0, 6).join('')}<div class="section">LOCATION CODES</div>${cards.slice(6).join('')}</main></body></html>`);
+      printWindow.document.close();
+      window.setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        if (fallbackFrame) window.setTimeout(() => fallbackFrame.remove(), 1000);
+      }, 250);
+    } catch (error) {
+      if (fallbackFrame) fallbackFrame.remove();
+      else printWindow.close();
+      alert(`QR sheet generation failed: ${error.message}`);
     }
   };
 
@@ -278,7 +411,6 @@ export default function AdminDashboard() {
     return matchesSearch && matchesColor;
   });
 
-  // Basic stats
   const totalCount = teams.length;
   const completedCount = teams.filter(t => t.finish_time).length;
   const readyCount = teams.filter(t => t.clues_solved === 5 && !t.finish_time).length;
@@ -287,11 +419,11 @@ export default function AdminDashboard() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-8 relative">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-20 bg-accent-violet" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-20 bg-accent-brand" />
         <div className="w-full max-w-sm relative z-10">
           <div className="text-center mb-8">
             <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-3 shadow-inner">
-              <KeyRound className="w-8 h-8 text-accent-violet" />
+              <KeyRound className="w-8 h-8 text-accent-brand" />
             </div>
             <h1 className="text-h1 font-black text-primary tracking-tight">ORGANIZER ACCESS</h1>
             <p className="text-caption text-muted mt-1 uppercase tracking-widest font-semibold">Enter Password to Unlock Dashboard</p>
@@ -319,7 +451,7 @@ export default function AdminDashboard() {
                 size="lg"
                 fullWidth
                 className="touch-target"
-                style={{ backgroundColor: 'hsl(var(--accent-violet))' }}
+                style={{ backgroundColor: 'hsl(var(--accent-brand))' }}
               >
                 Unlock Dashboard
               </Button>
@@ -332,7 +464,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-surface-0 flex flex-col">
-      {/* Mobile Header - Hamburger Menu */}
       <header className="md:hidden sticky top-0 z-40 h-[56px] flex items-center justify-between px-4 bg-surface-0/80 backdrop-blur-md border-b border-border-subtle">
         <Button
           variant="ghost"
@@ -348,7 +479,6 @@ export default function AdminDashboard() {
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Sidebar - Desktop-First */}
         <aside
           className={`admin-sidebar flex flex-col ${sidebarOpen ? 'open' : ''}`}
           aria-label="Admin navigation"
@@ -359,22 +489,26 @@ export default function AdminDashboard() {
           </div>
 
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Main navigation">
-            <button
+            <Button
+              variant="secondary"
+              size="md"
               onClick={() => fetchTeams(true)}
               disabled={refreshing}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-surface-2 border border-border-subtle rounded-xl text-body font-semibold text-primary hover:bg-surface-3 transition-colors disabled:opacity-50 text-left"
+              className="w-full justify-start"
             >
               <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               <span>Refresh Data</span>
-            </button>
+            </Button>
 
-            <button
+            <Button
+              variant="ghost"
+              size="md"
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-surface-2 border border-feedback-error/30 rounded-xl text-body font-semibold text-feedback-error hover:bg-feedback-error/10 transition-colors text-left"
+              className="w-full justify-start text-feedback-error hover:bg-feedback-error/10"
             >
               <LogOut className="w-5 h-5" />
               <span>Lock Dashboard</span>
-            </button>
+            </Button>
           </nav>
 
           <div className="p-4 border-t border-border-subtle space-y-3">
@@ -386,21 +520,20 @@ export default function AdminDashboard() {
               </div>
               <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
                 <span className="text-micro text-muted uppercase tracking-wider block">Active</span>
-                <span className="text-h2 font-black text-accent-blue">{activeCount}</span>
+                <span className="text-h2 font-black text-accent-cyan">{activeCount}</span>
               </div>
               <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
                 <span className="text-micro text-muted uppercase tracking-wider block">Ready</span>
-                <span className="text-h2 font-black text-accent-yellow">{readyCount}</span>
+                <span className="text-h2 font-black text-accent-amber">{readyCount}</span>
               </div>
               <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
                 <span className="text-micro text-muted uppercase tracking-wider block">Finished</span>
-                <span className="text-h2 font-black text-accent-green">{completedCount}</span>
+                <span className="text-h2 font-black text-accent-emerald">{completedCount}</span>
               </div>
             </div>
           </div>
         </aside>
 
-        {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
           <div
             className="md:hidden fixed inset-0 z-40 bg-surface-0/60 backdrop-blur-sm"
@@ -409,10 +542,8 @@ export default function AdminDashboard() {
           />
         )}
 
-        {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-y-auto md:overflow-y-auto">
           <div className="w-full max-w-[1400px] mx-auto flex-1 p-6 md:p-8">
-            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
               <div>
                 <h1 className="text-display font-extrabold text-primary tracking-tight flex items-center gap-2">
@@ -487,10 +618,9 @@ export default function AdminDashboard() {
               </Card>
             )}
 
-            {/* Stats Panel - Responsive Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <Card variant="elevated" padding="lg" className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent-violet/10 text-accent-violet">
+                <div className="p-3 rounded-xl bg-accent-brand/10 text-accent-brand">
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
@@ -530,7 +660,6 @@ export default function AdminDashboard() {
               </Card>
             </div>
 
-            {/* Filters Bar */}
             <Card variant="panel" padding="md" className="mb-6">
               <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="relative w-full md:max-w-xs">
@@ -549,7 +678,7 @@ export default function AdminDashboard() {
                   <select
                     value={colorFilter}
                     onChange={(e) => setColorFilter(e.target.value)}
-                    className="w-full md:w-auto bg-surface-2 border border-border-subtle rounded-xl px-3 py-2.5 text-body text-primary focus:outline-none focus:border-accent-indigo"
+                    className="w-full md:w-auto bg-surface-2 border border-border-subtle rounded-xl px-3 py-2.5 text-body text-primary focus:outline-none focus:border-accent-brand"
                   >
                     <option value="all">All Paths</option>
                     <option value="red">Red Path</option>
@@ -563,10 +692,9 @@ export default function AdminDashboard() {
               </div>
             </Card>
 
-            {/* Teams Table / Card List - Responsive */}
             {loading ? (
               <Card variant="elevated" padding="xl" className="text-center">
-                <RefreshCw className="w-8 h-8 animate-spin text-accent-indigo mx-auto mb-3" />
+                <RefreshCw className="w-8 h-8 animate-spin text-accent-brand mx-auto mb-3" />
                 <span className="text-body-sm text-muted">Loading database data...</span>
               </Card>
             ) : filteredTeams.length === 0 ? (
@@ -575,7 +703,6 @@ export default function AdminDashboard() {
               </Card>
             ) : (
               <>
-                {/* Desktop Table */}
                 <div className="hidden lg:block">
                   <Card variant="elevated" padding="none" className="overflow-hidden">
                     <div className="overflow-x-auto">
@@ -602,29 +729,24 @@ export default function AdminDashboard() {
                             return (
                               <tr
                                 key={team.id}
-                                className={`hover:bg-surface-2/50 transition-colors ${
-                                  isReady ? 'bg-accent-indigo/5' : isCompleted ? 'bg-accent-green/5' : isWaitingQr ? 'bg-accent-yellow/5' : ''
-                                }`}
+                                className={`hover:bg-surface-2/50 transition-colors ${isReady ? 'bg-accent-brand/5' : isCompleted ? 'bg-accent-emerald/5' : isWaitingQr ? 'bg-accent-amber/5' : ''
+                                  }`}
                               >
-                                {/* Rank & Team Name */}
                                 <td className="py-4 px-5 font-bold text-primary flex items-center gap-3">
                                   <span className="w-5 text-muted text-right">{idx + 1}.</span>
                                   <span className="uppercase tracking-wide">{sanitizeHtml(team.name)}</span>
                                 </td>
 
-                                {/* Path Color */}
                                 <td className="py-4 px-4">
                                   <span className={`inline-block px-2.5 py-0.5 rounded border text-caption font-bold uppercase tracking-wider ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
                                     {PATH_DISPLAY[team.color.toLowerCase()] || team.color.toUpperCase()}
                                   </span>
                                 </td>
 
-                                {/* Start Time */}
                                 <td className="py-4 px-4 text-muted">
                                   {new Date(team.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                 </td>
 
-                                {/* Progress */}
                                 <td className="py-4 px-4">
                                   <div className="flex flex-col gap-0.5">
                                     <span className="font-extrabold text-primary">
@@ -634,12 +756,10 @@ export default function AdminDashboard() {
                                   </div>
                                 </td>
 
-                                {/* Penalties */}
                                 <td className="py-4 px-4 text-center font-bold text-feedback-warning">
                                   {team.penalty_count}
                                 </td>
 
-                                {/* Duration */}
                                 <td className="py-4 px-4 font-mono text-secondary">
                                   {team.finish_time ? (
                                     getDurationText(team.start_time, team.finish_time)
@@ -648,32 +768,30 @@ export default function AdminDashboard() {
                                   )}
                                 </td>
 
-                                {/* Status */}
                                 <td className="py-4 px-4">
                                   {isCompleted ? (
-                                    <span className="text-accent-green font-bold flex items-center gap-1.5">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
+                                    <span className="text-accent-emerald font-bold flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-emerald" />
                                       <span>Finished</span>
                                     </span>
                                   ) : isReady ? (
-                                    <span className="text-accent-indigo font-bold animate-pulse flex items-center gap-1.5">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-indigo" />
+                                    <span className="text-accent-brand font-bold animate-pulse flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-brand" />
                                       <span>Ready Jigsaw</span>
                                     </span>
                                   ) : isWaitingQr ? (
-                                    <span className="text-accent-yellow font-bold flex items-center gap-1.5">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-yellow animate-pulse" />
+                                    <span className="text-accent-amber font-bold flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-amber animate-pulse" />
                                       <span>Waiting for QR</span>
                                     </span>
                                   ) : (
-                                    <span className="text-accent-blue font-medium flex items-center gap-1.5">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse" />
+                                    <span className="text-accent-cyan font-medium flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
                                       <span>Playing</span>
                                     </span>
                                   )}
                                 </td>
 
-                                {/* Actions */}
                                 <td className="py-4 px-5 text-right">
                                   <div className="flex justify-end gap-2">
                                     {isReady && (
@@ -710,7 +828,6 @@ export default function AdminDashboard() {
                   </Card>
                 </div>
 
-                {/* Mobile/Tablet Card List */}
                 <div className="lg:hidden space-y-4">
                   {filteredTeams.map((team, idx) => {
                     const status = getStatusText(team.clues_solved, team.finish_time, team.waiting_for_qr);
@@ -722,9 +839,8 @@ export default function AdminDashboard() {
                       <Card
                         key={team.id}
                         variant={isReady ? 'elevated' : isCompleted ? 'elevated' : 'default'}
-                        className={`relative overflow-hidden ${
-                          isReady ? 'border-accent-indigo/30' : isCompleted ? 'border-accent-green/30' : isWaitingQr ? 'border-accent-yellow/30' : ''
-                        }`}
+                        className={`relative overflow-hidden ${isReady ? 'border-accent-brand/30' : isCompleted ? 'border-accent-emerald/30' : isWaitingQr ? 'border-accent-amber/30' : ''
+                          }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
                           <div className="flex items-center gap-3">
@@ -748,9 +864,8 @@ export default function AdminDashboard() {
                             </div>
                             <div className="flex flex-col items-center gap-1">
                               <span className="text-micro text-muted uppercase tracking-wider">Status</span>
-                              <span className={`text-caption font-bold ${
-                                isCompleted ? 'text-accent-green' : isReady ? 'text-accent-indigo' : isWaitingQr ? 'text-accent-yellow' : 'text-accent-blue'
-                              }`}>
+                              <span className={`text-caption font-bold ${isCompleted ? 'text-accent-emerald' : isReady ? 'text-accent-brand' : isWaitingQr ? 'text-accent-amber' : 'text-accent-cyan'
+                                }`}>
                                 {isCompleted ? 'Finished' : isReady ? 'Ready Jigsaw' : isWaitingQr ? 'Waiting for QR' : 'Playing'}
                               </span>
                             </div>
@@ -788,12 +903,11 @@ export default function AdminDashboard() {
               </>
             )}
 
-            {/* Printable QR Area */}
             <div className="mt-12 border-t border-border-subtle pt-8" id="printable-qr-area">
               <div className="flex justify-between items-center mb-6 no-print">
                 <div>
                   <h2 className="text-h2 font-bold text-primary flex items-center gap-2">
-                    <Printer className="w-5 h-5 text-accent-indigo" />
+                    <Printer className="w-5 h-5 text-accent-brand" />
                     <span>Event QR Sheet Generator</span>
                   </h2>
                   <p className="text-caption text-muted mt-0.5">
@@ -803,7 +917,7 @@ export default function AdminDashboard() {
                 <Button
                   variant="accent"
                   size="md"
-                  onClick={() => window.print()}
+                  onClick={handlePrintQRCodes}
                   className="flex items-center gap-2"
                 >
                   <Printer className="w-4 h-4" />
@@ -811,76 +925,49 @@ export default function AdminDashboard() {
                 </Button>
               </div>
 
-              {/* Start QRs */}
               <h3 className="text-caption font-bold text-muted uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent-emerald" />
                 <span>Stage 1: Start Desk QR Codes (6 total)</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 qr-card-grid">
                 {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => {
-                  const startUrl = `${window.location.origin}/start?color=${color.toLowerCase()}`;
-                  const qrColors = { red: 'ef3b3b', blue: '06b6d4', green: '10b981', yellow: 'f59e0b', purple: 'a855f7', orange: 'f97316' };
-                  const hexColor = qrColors[color.toLowerCase()] || '000000';
-
+                  const startUrl = `${qrOrigin}/start?color=${color.toLowerCase()}`;
                   return (
-                    <Card key={color} variant="elevated" padding="lg" className="text-center space-y-3 qr-card">
-                      <span className="text-micro font-black tracking-widest uppercase text-accent-violet">KRITHOHUNT START</span>
-                      <div className="bg-white p-2 rounded-xl inline-block shadow-lg mx-auto">
-                        <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=${hexColor}&data=${encodeURIComponent(startUrl)}`}
-                          alt={`${color} Path Start QR`}
-                          className="w-32 h-32"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-caption font-extrabold uppercase text-primary tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? 'hsl(var(--accent-amber))' : 'hsl(var(--accent-' + {red:'rose', blue:'cyan', green:'emerald', yellow:'amber', purple:'violet', orange:'orange'}[color.toLowerCase()] + '))' }}>
-                          {color} Path Start
-                        </h4>
-                        <p className="text-micro text-muted font-mono break-all line-clamp-1">{startUrl}</p>
-                      </div>
-                    </Card>
+                    <QRCard
+                      key={color}
+                      title="KRITHOHUNT START"
+                      subtitle="Path Start"
+                      url={startUrl}
+                      color={color}
+                    />
                   );
                 })}
               </div>
 
-              {/* Location QRs */}
               <h3 className="text-caption font-bold text-muted uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-violet" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-brand" />
                 <span>Stage 2-6: Physical Location QR Codes (30 total)</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 qr-card-grid">
-                {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => {
-                  const qrColors = { red: 'ef3b3b', blue: '06b6d4', green: '10b981', yellow: 'f59e0b', purple: 'a855f7', orange: 'f97316' };
-                  const hexColor = qrColors[color.toLowerCase()] || '000000';
-
-                  return [1, 2, 3, 4, 5].map((stage) => {
-                    const locationUrl = `${window.location.origin}/scan?color=${color.toLowerCase()}&stage=${stage}`;
+                {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => (
+                  [1, 2, 3, 4, 5].map((stage) => {
+                    const locationUrl = `${qrOrigin}/scan?color=${color.toLowerCase()}&stage=${stage}`;
                     return (
-                      <Card key={`${color}-${stage}`} variant="elevated" padding="lg" className="text-center space-y-3 qr-card">
-                        <span className="text-micro font-black tracking-widest uppercase text-accent-violet">KRITHOHUNT GATE</span>
-                        <div className="bg-white p-2 rounded-xl inline-block shadow-lg mx-auto">
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=${hexColor}&data=${encodeURIComponent(locationUrl)}`}
-                            alt={`${color} Stage ${stage} QR`}
-                            className="w-32 h-32"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <h4 className="text-caption font-extrabold uppercase text-primary tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? 'hsl(var(--accent-amber))' : 'hsl(var(--accent-' + {red:'rose', blue:'cyan', green:'emerald', yellow:'amber', purple:'violet', orange:'orange'}[color.toLowerCase()] + '))' }}>
-                            {color} — Stage {stage}
-                          </h4>
-                          <p className="text-micro text-muted font-mono break-all line-clamp-1">{locationUrl}</p>
-                        </div>
-                      </Card>
+                      <QRCard
+                        key={`${color}-${stage}`}
+                        title="KRITHOHUNT GATE"
+                        subtitle={`Stage ${stage}`}
+                        url={locationUrl}
+                        color={color}
+                      />
                     );
-                  });
-                })}
+                  })
+                ))}
               </div>
             </div>
           </div>
         </main>
       </div>
-
     </div>
   );
 }

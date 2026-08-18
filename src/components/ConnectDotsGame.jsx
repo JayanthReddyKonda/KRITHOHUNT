@@ -78,7 +78,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     try {
       e.target.setPointerCapture(e.pointerId);
     } catch (err) {
-      console.warn('Pointer capture failed:', err);
+      if (import.meta.env.DEV) console.debug('Pointer capture failed:', err);
     }
   };
 
@@ -210,7 +210,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     }
   };
 
-  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'violet'}))`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'brand'}))`;
 
   return (
     <div className="space-y-5">
@@ -334,7 +334,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
                     : 'bg-surface-2 border-border-subtle text-secondary'
                   }
                 `}
-                style={{ '--theme-color-rgb': bgColor }}
+                style={{ backgroundColor: connected ? `hsl(var(--surface-1))` : `hsl(var(--surface-2))` }}
                 role="status"
                 aria-label={`${cTheme.name} path ${connected ? 'connected' : 'not connected'}`}
               >
@@ -395,7 +395,7 @@ function isColorPathValid(colorId, paths, dots, rows, cols) {
   const path = paths[colorId];
   if (!path || path.length < 2) return { valid: false, reason: "Not connected" };
 
-  const colorDots = dots.filter(([,, cid]) => cid === colorId);
+  const colorDots = dots.filter(([, , cid]) => cid === colorId);
   if (colorDots.length !== 2) return { valid: false, reason: "Endpoints missing" };
   const [dot1, dot2] = colorDots;
 

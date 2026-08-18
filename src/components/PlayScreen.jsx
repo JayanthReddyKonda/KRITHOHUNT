@@ -14,6 +14,8 @@ const PATH_THEMES = {
   orange: { name: 'ORANGE', accent: 'orange', badgeClass: 'path-badge-orange' },
 };
 
+const PUBLIC_QR_ORIGIN = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
+
 export default function PlayScreen({ teamId, onReset }) {
   const [team, setTeam] = useState(null);
   const [clue, setClue] = useState(null);
@@ -88,8 +90,11 @@ export default function PlayScreen({ teamId, onReset }) {
         try {
           html5QrCode = new Html5Qrcode("qr-reader");
           html5QrCodeRef.current = html5QrCode;
+          let scanHandled = false;
 
           const qrCodeSuccessCallback = async (decodedText) => {
+            if (scanHandled) return;
+            scanHandled = true;
             setVerifying(true);
             try {
               await html5QrCode.stop();
@@ -106,17 +111,14 @@ export default function PlayScreen({ teamId, onReset }) {
             let isValidUrl = false;
             try {
               const url = new URL(decodedText);
-              // Validate origin matches our app origin to prevent cross-site QR codes
-              if (url.origin === window.location.origin) {
+              if ([window.location.origin, PUBLIC_QR_ORIGIN].includes(url.origin) && url.pathname === '/scan') {
                 isValidUrl = true;
               }
               color = url.searchParams.get('color') || '';
-              stage = parseInt(url.searchParams.get('stage') || '0', 10);
+              const stageValue = url.searchParams.get('stage') || '';
+              stage = /^\d+$/.test(stageValue) ? Number(stageValue) : 0;
             } catch {
-              const search = decodedText.includes('?') ? decodedText.substring(decodedText.indexOf('?')) : '?' + decodedText;
-              const params = new URLSearchParams(search);
-              color = params.get('color') || '';
-              stage = parseInt(params.get('stage') || '0', 10);
+              isValidUrl = false;
             }
 
             // Validate color is a known path color
@@ -142,7 +144,7 @@ export default function PlayScreen({ teamId, onReset }) {
 
               if (rpcError) throw rpcError;
 
-              if (data.success) {
+              if (data?.success === true) {
                 setScannerSuccess(true);
                 setVerificationFeedback({
                   success: true,
@@ -186,7 +188,7 @@ export default function PlayScreen({ teamId, onReset }) {
   useEffect(() => {
     return () => {
       if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-        html5QrCodeRef.current.stop().catch(() => {});
+        html5QrCodeRef.current.stop().catch(() => { });
       }
     };
   }, []);
@@ -209,7 +211,7 @@ export default function PlayScreen({ teamId, onReset }) {
 
   const handleCloseScanner = () => {
     if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-      html5QrCodeRef.current.stop().catch(() => {});
+      html5QrCodeRef.current.stop().catch(() => { });
     }
     setShowScanner(false);
     setScannerSuccess(false);
@@ -230,38 +232,10 @@ export default function PlayScreen({ teamId, onReset }) {
     setScannerError('');
   };
 
-  const handleSimulatedScan = async () => {
-    setVerifying(true);
-    try {
-      const { data, error: rpcError } = await supabase.rpc('scan_location_qr', {
-        p_team_id: teamId,
-        p_scanned_color: team.color.toLowerCase(),
-        p_scanned_stage: team.clues_solved + 1
-      });
-      if (rpcError) throw rpcError;
-      if (data.success) {
-        setScannerSuccess(true);
-        setVerificationFeedback({
-          success: true,
-          message: 'LOCATION VERIFIED! Challenge unlocked.'
-        });
-      } else {
-        setVerificationFeedback({
-          success: false,
-          message: data.error || 'WRONG QR. This is not the correct location.'
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setVerifying(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[80vh] gap-3">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: `hsl(var(--accent-indigo))` }} />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: `hsl(var(--accent-brand))` }} />
         <span className="text-caption text-muted">Loading game progress...</span>
       </div>
     );
@@ -305,14 +279,14 @@ export default function PlayScreen({ teamId, onReset }) {
 
             <div className="flex justify-between items-center pb-3 border-b border-border-subtle">
               <span className="text-body-sm text-secondary">Path Color</span>
-<span className={`path-badge ${theme.badgeClass} px-2 py-0.5 rounded text-micro font-bold uppercase`}>
+              <span className={`path-badge ${theme.badgeClass} px-2 py-0.5 rounded text-micro font-bold uppercase`}>
                 {theme.name}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-2">
               <div className="bg-surface-2 border border-border-subtle p-4 rounded-2xl flex flex-col items-center justify-center">
-                <Clock className="w-5 h-5 text-accent-indigo mb-1" />
+                <Clock className="w-5 h-5 text-accent-brand mb-1" />
                 <span className="text-micro uppercase font-semibold text-muted">Time Taken</span>
                 <span className="text-body font-extrabold text-primary mt-0.5">{getDurationText(team.start_time, team.finish_time)}</span>
               </div>
@@ -337,11 +311,11 @@ export default function PlayScreen({ teamId, onReset }) {
   if (team.clues_solved === 5) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8 relative">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none" style={{ backgroundColor: `hsl(var(--accent-indigo) / 0.2)` }} />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none" style={{ backgroundColor: `hsl(var(--accent-brand) / 0.2)` }} />
 
         <Card variant="elevated" className="w-full max-w-[360px] p-6 text-center space-y-6">
           <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-3 shadow-inner">
-            <CheckCircle className="w-8 h-8 text-accent-indigo" />
+            <CheckCircle className="w-8 h-8 text-accent-brand" />
           </div>
           <h1 className="text-h2 font-black text-primary">ALL DIGITAL CHALLENGES COMPLETE!</h1>
 
@@ -352,12 +326,12 @@ export default function PlayScreen({ teamId, onReset }) {
           <div className="p-4 bg-surface-2 rounded-2xl border border-border-subtle text-left">
             <h4 className="text-caption font-bold uppercase tracking-wider text-muted mb-1.5">Your Instruction:</h4>
             <p className="text-caption text-muted leading-relaxed">
-              Organizers will hand you a <strong className="text-accent-indigo">9-piece club logo jigsaw puzzle</strong>. Assemble it correctly, and the organizer will verify your finish to record your final score.
+              Organizers will hand you a <strong className="text-accent-brand">9-piece club logo jigsaw puzzle</strong>. Assemble it correctly, and the organizer will verify your finish to record your final score.
             </p>
           </div>
 
           <div className="pt-2 border-t border-border-subtle flex flex-col gap-3">
-            <Button variant="accent" size="lg" fullWidth onClick={() => fetchGameState(true)} disabled={refreshing} loading={refreshing} style={{ backgroundColor: `hsl(var(--accent-indigo))` }}>
+            <Button variant="accent" size="lg" fullWidth onClick={() => fetchGameState(true)} disabled={refreshing} loading={refreshing} style={{ backgroundColor: `hsl(var(--accent-brand))` }}>
               {refreshing ? 'Checking...' : (
                 <>
                   <RefreshCw className="w-4 h-4" />
@@ -409,7 +383,7 @@ export default function PlayScreen({ teamId, onReset }) {
       <main className="flex-1 overflow-y-auto px-4 py-6 pb-24">
         <div className="w-full max-w-[360px] mx-auto">
           {/* Game Card with Progress Bar at top */}
-          <Card variant="elevated" padding="none" className="relative overflow-hidden" style={{ '--theme-color-rgb': theme.rgb }}>
+          <Card variant="elevated" padding="none" className="relative overflow-hidden">
             {/* Progress Bar - 4px height, accent fill */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-surface-2" aria-hidden="true">
               <div
@@ -548,10 +522,10 @@ export default function PlayScreen({ teamId, onReset }) {
                 <div id="qr-reader" className="w-full h-full" ref={readerRef} />
                 {/* CSS-only corner brackets overlay with animated pulse */}
                 <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-                  <div className="absolute top-4 left-4 w-12 h-12 border-2 border-transparent border-t-[hsl(var(--accent-${theme.accent}))] border-l-[hsl(var(--accent-${theme.accent}))] animate-pulse" style={{ animationDuration: '2s' }} />
-                  <div className="absolute top-4 right-4 w-12 h-12 border-2 border-transparent border-t-[hsl(var(--accent-${theme.accent}))] border-r-[hsl(var(--accent-${theme.accent}))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
-                  <div className="absolute bottom-4 left-4 w-12 h-12 border-2 border-transparent border-b-[hsl(var(--accent-${theme.accent}))] border-l-[hsl(var(--accent-${theme.accent}))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '1s' }} />
-                  <div className="absolute bottom-4 right-4 w-12 h-12 border-2 border-transparent border-b-[hsl(var(--accent-${theme.accent}))] border-r-[hsl(var(--accent-${theme.accent}))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '1.5s' }} />
+                  <div className="absolute top-4 left-4 w-12 h-12 border-2 border-transparent border-t-2 border-l-2 animate-pulse" style={{ borderTopColor: `hsl(var(--accent-${theme.accent}))`, borderLeftColor: `hsl(var(--accent-${theme.accent}))`, animationDuration: '2s' }} />
+                  <div className="absolute top-4 right-4 w-12 h-12 border-2 border-transparent border-t-2 border-r-2 animate-pulse" style={{ borderTopColor: `hsl(var(--accent-${theme.accent}))`, borderRightColor: `hsl(var(--accent-${theme.accent}))`, animationDuration: '2s', animationDelay: '0.5s' }} />
+                  <div className="absolute bottom-4 left-4 w-12 h-12 border-2 border-transparent border-b-2 border-l-2 animate-pulse" style={{ borderBottomColor: `hsl(var(--accent-${theme.accent}))`, borderLeftColor: `hsl(var(--accent-${theme.accent}))`, animationDuration: '2s', animationDelay: '1s' }} />
+                  <div className="absolute bottom-4 right-4 w-12 h-12 border-2 border-transparent border-b-2 border-r-2 animate-pulse" style={{ borderBottomColor: `hsl(var(--accent-${theme.accent}))`, borderRightColor: `hsl(var(--accent-${theme.accent}))`, animationDuration: '2s', animationDelay: '1.5s' }} />
                 </div>
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-caption text-secondary/60 uppercase tracking-wider font-semibold">
                   Align QR code within frame
@@ -562,7 +536,7 @@ export default function PlayScreen({ teamId, onReset }) {
             {/* Verifying state */}
             {verifying && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-0/90 backdrop-blur-sm">
-                <Loader2 className="w-10 h-10 animate-spin" style={{ color: `hsl(var(--accent-indigo))` }} />
+                <Loader2 className="w-10 h-10 animate-spin" style={{ color: `hsl(var(--accent-brand))` }} />
                 <span className="text-caption text-secondary">Verifying scanned token...</span>
               </div>
             )}
@@ -575,13 +549,9 @@ export default function PlayScreen({ teamId, onReset }) {
                   <h4 className="text-caption font-bold text-feedback-error uppercase tracking-wider">Scanner Locked</h4>
                   <p className="text-caption text-muted leading-relaxed">{scannerError}</p>
                 </div>
-                {/* Web Testing Sandbox Fallback */}
-                <div className="pt-4 border-t border-border-subtle w-full max-w-xs space-y-3">
-                  <span className="text-micro font-bold text-muted uppercase tracking-wider block">Development Sandbox</span>
-                  <Button variant="accent" size="md" fullWidth onClick={handleSimulatedScan} style={{ backgroundColor: `hsl(var(--accent-indigo))` }}>
-                    Bypass & Scan Correct QR (Simulated)
-                  </Button>
-                </div>
+                <Button variant="secondary" size="md" onClick={handleCloseScanner}>
+                  Close and try again
+                </Button>
               </div>
             )}
 

@@ -11,7 +11,8 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
 
   const urlParams = new URLSearchParams(window.location.search);
   const colorParam = urlParams.get('color') || '';
-  const stageParam = parseInt(urlParams.get('stage') || '0', 10);
+  const stageValue = urlParams.get('stage') || '';
+  const stageParam = /^\d+$/.test(stageValue) ? Number(stageValue) : 0;
 
   useEffect(() => {
     const verifyScannedToken = async () => {
@@ -20,7 +21,8 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
         return;
       }
 
-      if (!colorParam || !stageParam) {
+      const validColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+      if (!validColors.includes(colorParam.toLowerCase()) || stageParam < 1 || stageParam > 5) {
         setErrorMsg('Missing path color or stage parameters. Please scan a valid location QR code.');
         setLoading(false);
         return;
@@ -45,7 +47,7 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
 
         if (error) throw error;
 
-        if (data.success) {
+        if (data?.success === true) {
           setSuccessMsg(data.message || 'LOCATION VERIFIED! Challenge unlocked.');
         } else {
           setErrorMsg(data.error || 'Verification failed. Wrong location.');
@@ -62,14 +64,14 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
   }, [teamId, colorParam, stageParam]);
 
   const colorToAccent = {
-  red: 'rose',
-  blue: 'cyan',
-  green: 'emerald',
-  yellow: 'amber',
-  purple: 'violet',
-  orange: 'orange',
-};
-const accentColor = `hsl(var(--accent-${colorToAccent[teamColor] || 'cyan'}))`;
+    red: 'rose',
+    blue: 'cyan',
+    green: 'emerald',
+    yellow: 'amber',
+    purple: 'violet',
+    orange: 'orange',
+  };
+  const accentColor = `hsl(var(--accent-${colorToAccent[teamColor] || 'brand'}))`;
 
   // Case A: No team session registered yet
   if (!teamId) {
@@ -111,7 +113,7 @@ const accentColor = `hsl(var(--accent-${colorToAccent[teamColor] || 'cyan'}))`;
           style={{ backgroundColor: accentColor }}
         />
 
-        <Card variant="elevated" className="w-full max-w-sm p-8 space-y-6" style={{ borderColor: `${accentColor} / 0.25` }}>
+        <Card variant="elevated" className="w-full max-w-sm p-8 space-y-6" style={{ borderColor: accentColor }}>
           <div className="inline-flex p-4 rounded-full bg-feedback-success/10 border border-feedback-success/25 mb-1 animate-pulse">
             <CheckCircle2 className="w-12 h-12 text-feedback-success" />
           </div>
@@ -127,7 +129,7 @@ const accentColor = `hsl(var(--accent-${colorToAccent[teamColor] || 'cyan'}))`;
             fullWidth
             onClick={onVerified}
             className="touch-target"
-            style={{ backgroundColor: `${accentColor} / 0.95` }}
+            style={{ backgroundColor: accentColor }}
           >
             Start Game
           </Button>

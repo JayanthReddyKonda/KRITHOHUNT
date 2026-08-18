@@ -109,7 +109,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
         const customIcon = L.divIcon({
           className: 'custom-pin-marker geo-pin-marker',
           html: `
-            <div class="w-7 h-7 rounded-full border-2 border-surface-0 shadow-[0_0_12px_rgba(139,92,246,0.6)] flex items-center justify-center animate-pulse" style="background-color: hsl(var(--accent-violet));">
+            <div class="w-7 h-7 rounded-full border-2 border-surface-0 shadow-[0_0_12px_hsl(var(--accent-brand)_/_0.6)] flex items-center justify-center animate-pulse" style="background-color: hsl(var(--accent-brand));">
               <div class="w-2.5 h-2.5 bg-surface-0 rounded-full"></div>
             </div>
           `,
@@ -154,7 +154,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
         if (currentRoundIdx + 1 >= totalRounds) {
           const { data, error } = await supabase.rpc('submit_team_answer', {
             p_team_id: teamId,
-            p_answer: 'solve'
+            p_answer: `${pin.x},${pin.y},${currentRoundIdx + 1}`
           });
 
           if (error) throw error;
@@ -198,7 +198,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
     }
   };
 
-  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'violet'}))`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'brand'}))`;
 
   return (
     <div className="space-y-5">
@@ -212,7 +212,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
           </h3>
         </div>
 
-        <span className="px-3 py-1 bg-accent-indigo/10 border border-accent-indigo/30 rounded-lg text-accent-indigo text-micro font-black uppercase tracking-wider">
+        <span className="px-3 py-1 bg-accent-brand/10 border border-accent-brand/30 rounded-lg text-accent-brand text-micro font-black uppercase tracking-wider">
           Round {currentRoundIdx + 1} / {totalRounds}
         </span>
       </Card>
@@ -233,7 +233,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
             }}
           />
           <div className="absolute bottom-3 left-3 px-2.5 py-1 bg-surface-0/80 backdrop-blur-md rounded-lg text-micro font-bold text-secondary border border-border-subtle">
-            <MapPin className="w-3.5 h-3.5 inline-block mr-1 text-accent-indigo" aria-hidden="true" />
+            <MapPin className="w-3.5 h-3.5 inline-block mr-1 text-accent-brand" aria-hidden="true" />
             {currentRound?.label}
           </div>
         </div>
@@ -271,7 +271,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
 
           {!pin && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-surface-0/85 backdrop-blur-md border border-border-subtle rounded-full text-micro font-semibold text-secondary pointer-events-none shadow-lg animate-pulse flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-accent-indigo" aria-hidden="true" />
+              <MapPin className="w-3.5 h-3.5 text-accent-brand" aria-hidden="true" />
               <span>Tap the satellite map to select location</span>
             </div>
           )}

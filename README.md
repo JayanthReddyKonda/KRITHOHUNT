@@ -1,188 +1,101 @@
-# KRITHOHUNT — College Treasure Hunt App
+# KRITHOHUNT
 
-A mobile-first React + Vite application for campus treasure hunt events with QR code progression, real-time game challenges, and an organizer admin dashboard.
+KRITHOHUNT is a mobile-first React treasure hunt for campus events. Teams choose one of six color paths, scan physical location QR codes, solve five digital challenges, and return to the organizers for final verification.
 
 ## Features
 
-- **6 Color Paths** (Red, Blue, Green, Yellow, Purple, Orange) — 5 clues each = 30 total challenges
-- **QR Code Progression** — Scan physical location QRs to unlock digital challenges
-- **5 Game Types** — Sudoku, Connect Dots, Campus GeoGuessr, Tower of Hanoi, Safe Cracker
-- **Real-time Admin Dashboard** — Desktop-first with sidebar navigation, responsive card list on mobile, printable QR sheets
-- **Secure Backend** — Supabase with RLS and SECURITY DEFINER RPC functions
-- **Offline Support** — LocalStorage persistence for game state
-- **Accessibility** — WCAG AA contrast, 44px touch targets, focus-visible rings, reduced motion
+- Six paths: red, blue, green, yellow, purple, and orange.
+- Thirty seeded clues: five stages per path.
+- QR progression with server-side path and stage checks.
+- Sudoku, Connect Dots, Campus GeoGuessr, Tower of Hanoi, and Safe Cracker.
+- Organizer dashboard with polling, search, filtering, CSV export, team actions, and printable QR sheets.
+- Local persistence for the active team and unfinished Sudoku/Connect Dots input.
+- Keyboard focus rings, reduced-motion support, and 44px touch targets.
 
-## Tech Stack
+## Stack
 
-- **Frontend**: React 19, Vite 8, Tailwind CSS v4
-- **Backend**: Supabase (PostgreSQL + Realtime + Auth)
-- **Maps**: Leaflet with custom campus satellite imagery
-- **QR Scanning**: html5-qrcode
-- **Icons**: Lucide React
-- **Linting**: Oxlint
-- **Build**: Rolldown (via Vite 8)
+- React 19 and Vite 8
+- Tailwind CSS 4
+- Supabase PostgreSQL and RPC functions
+- Leaflet with a static campus image
+- `html5-qrcode` for camera scanning
+- Lucide React icons
+- Oxlint
 
-## Quick Start
+## Setup
 
-### Prerequisites
-
-- Node.js 22+ (via nvm recommended)
-- Supabase project
-
-### Installation
+Requirements: Node.js 22+ and a Supabase project.
 
 ```bash
-# Clone and install
-git clone <repo-url>
-cd KRITHOHUNT
 npm install
-
-# Configure environment
 cp .env.example .env
-# Edit .env with your Supabase credentials
-```
-
-### Environment Variables
-
-```bash
-# Required
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_ADMIN_PASSWORD=your-secure-admin-password
-
-# Optional (development only)
-# VITE_SUPABASE_URL=...
-# VITE_SUPABASE_ANON_KEY=...
-```
-
-### Database Setup
-
-Run the SQL in `schema.sql` in your Supabase SQL Editor to create tables, RLS policies, and seed all 30 clues.
-
-### Development
-
-```bash
 npm run dev
 ```
 
-### Build for Production
+Create `.env` with:
 
-```bash
-npm run build
+```dotenv
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_ADMIN_PASSWORD=your-local-organizer-password
+VITE_PUBLIC_APP_URL=https://your-deployed-app.example.com
 ```
 
-### Lint
+`VITE_ADMIN_PASSWORD` is a client-side convenience gate, not a production secret. Use Supabase Auth or a server-side admin endpoint for a public deployment.
+Set `VITE_PUBLIC_APP_URL` to the URL that phones will open when scanning printed codes. Without it, development QR codes use the current browser origin, such as `127.0.0.1`, which other devices cannot reach.
+
+## Database setup
+
+Run the complete [`supabase-migration.sql`](supabase-migration.sql) in the Supabase SQL editor. It creates:
+
+- `teams` and `clues` tables with RLS.
+- Public team select/insert policies required by registration and dashboard polling.
+- Explicit table grants and RPC execute grants.
+- `get_current_clue`, `scan_location_qr`, `submit_team_answer`, `submit_connect_dots`, `mark_team_finished`, and `admin_delete_team`.
+- Thirty clues across all six paths.
+
+Do not run older deleted schema variants alongside the migration. Use one database definition so RPC validation cannot be overwritten by a simplified version.
+
+## Routes
+
+- `/` home and session resume.
+- `/start?color=red` team registration.
+- `/play` active hunt.
+- `/scan?color=red&stage=1` direct location verification.
+- `/admin` organizer dashboard.
+- `/demo/safe-cracker` local Safe Cracker demo.
+
+## QR sheets
+
+The admin dashboard generates six start QR codes and thirty location QR codes locally in the browser. This avoids third-party image loading failures. Each card can share its URL through the native share sheet or copy it to the clipboard. Printing waits for QR generation and refuses to print if a code failed; the print rules live in `src/index.css` so cards render on white paper without dashboard chrome.
+
+The camera scanner accepts only same-origin `/scan` URLs with a known color and an exact stage from 1 to 5. Camera permission denial or camera startup failure never unlocks a challenge and no simulated-scan bypass is available. The final authority remains the `scan_location_qr` Supabase RPC.
+
+## Verification
 
 ```bash
 npm run lint
-```
-
-## Project Structure
-
-```
-src/
-├── components/
-│   ├── primitives/          # Reusable UI primitives (Button, Card, Input, Modal, GameCell, KeypadButton, SafeDigitDisplay)
-│   ├── games/               # Game implementations
-│   │   ├── SafeCrackerGame.jsx
-│   │   └── TowerOfHanoiGame.jsx
-│   ├── StartScreen.jsx      # Team registration (mobile-first)
-│   ├── PlayScreen.jsx       # Main game container + QR scanner
-│   ├── ScanScreen.jsx       # QR verification endpoint
-│   ├── AdminDashboard.jsx   # Organizer panel (desktop-first)
-│   ├── GameRenderer.jsx     # Lazy-loaded game router
-│   ├── SudokuGame.jsx
-│   ├── ConnectDotsGame.jsx
-│   └── CampusGeoguessrGame.jsx
-├── index.css                # Design tokens (@theme) + base styles
-├── App.jsx                  # Client-side router
-├── main.jsx                 # Entry point
-└── supabaseClient.js        # Supabase client init
-```
-
-## Design System
-
-All styling uses CSS custom properties defined in `src/index.css` via Tailwind v4's `@theme` directive:
-
-- **Surfaces**: `--surface-0` through `--surface-3`
-- **Text**: `--text-primary`, `--text-secondary`, `--text-muted`, `--text-inverse`
-- **Accents**: `--accent-red`, `--accent-blue`, `--accent-green`, `--accent-yellow`, `--accent-purple`, `--accent-orange`, `--accent-indigo`
-- **Feedback**: `--feedback-success`, `--feedback-warning`, `--feedback-error`
-- **Spacing/Radii/Transitions**: Consistent scale tokens
-
-Primitive components in `src/components/primitives/` consume these tokens exclusively — no arbitrary color values in components.
-
-## QR Code Format
-
-**Start Desk** (assigns team to color path):
-```
-/start?color=red|blue|green|yellow|purple|orange
-```
-
-**Location Verification** (unlocks game at physical location):
-```
-/scan?color=red|blue|green|yellow|purple|orange&stage=1|2|3|4|5
-```
-
-## Admin Dashboard
-
-Access at `/admin` with password from `VITE_ADMIN_PASSWORD`.
-
-Features:
-- Real-time team table with search/filter
-- Sort: Finished (fastest first) → Ready for Jigsaw (earliest start) → Playing (clues desc, penalties asc)
-- Mark Finished (records finish_time)
-- Delete Team
-- Printable QR Sheets (6 start + 30 location QRs)
-- Mobile: collapsible sidebar with hamburger menu
-
-## Deployment
-
-### Vercel (Recommended)
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
-```
-
-Add environment variables in Vercel dashboard:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-- `VITE_ADMIN_PASSWORD`
-
-### Netlify
-
-```bash
-# Build
 npm run build
-
-# Deploy dist/ folder via Netlify CLI or dashboard
 ```
 
-### Docker
+There is no automated browser or database test suite yet. Before an event, use a disposable Supabase project and test registration, wrong path, wrong stage, wrong answer, valid answers for each game type, team deletion, team completion, and printed QR output.
 
-```dockerfile
-FROM node:22-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-EXPOSE 4173
-CMD ["npm", "run", "preview"]
+## Project structure
+
+```text
+src/
+├── App.jsx                         Client-side router and app shell
+├── main.jsx                        React entry point
+├── index.css                       Design tokens and global/print styles
+├── supabaseClient.js               Supabase client initialization
+└── components/
+    ├── primitives/                 Shared UI controls
+    ├── games/                      Tower of Hanoi and Safe Cracker
+    ├── AdminDashboard.jsx          Organizer workflow and QR sheets
+    ├── PlayScreen.jsx              Team state, scanner, and progression
+    ├── ScanScreen.jsx              Direct QR verification
+    ├── GameRenderer.jsx             Lazy game router
+    ├── SudokuGame.jsx
+    ├── ConnectDotsGame.jsx
+    └── CampusGeoguessrGame.jsx
 ```
-
-## Security Notes
-
-- **No hardcoded secrets** — all config via environment variables
-- **Admin auth** — sessionStorage only, verify server-side for production
-- **XSS prevention** — team names sanitized before render
-- **QR validation** — origin + color + stage validated client-side; server-side enforcement via RPC
-- **RLS policies** — teams table readable; clues table protected; all mutations via SECURITY DEFINER functions
-
-## License
-
-MIT — Built for KRITHOHUNT event.

@@ -17,18 +17,18 @@ export default function Button({
     inline-flex items-center justify-center gap-2
     font-bold tracking-wider uppercase
     rounded-lg transition-all duration-fast ease-standard
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-indigo focus-visible:ring-offset-2 focus-visible:ring-offset-surface-0
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface-0
     disabled:opacity-50 disabled:cursor-not-allowed
     active:scale-[0.98]
   `;
 
   const variantClasses = {
-    primary: 'bg-accent-indigo text-inverse hover:brightness-110',
+    primary: 'bg-accent-brand text-inverse hover:brightness-110',
     secondary: 'bg-surface-2 text-primary border border-border-subtle hover:bg-surface-3',
     ghost: 'bg-transparent text-secondary hover:bg-surface-2 hover:text-primary',
     danger: 'bg-feedback-error text-primary hover:brightness-110',
     success: 'bg-feedback-success text-primary hover:brightness-110',
-    accent: 'bg-accent-indigo text-inverse hover:brightness-110',
+    accent: 'bg-accent-brand text-inverse hover:brightness-110',
   };
 
   const sizeClasses = {

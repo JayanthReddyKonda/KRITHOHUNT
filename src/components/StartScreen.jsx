@@ -88,10 +88,10 @@ export default function StartScreen({ onRegistered }) {
   const theme = PATH_THEMES[color];
 
   // Render error screen if invalid QR code color
-if (!color && error) {
+  if (!color && error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
-        <Card variant="elevated" className="w-full max-w-md text-center p-6" style={{ '--theme-color-rgb': 'var(--accent-rose)' }}>
+        <Card variant="elevated" className="w-full max-w-md text-center p-6">
           <ShieldAlert className="w-16 h-16 text-accent-rose mx-auto mb-4" />
           <h2 className="text-h2 text-primary mb-2">Access Error</h2>
           <p className="text-secondary text-body-sm mb-6">{error}</p>
@@ -108,7 +108,7 @@ if (!color && error) {
   if (!color) {
     return (
       <div className="flex justify-center items-center min-h-[80vh]">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: `hsl(var(--accent-indigo))` }} />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: `hsl(var(--accent-brand))` }} />
       </div>
     );
   }
@@ -137,7 +137,7 @@ if (!color && error) {
         </div>
 
         {/* Card Container - surface-1/90, backdrop-blur, border-border-subtle, rounded-xl */}
-        <Card variant="elevated" padding="lg" className="glow-active" style={{ '--theme-color-rgb': theme.rgb }}>
+        <Card variant="elevated" padding="lg" className="glow-active">
           {/* Path Header Indicator */}
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-border-subtle">
             <span className="text-caption text-muted uppercase tracking-wider">Assigned Path</span>

@@ -101,7 +101,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
   const comboReady = combination.every((digit) => digit !== null);
   const activeIndex = combination.findIndex((d) => d === null);
 
-  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'violet'}))`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'brand'}))`;
 
   const renderClueQuestion = (clue) => {
     const q = clue?.question || 'Missing clue question in game_data.';
@@ -259,7 +259,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
                   <div className="flex items-center gap-2">
                     <span
                       className="w-6 h-6 rounded-full flex items-center justify-center text-caption font-black shrink-0"
-                      style={{ backgroundColor: `hsl(var(--accent-${colorTheme?.accent || 'indigo'}) / 0.1)`, color: accentColor }}
+                      style={{ backgroundColor: `hsl(var(--accent-${colorTheme?.accent || 'brand'}) / 0.1)`, color: accentColor }}
                     >
                       {idx + 1}
                     </span>
@@ -314,7 +314,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
                   key={idx}
                   digit={shown}
                   state={solved ? 'correct' : isActive ? 'active' : 'empty'}
-                  className={isActive ? 'ring-2 ring-accent-indigo ring-offset-2 ring-offset-surface-0 scale-105' : ''}
+                  className={isActive ? 'ring-2 ring-accent-brand ring-offset-2 ring-offset-surface-0 scale-105' : ''}
                 />
               );
             })}
@@ -379,7 +379,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
         )}
 
         {showFinalClue && (
-          <Card variant="panel" padding="md" className="bg-accent-indigo/10 border-accent-indigo/20 text-accent-indigo space-y-1">
+          <Card variant="panel" padding="md" className="bg-accent-brand/10 border-accent-brand/20 text-accent-brand space-y-1">
             <div className="font-bold uppercase tracking-wider text-caption">{completionTitle}</div>
             <div className="text-body-sm">{completionMessage}</div>
           </Card>

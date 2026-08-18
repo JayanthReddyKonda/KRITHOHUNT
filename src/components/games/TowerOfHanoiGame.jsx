@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
 import { Card, Button, GameCell } from '@/components/primitives';
 
-export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onIncorrect }) {
+export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncorrect }) {
   const [pegs, setPegs] = useState({
     0: [3, 2, 1],
     1: [],
@@ -109,9 +109,9 @@ export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onInco
   };
 
   const DISK_COLORS = {
-    1: 'accent-green',
-    2: 'accent-blue',
-    3: 'accent-purple'
+    1: 'bg-accent-emerald',
+    2: 'bg-accent-cyan',
+    3: 'bg-accent-violet'
   };
 
   const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'violet'}))`;
@@ -128,7 +128,7 @@ export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onInco
         <ul className="text-body-sm text-secondary space-y-1 list-disc list-inside">
           <li>Move only one disk at a time.</li>
           <li>Only move the top disk from a tower.</li>
-          <li className="font-bold text-accent-yellow text-inverse bg-accent-yellow/20 px-1.5 py-0.5 rounded inline-block">
+          <li className="font-bold text-accent-amber text-inverse bg-accent-amber/20 px-1.5 py-0.5 rounded inline-block">
             A larger disk cannot be placed on top of a smaller disk.
           </li>
         </ul>
@@ -141,8 +141,8 @@ export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onInco
               {successMsg
                 ? 'Solved!'
                 : selectedPeg !== null
-                ? 'Select destination tower'
-                : 'Tap a tower to select top disk'}
+                  ? 'Select destination tower'
+                  : 'Tap a tower to select top disk'}
             </span>
             <Button
               variant="ghost"
@@ -172,10 +172,10 @@ export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onInco
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePegClick(pegIdx); }}
                   aria-label={isSelected ? `Tower ${towerName} selected, tap to move disk` : `Tower ${towerName}, ${diskList.length} disks, tap to select`}
                 >
-                  <div className={`
-                    absolute bottom-2 w-2 h-[200px] rounded-full transition-all duration-base
-                    ${isSelected ? `bg-[${accentColor}] shadow-[0_0_12px_${accentColor}/0.5]` : 'bg-border-subtle group-hover:bg-border-strong'}
-                  `} />
+                  <div
+                    className={`absolute bottom-2 w-2 h-[200px] rounded-full transition-all duration-base ${isSelected ? 'shadow-[0_0_12px_hsl(var(--accent-brand)_/_0.5)]' : 'bg-border-subtle group-hover:bg-border-strong'}`}
+                    style={isSelected ? { backgroundColor: accentColor } : undefined}
+                  />
 
                   <div className="flex flex-col-reverse items-center gap-2 w-full z-10 pb-2">
                     {diskList.map((diskValue, dIdx) => {
@@ -195,10 +195,10 @@ export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onInco
                           style={
                             isDiskSelected
                               ? {
-                                  transform: 'translateY(-16px) scale(1.05)',
-                                  boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
-                                  zIndex: 10
-                                }
+                                transform: 'translateY(-16px) scale(1.05)',
+                                boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
+                                zIndex: 10
+                              }
                               : {}
                           }
                           aria-label={isDiskSelected ? `Disk ${diskValue} selected from Tower ${towerName}` : `Disk ${diskValue} on Tower ${towerName}`}

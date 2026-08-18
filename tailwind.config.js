@@ -30,6 +30,7 @@ export default {
           rose: 'hsl(var(--accent-rose))',
           cyan: 'hsl(var(--accent-cyan))',
           orange: 'hsl(var(--accent-orange))',
+          brand: 'hsl(var(--accent-brand))',
         },
         feedback: {
           success: 'hsl(var(--feedback-success))',
