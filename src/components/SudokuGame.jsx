@@ -10,9 +10,10 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
     [0, 0, 0, 0],
     [0, 0, 0, 0]
   ], [gameData]);
+  const storageKey = `krithohunt_sudoku_${teamId}_${JSON.stringify(initialPuzzle)}`;
 
   const [board, setBoard] = useState(() => {
-    const saved = localStorage.getItem(`krithohunt_sudoku_${teamId}`);
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -29,15 +30,18 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
-    localStorage.setItem(`krithohunt_sudoku_${teamId}`, JSON.stringify(board));
-  }, [board, teamId]);
+    localStorage.setItem(storageKey, JSON.stringify(board));
+  }, [board, storageKey]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(`krithohunt_sudoku_${teamId}`);
-    if (!saved) {
+    const saved = localStorage.getItem(storageKey);
+    try {
+      setBoard(saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(initialPuzzle)));
+    } catch {
       setBoard(JSON.parse(JSON.stringify(initialPuzzle)));
     }
-  }, [gameData, teamId, initialPuzzle]);
+    setSelectedCell(null);
+  }, [gameData, storageKey, initialPuzzle]);
 
   const handleCellClick = (row, col) => {
     if (initialPuzzle[row][col] !== 0) return;
@@ -98,7 +102,7 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
 
       if (data.success) {
         setSuccessMsg('Sudoku solved!');
-        localStorage.removeItem(`krithohunt_sudoku_${teamId}`);
+        localStorage.removeItem(storageKey);
         setTimeout(() => {
           onSolved();
         }, 1500);

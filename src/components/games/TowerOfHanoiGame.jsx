@@ -1,25 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
 import { AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
 import { Card, Button, GameCell } from '@/components/primitives';
 
 export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncorrect }) {
-  const [pegs, setPegs] = useState({
-    0: [3, 2, 1],
-    1: [],
-    2: []
+  const storageKey = `krithohunt_hanoi_${teamId}`;
+  const [pegs, setPegs] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      return saved?.pegs || { 0: [3, 2, 1], 1: [], 2: [] };
+    } catch {
+      return { 0: [3, 2, 1], 1: [], 2: [] };
+    }
   });
 
   const [selectedPeg, setSelectedPeg] = useState(null);
-  const [moves, setMoves] = useState(0);
+  const [moves, setMoves] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(storageKey) || 'null')?.moves || 0; } catch { return 0; }
+  });
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const submissionAttemptedRef = useRef(false);
 
   const isSolved = pegs[2].length === 3 && pegs[2][0] === 3 && pegs[2][1] === 2 && pegs[2][2] === 1;
 
   useEffect(() => {
-    if (isSolved && !successMsg && !loading) {
+    localStorage.setItem(storageKey, JSON.stringify({ pegs, moves }));
+  }, [pegs, moves, storageKey]);
+
+  useEffect(() => {
+    if (isSolved && !successMsg && !loading && !submissionAttemptedRef.current) {
+      submissionAttemptedRef.current = true;
       const submitSolution = async () => {
         setLoading(true);
         setErrorMsg('');
@@ -33,6 +45,7 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
           if (error) throw error;
 
           if (data.success) {
+            localStorage.removeItem(storageKey);
             setSuccessMsg(`Tower of Hanoi solved!\nYou solved it in ${moves} moves.`);
             setTimeout(() => {
               onSolved();
@@ -50,7 +63,7 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
       };
       submitSolution();
     }
-  }, [isSolved, teamId, moves, successMsg, loading, onSolved, onIncorrect]);
+  }, [isSolved, teamId, moves, successMsg, loading, onSolved, onIncorrect, storageKey]);
 
   const handlePegClick = (pegIdx) => {
     if (successMsg || loading) return;
@@ -97,6 +110,7 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
   };
 
   const handleResetBoard = () => {
+    submissionAttemptedRef.current = false;
     setPegs({
       0: [3, 2, 1],
       1: [],
@@ -106,6 +120,7 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
     setMoves(0);
     setErrorMsg('');
     setSuccessMsg('');
+    localStorage.removeItem(storageKey);
   };
 
   const DISK_COLORS = {

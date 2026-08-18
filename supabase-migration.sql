@@ -5,6 +5,7 @@
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ====================================================================
 -- TABLES
@@ -26,7 +27,8 @@ CREATE TABLE IF NOT EXISTS clues (
 -- teams table
 CREATE TABLE IF NOT EXISTS teams (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    team_code TEXT,
     color TEXT NOT NULL,
     start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     clues_solved INTEGER NOT NULL DEFAULT 0,
@@ -36,12 +38,45 @@ CREATE TABLE IF NOT EXISTS teams (
     CONSTRAINT valid_clues_solved CHECK (clues_solved BETWEEN 0 AND 5)
 );
 
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS team_code TEXT;
+ALTER TABLE public.teams DROP CONSTRAINT IF EXISTS teams_name_key;
+CREATE UNIQUE INDEX IF NOT EXISTS teams_team_code_key ON public.teams (team_code);
+CREATE INDEX IF NOT EXISTS teams_finish_time_idx ON public.teams (finish_time);
+CREATE INDEX IF NOT EXISTS teams_progress_idx ON public.teams (clues_solved, waiting_for_qr);
+
+DO $$
+DECLARE v_team RECORD; v_team_code TEXT;
+BEGIN
+  FOR v_team IN SELECT id FROM public.teams WHERE team_code IS NULL LOOP
+    LOOP
+      v_team_code := LPAD((10000 + FLOOR(random() * 90000))::INT::TEXT, 5, '0');
+      BEGIN
+        UPDATE public.teams SET team_code = v_team_code WHERE id = v_team.id;
+        EXIT;
+      EXCEPTION WHEN unique_violation THEN
+      END;
+    END LOOP;
+  END LOOP;
+END;
+$$;
+
+CREATE TABLE IF NOT EXISTS public.location_qr_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token TEXT NOT NULL UNIQUE,
+  color TEXT NOT NULL,
+  stage INTEGER NOT NULL CHECK (stage BETWEEN 1 AND 5),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_location_qr_stage UNIQUE (color, stage)
+);
+CREATE INDEX IF NOT EXISTS location_qr_tokens_lookup_idx ON public.location_qr_tokens (token, color, stage);
+
 -- ====================================================================
 -- ROW LEVEL SECURITY
 -- ====================================================================
 
 ALTER TABLE clues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.location_qr_tokens ENABLE ROW LEVEL SECURITY;
 
 -- clues: no public read (protects solutions)
 -- teams: public read + insert allowed; updates/deletes via RPC only
@@ -52,8 +87,61 @@ CREATE POLICY teams_insert ON teams FOR INSERT WITH CHECK (true);
 
 GRANT SELECT ON TABLE public.teams TO anon, authenticated;
 GRANT INSERT ON TABLE public.teams TO anon, authenticated;
+REVOKE ALL ON TABLE public.location_qr_tokens FROM anon, authenticated;
 
 -- No direct UPDATE/DELETE on teams - must use RPC functions
+
+CREATE OR REPLACE FUNCTION register_team(p_name TEXT, p_color TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  v_team_code TEXT;
+  v_team_id UUID;
+BEGIN
+  IF NULLIF(TRIM(p_name), '') IS NULL OR LENGTH(TRIM(p_name)) > 30 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Team name must be 1 to 30 characters');
+  END IF;
+  IF LOWER(TRIM(p_color)) NOT IN ('red', 'blue', 'green', 'yellow', 'purple', 'orange') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid path color');
+  END IF;
+
+  LOOP
+    v_team_code := LPAD((10000 + FLOOR(random() * 90000))::INT::TEXT, 5, '0');
+    BEGIN
+      INSERT INTO public.teams (name, team_code, color, waiting_for_qr)
+      VALUES (TRIM(p_name), v_team_code, LOWER(TRIM(p_color)), TRUE)
+      RETURNING id INTO v_team_id;
+      EXIT;
+    EXCEPTION WHEN unique_violation THEN
+      -- Retry only for a rare five-digit collision.
+    END;
+  END LOOP;
+  RETURN jsonb_build_object('success', true, 'team_id', v_team_id, 'team_code', v_team_code, 'name', TRIM(p_name), 'color', LOWER(TRIM(p_color)));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION resume_team(p_team_code TEXT, p_color TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_team public.teams;
+BEGIN
+  SELECT * INTO v_team FROM public.teams
+  WHERE team_code = TRIM(p_team_code) AND LOWER(color) = LOWER(TRIM(p_color));
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Team code not found for this path');
+  END IF;
+  RETURN jsonb_build_object('success', true, 'team_id', v_team.id, 'team_code', v_team.team_code, 'name', v_team.name, 'color', v_team.color);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION get_location_qr_tokens()
+RETURNS TABLE(token TEXT, color TEXT, stage INTEGER)
+LANGUAGE sql
+SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT t.token, t.color, t.stage FROM public.location_qr_tokens t ORDER BY t.color, t.stage;
+$$;
 
 -- ====================================================================
 -- RPC FUNCTIONS (SECURITY DEFINER - bypasses RLS)
@@ -78,13 +166,12 @@ END;
 $$;
 
 -- Scan location QR
-CREATE OR REPLACE FUNCTION scan_location_qr(
-  p_team_id UUID, p_scanned_color TEXT, p_scanned_stage INTEGER
-)
+DROP FUNCTION IF EXISTS public.scan_location_qr(UUID, TEXT, INTEGER);
+CREATE OR REPLACE FUNCTION scan_location_qr(p_team_id UUID, p_token TEXT)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_team_color TEXT; v_clues_solved INT; v_waiting_for_qr BOOL;
-  v_finish_time TIMESTAMPTZ; v_expected_stage INT;
+  v_finish_time TIMESTAMPTZ; v_expected_stage INT; v_qr_color TEXT; v_qr_stage INT;
 BEGIN
   SELECT color, clues_solved, waiting_for_qr, finish_time
   INTO v_team_color, v_clues_solved, v_waiting_for_qr, v_finish_time
@@ -93,10 +180,12 @@ BEGIN
   IF v_finish_time IS NOT NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Team already finished'); END IF;
   IF v_clues_solved >= 5 THEN RETURN jsonb_build_object('success', false, 'error', 'All challenges complete'); END IF;
   v_expected_stage := v_clues_solved + 1;
-  IF LOWER(TRIM(p_scanned_color)) <> LOWER(TRIM(v_team_color)) THEN
+  SELECT color, stage INTO v_qr_color, v_qr_stage FROM public.location_qr_tokens WHERE token = TRIM(p_token);
+  IF NOT FOUND THEN RETURN jsonb_build_object('success', false, 'error', 'Invalid location QR'); END IF;
+  IF LOWER(v_qr_color) <> LOWER(v_team_color) THEN
     RETURN jsonb_build_object('success', false, 'error', 'Wrong path color');
   END IF;
-  IF p_scanned_stage <> v_expected_stage THEN
+  IF v_qr_stage <> v_expected_stage THEN
     RETURN jsonb_build_object('success', false, 'error', 'Wrong stage');
   END IF;
   UPDATE teams SET waiting_for_qr = false WHERE id = p_team_id;
@@ -282,6 +371,18 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION admin_reset_teams()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_deleted INTEGER;
+BEGIN
+  DELETE FROM public.teams;
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN jsonb_build_object('success', true, 'deleted', v_deleted);
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION submit_connect_dots(p_team_id UUID, p_paths JSONB)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -294,15 +395,39 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_current_clue(UUID) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.scan_location_qr(UUID, TEXT, INTEGER) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.scan_location_qr(UUID, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.register_team(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.resume_team(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_location_qr_tokens() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_team_answer(UUID, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_connect_dots(UUID, JSONB) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.mark_team_finished(UUID) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_team(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_reset_teams() TO anon, authenticated;
 
 -- ====================================================================
 -- SEED DATA (6 paths × 5 clues = 30 clues)
 -- ====================================================================
+
+DO $$
+DECLARE v_color TEXT; v_stage INTEGER; v_token TEXT;
+BEGIN
+  FOREACH v_color IN ARRAY ARRAY['red','blue','green','yellow','purple','orange'] LOOP
+    FOR v_stage IN 1..5 LOOP
+      IF NOT EXISTS (SELECT 1 FROM public.location_qr_tokens WHERE color = v_color AND stage = v_stage) THEN
+        LOOP
+          v_token := encode(gen_random_bytes(18), 'hex');
+          BEGIN
+            INSERT INTO public.location_qr_tokens (token, color, stage) VALUES (v_token, v_color, v_stage);
+            EXIT;
+          EXCEPTION WHEN unique_violation THEN
+          END;
+        END LOOP;
+      END IF;
+    END LOOP;
+  END LOOP;
+END;
+$$;
 
 INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) VALUES
 -- RED PATH (rose)
@@ -323,7 +448,7 @@ INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) 
  '7x7_valid', '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('blue', 2, 'Go to IT Lab Block A. Scan QR on server room window.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('blue', 3, 'Walk to Football Field grandstand. Scan QR near Row C.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('blue', 4, 'Find QR near Art Gallery side entrance.', 'safe_cracker', '1973', '{"instructions":"College opening year: 197_"}'),
+('blue', 4, 'Find QR near Art Gallery side entrance.', 'safe_cracker', '1773', '{"instructions":"College opening year: 177_"}'),
 
 -- GREEN PATH (emerald)
 ('green', 0, 'Botanical Garden entrance. Scan QR on welcome sign.', 'sudoku',

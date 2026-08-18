@@ -10,9 +10,7 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
   const [teamColor, setTeamColor] = useState('');
 
   const urlParams = new URLSearchParams(window.location.search);
-  const colorParam = urlParams.get('color') || '';
-  const stageValue = urlParams.get('stage') || '';
-  const stageParam = /^\d+$/.test(stageValue) ? Number(stageValue) : 0;
+  const token = urlParams.get('token') || '';
 
   useEffect(() => {
     const verifyScannedToken = async () => {
@@ -21,9 +19,8 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
         return;
       }
 
-      const validColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
-      if (!validColors.includes(colorParam.toLowerCase()) || stageParam < 1 || stageParam > 5) {
-        setErrorMsg('Missing path color or stage parameters. Please scan a valid location QR code.');
+      if (!/^[a-f0-9]{36}$/.test(token)) {
+        setErrorMsg('Missing or invalid location token. Please scan an organizer-issued QR code.');
         setLoading(false);
         return;
       }
@@ -41,8 +38,7 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
 
         const { data, error } = await supabase.rpc('scan_location_qr', {
           p_team_id: teamId,
-          p_scanned_color: colorParam,
-          p_scanned_stage: stageParam
+          p_token: token
         });
 
         if (error) throw error;
@@ -61,7 +57,7 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
     };
 
     verifyScannedToken();
-  }, [teamId, colorParam, stageParam]);
+  }, [teamId, token]);
 
   const colorToAccent = {
     red: 'rose',

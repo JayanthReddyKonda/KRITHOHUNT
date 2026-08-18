@@ -1,15 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { RefreshCw, Users, Award, ShieldAlert, CheckCircle, Clock, Trash2, Search, Filter, Lock, KeyRound, Printer, Menu, LogOut, Download, RotateCcw, Share2, Check } from 'lucide-react';
 import { Card, Button, Input } from '@/components/primitives';
 import QRCode from 'qrcode';
-
-function sanitizeHtml(text) {
-  if (typeof text !== 'string') return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 function escapeCsv(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
@@ -37,21 +30,19 @@ const pathAccentMap = { red: 'rose', blue: 'cyan', green: 'emerald', yellow: 'am
 const qrColors = { red: 'ef3b3b', blue: '06b6d4', green: '10b981', yellow: 'f59e0b', purple: 'a855f7', orange: 'f97316' };
 const qrOrigin = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
 
-const getQrEntries = () => [
+const getQrEntries = (tokens = []) => [
   ...['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => ({
     title: 'KRITHOHUNT START',
     subtitle: 'Path Start',
     color,
     url: `${qrOrigin}/start?color=${color.toLowerCase()}`,
   })),
-  ...['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].flatMap((color) =>
-    [1, 2, 3, 4, 5].map((stage) => ({
-      title: 'KRITHOHUNT GATE',
-      subtitle: `Stage ${stage}`,
-      color,
-      url: `${qrOrigin}/scan?color=${color.toLowerCase()}&stage=${stage}`,
-    }))
-  ),
+  ...tokens.map(({ token, color, stage }) => ({
+    title: 'KRITHOHUNT GATE',
+    subtitle: `Stage ${stage}`,
+    color: color[0].toUpperCase() + color.slice(1),
+    url: `${qrOrigin}/scan?token=${encodeURIComponent(token)}`,
+  })),
 ];
 
 const QRCard = ({ title, subtitle, url, color }) => {
@@ -134,8 +125,12 @@ export default function AdminDashboard() {
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [qrTokens, setQrTokens] = useState([]);
+  const [qrTokenError, setQrTokenError] = useState('');
+  const teamsRequestRef = useRef(0);
 
   const fetchTeams = useCallback(async (showRefreshIndicator = false) => {
+    const requestId = ++teamsRequestRef.current;
     if (showRefreshIndicator) setRefreshing(true);
     try {
       setError('');
@@ -144,7 +139,7 @@ export default function AdminDashboard() {
         .select('*');
 
       if (fetchError) throw fetchError;
-      setTeams(data || []);
+      if (requestId === teamsRequestRef.current) setTeams(data || []);
     } catch (err) {
       console.error(err);
       setError('Failed to fetch teams from database.');
@@ -164,6 +159,14 @@ export default function AdminDashboard() {
 
     return () => clearInterval(interval);
   }, [isAuthenticated, fetchTeams]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    supabase.rpc('get_location_qr_tokens').then(({ data, error: tokenError }) => {
+      if (tokenError) setQrTokenError('Location QR tokens are unavailable. Run the latest Supabase migration.');
+      else setQrTokens(data || []);
+    });
+  }, [isAuthenticated]);
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
@@ -192,7 +195,7 @@ export default function AdminDashboard() {
   const handleExportCSV = () => {
     if (teams.length === 0) return;
 
-    const headers = ['Rank', 'Team Name', 'Path', 'Start Time', 'Progress', 'Penalties', 'Duration', 'Status'];
+    const headers = ['Rank', 'Team Name', 'Team ID', 'Path', 'Start Time', 'Progress', 'Penalties', 'Duration', 'Status'];
     const rows = sortedTeams.map((team, idx) => {
       const status = getStatusText(team.clues_solved, team.finish_time, team.waiting_for_qr);
       const progress = team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`;
@@ -200,6 +203,7 @@ export default function AdminDashboard() {
       return [
         idx + 1,
         team.name,
+        team.team_code || '',
         team.color.toUpperCase(),
         new Date(team.start_time).toLocaleString(),
         `${progress} (${team.clues_solved}/5)`,
@@ -230,9 +234,9 @@ export default function AdminDashboard() {
 
     setActionLoading('reset-all');
     try {
-      for (const team of teams) {
-        await supabase.rpc('admin_delete_team', { p_team_id: team.id });
-      }
+      const { data, error: resetError } = await supabase.rpc('admin_reset_teams');
+      if (resetError) throw resetError;
+      if (!data?.success) throw new Error(data?.error || 'Reset failed.');
       await fetchTeams(false);
       alert('All teams have been deleted. Event reset complete.');
     } catch (err) {
@@ -262,7 +266,8 @@ export default function AdminDashboard() {
     printWindow.document.close();
 
     try {
-      const entries = getQrEntries();
+      const entries = getQrEntries(qrTokens);
+      if (entries.length !== 36) throw new Error('Expected 6 start codes plus 30 issued location tokens. Run the latest Supabase migration.');
       const cards = await Promise.all(entries.map(async (entry) => {
         const colorKey = entry.color.toLowerCase();
         const dataUrl = await QRCode.toDataURL(entry.url, {
@@ -303,8 +308,7 @@ export default function AdminDashboard() {
   };
 
   const handleMarkFinished = async (teamId, teamName) => {
-    const safeName = sanitizeHtml(teamName);
-    if (!confirm(`Mark team "${safeName}" as finished? This records their official completion timestamp.`)) {
+    if (!confirm(`Mark team "${teamName}" as finished? This records their official completion timestamp.`)) {
       return;
     }
 
@@ -330,8 +334,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteTeam = async (teamId, teamName) => {
-    const safeName = sanitizeHtml(teamName);
-    if (!confirm(`WARNING: Are you absolutely sure you want to delete team "${safeName}"? This action is permanent and cannot be undone.`)) {
+    if (!confirm(`WARNING: Are you absolutely sure you want to delete team "${teamName}"? This action is permanent and cannot be undone.`)) {
       return;
     }
 
@@ -414,7 +417,18 @@ export default function AdminDashboard() {
   const totalCount = teams.length;
   const completedCount = teams.filter(t => t.finish_time).length;
   const readyCount = teams.filter(t => t.clues_solved === 5 && !t.finish_time).length;
-  const activeCount = totalCount - completedCount - readyCount;
+  const waitingCount = teams.filter(t => !t.finish_time && t.clues_solved < 5 && t.waiting_for_qr).length;
+  const activeCount = teams.filter(t => !t.finish_time && t.clues_solved < 5 && !t.waiting_for_qr).length;
+  const pathMetrics = Object.keys(PATH_DISPLAY).map((color) => {
+    const pathTeams = teams.filter((team) => team.color.toLowerCase() === color);
+    return {
+      color,
+      total: pathTeams.length,
+      playing: pathTeams.filter(t => !t.finish_time && t.clues_solved < 5 && !t.waiting_for_qr).length,
+      waiting: pathTeams.filter(t => !t.finish_time && t.clues_solved < 5 && t.waiting_for_qr).length,
+      finished: pathTeams.filter(t => t.finish_time).length,
+    };
+  });
 
   if (!isAuthenticated) {
     return (
@@ -660,6 +674,32 @@ export default function AdminDashboard() {
               </Card>
             </div>
 
+            <Card variant="panel" padding="md" className="mb-8">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-h2 font-bold text-primary">Live Path Monitor</h2>
+                  <p className="text-caption text-muted">Playing now, waiting for a location QR, and finished teams.</p>
+                </div>
+                <span className="text-micro font-bold uppercase tracking-wider text-accent-cyan">{activeCount} playing now · {waitingCount} waiting</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {pathMetrics.map(({ color, total, playing, waiting, finished }) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setColorFilter(color)}
+                    className="text-left rounded-xl border border-border-subtle bg-surface-1 p-3 hover:bg-surface-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+                  >
+                    <span className={`path-badge ${PATH_BADGES[color]} px-2 py-0.5 rounded text-micro font-bold uppercase`}>{color}</span>
+                    <span className="block text-h2 font-black text-primary mt-2">{total}</span>
+                    <span className="block text-micro text-accent-cyan">{playing} playing</span>
+                    <span className="block text-micro text-accent-amber">{waiting} waiting</span>
+                    <span className="block text-micro text-accent-emerald">{finished} finished</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+
             <Card variant="panel" padding="md" className="mb-6">
               <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="relative w-full md:max-w-xs">
@@ -710,6 +750,7 @@ export default function AdminDashboard() {
                         <thead>
                           <tr className="bg-surface-1 border-b border-border-subtle text-caption font-bold uppercase tracking-wider text-muted">
                             <th className="py-4 px-5">Rank & Team</th>
+                            <th className="py-4 px-4">Team ID</th>
                             <th className="py-4 px-4">Path</th>
                             <th className="py-4 px-4">Start Time</th>
                             <th className="py-4 px-4">Progress</th>
@@ -734,8 +775,11 @@ export default function AdminDashboard() {
                               >
                                 <td className="py-4 px-5 font-bold text-primary flex items-center gap-3">
                                   <span className="w-5 text-muted text-right">{idx + 1}.</span>
-                                  <span className="uppercase tracking-wide">{sanitizeHtml(team.name)}</span>
+                                  <span className="uppercase tracking-wide">{team.name}</span>
+                                  <span className="uppercase tracking-wide">{team.name}</span>
                                 </td>
+
+                                <td className="py-4 px-4 font-mono font-bold tracking-widest text-accent-brand">{team.team_code || '-----'}</td>
 
                                 <td className="py-4 px-4">
                                   <span className={`inline-block px-2.5 py-0.5 rounded border text-caption font-bold uppercase tracking-wider ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
@@ -813,7 +857,7 @@ export default function AdminDashboard() {
                                       onClick={() => handleDeleteTeam(team.id, team.name)}
                                       disabled={actionLoading === team.id}
                                       className="text-feedback-error hover:bg-feedback-error/10 p-2 min-h-[40px] min-w-[40px]"
-                                      aria-label={`Delete team ${sanitizeHtml(team.name)}`}
+                                      aria-label={`Delete team ${team.name}`}
                                     >
                                       <Trash2 className="w-4 h-4" />
                                     </Button>
@@ -846,7 +890,10 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-3">
                             <span className="w-8 text-muted text-right text-h2 font-black">{idx + 1}.</span>
                             <div>
-                              <span className="text-body font-bold text-primary uppercase tracking-wide block">{sanitizeHtml(team.name)}</span>
+                              <span className="text-body font-bold text-primary uppercase tracking-wide block">{team.name}</span>
+                              <span className="text-body font-bold text-primary uppercase tracking-wide block">{team.name}</span>
+                              aria-label={`Delete team ${team.name}`}
+                              <span className="text-micro font-mono font-bold tracking-widest text-accent-brand">ID {team.team_code || '-----'}</span>
                               <span className={`inline-block px-2 py-0.5 rounded border text-micro font-bold uppercase tracking-wider mt-1 ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
                                 {PATH_DISPLAY[team.color.toLowerCase()] || team.color.toUpperCase()}
                               </span>
@@ -856,7 +903,7 @@ export default function AdminDashboard() {
                           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto text-center sm:text-left">
                             <div className="flex flex-col items-center gap-1">
                               <span className="text-micro text-muted uppercase tracking-wider">Progress</span>
-                              <span className="text-body font-extrabold text-primary">{team.clues_solved + 1} / 5</span>
+                              <span className="text-body font-extrabold text-primary">{Math.min(team.clues_solved + 1, 5)} / 5</span>
                             </div>
                             <div className="flex flex-col items-center gap-1">
                               <span className="text-micro text-muted uppercase tracking-wider">Penalties</span>
@@ -891,7 +938,7 @@ export default function AdminDashboard() {
                             onClick={() => handleDeleteTeam(team.id, team.name)}
                             disabled={actionLoading === team.id}
                             className="text-feedback-error hover:bg-feedback-error/10 p-2 min-h-[40px] min-w-[40px]"
-                            aria-label={`Delete team ${sanitizeHtml(team.name)}`}
+                            aria-label={`Delete team ${team.name}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -949,21 +996,17 @@ export default function AdminDashboard() {
                 <span>Stage 2-6: Physical Location QR Codes (30 total)</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 qr-card-grid">
-                {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => (
-                  [1, 2, 3, 4, 5].map((stage) => {
-                    const locationUrl = `${qrOrigin}/scan?color=${color.toLowerCase()}&stage=${stage}`;
-                    return (
-                      <QRCard
-                        key={`${color}-${stage}`}
-                        title="KRITHOHUNT GATE"
-                        subtitle={`Stage ${stage}`}
-                        url={locationUrl}
-                        color={color}
-                      />
-                    );
-                  })
+                {qrTokens.map(({ token, color, stage }) => (
+                  <QRCard
+                    key={token}
+                    title="KRITHOHUNT GATE"
+                    subtitle={`Stage ${stage}`}
+                    url={`${qrOrigin}/scan?token=${encodeURIComponent(token)}`}
+                    color={color}
+                  />
                 ))}
               </div>
+              {qrTokenError && <p className="text-feedback-error text-body-sm mt-3">{qrTokenError}</p>}
             </div>
           </div>
         </main>

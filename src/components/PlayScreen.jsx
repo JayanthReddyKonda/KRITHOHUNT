@@ -28,9 +28,9 @@ export default function PlayScreen({ teamId, onReset }) {
   const [verifying, setVerifying] = useState(false);
   const [verificationFeedback, setVerificationFeedback] = useState(null);
   const html5QrCodeRef = useRef(null);
-  const readerRef = useRef(null);
 
   const fetchGameState = useCallback(async (isRefresh = false) => {
+    const requestId = ++scanRequestRef.current;
     if (isRefresh) setRefreshing(true);
     try {
       setError('');
@@ -48,6 +48,7 @@ export default function PlayScreen({ teamId, onReset }) {
         return;
       }
 
+      if (requestId !== scanRequestRef.current) return;
       setTeam(teamData);
 
       if (teamData.clues_solved < 5) {
@@ -55,7 +56,7 @@ export default function PlayScreen({ teamId, onReset }) {
           .rpc('get_current_clue', { p_team_id: teamId });
 
         if (clueError) throw clueError;
-        setClue(clueData && clueData.length > 0 ? clueData[0] : null);
+        if (requestId === scanRequestRef.current) setClue(clueData && clueData.length > 0 ? clueData[0] : null);
       } else {
         setClue(null);
       }
@@ -68,23 +69,25 @@ export default function PlayScreen({ teamId, onReset }) {
     }
   }, [teamId, onReset]);
 
+  const isAwaitingFinish = team?.clues_solved === 5 && !team?.finish_time;
+
   useEffect(() => {
     fetchGameState();
 
     let intervalId;
-    if (team && team.clues_solved === 5 && !team.finish_time) {
+    if (isAwaitingFinish) {
       intervalId = setInterval(() => fetchGameState(false), 10000);
     }
 
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [team, fetchGameState]);
+  }, [fetchGameState, isAwaitingFinish]);
 
   // QR Scanner effect using BottomSheet
   useEffect(() => {
     let html5QrCode;
-    if (showScanner && !scannerSuccess && !verifying) {
+    if (showScanner && !scannerSuccess && !verifying && !verificationFeedback) {
       setScannerError('');
       const timer = setTimeout(async () => {
         try {
@@ -102,31 +105,19 @@ export default function PlayScreen({ teamId, onReset }) {
               console.error("Failed to stop scanner", err);
             }
 
-            // Valid path colors and max stages
-            const VALID_COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
-            const MAX_STAGE = 5;
-
-            let color = '';
-            let stage = 0;
+            let token = '';
             let isValidUrl = false;
             try {
               const url = new URL(decodedText);
               if ([window.location.origin, PUBLIC_QR_ORIGIN].includes(url.origin) && url.pathname === '/scan') {
                 isValidUrl = true;
               }
-              color = url.searchParams.get('color') || '';
-              const stageValue = url.searchParams.get('stage') || '';
-              stage = /^\d+$/.test(stageValue) ? Number(stageValue) : 0;
+              token = url.searchParams.get('token') || '';
             } catch {
               isValidUrl = false;
             }
 
-            // Validate color is a known path color
-            const isValidColor = VALID_COLORS.includes(color.toLowerCase());
-            // Validate stage is a positive integer within range
-            const isValidStage = Number.isInteger(stage) && stage >= 1 && stage <= MAX_STAGE;
-
-            if (!isValidUrl || !isValidColor || !isValidStage) {
+            if (!isValidUrl || !/^[a-f0-9]{36}$/.test(token)) {
               setVerificationFeedback({
                 success: false,
                 message: 'Invalid QR Code. This is not a valid location QR code.'
@@ -138,8 +129,7 @@ export default function PlayScreen({ teamId, onReset }) {
             try {
               const { data, error: rpcError } = await supabase.rpc('scan_location_qr', {
                 p_team_id: teamId,
-                p_scanned_color: color,
-                p_scanned_stage: stage
+                p_token: token
               });
 
               if (rpcError) throw rpcError;
@@ -182,7 +172,7 @@ export default function PlayScreen({ teamId, onReset }) {
         }
       };
     }
-  }, [showScanner, scannerSuccess, verifying, teamId, team?.color, team?.clues_solved]);
+  }, [showScanner, scannerSuccess, verifying, verificationFeedback, teamId, team?.color, team?.clues_solved]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -227,6 +217,9 @@ export default function PlayScreen({ teamId, onReset }) {
   };
 
   const handleScanAgain = () => {
+    if (html5QrCodeRef.current?.isScanning) {
+      html5QrCodeRef.current.stop().catch(() => { });
+    }
     setVerificationFeedback(null);
     setScannerSuccess(false);
     setScannerError('');
@@ -362,7 +355,7 @@ export default function PlayScreen({ teamId, onReset }) {
             <ChevronLeft className="w-5 h-5" />
           </Button>
           <div className="flex flex-col">
-            <span className="text-micro text-muted uppercase tracking-widest font-semibold">Team: {team.name}</span>
+            <span className="text-micro text-muted uppercase tracking-widest font-semibold">{team.name} · ID {team.team_code || '-----'}</span>
             <span className={`path-badge ${theme.badgeClass} px-2 py-0.5 rounded text-micro font-bold uppercase`}>
               {theme.name} Path
             </span>
@@ -519,7 +512,7 @@ export default function PlayScreen({ teamId, onReset }) {
             {/* Camera feed */}
             {!scannerError && !verifying && !verificationFeedback && (
               <>
-                <div id="qr-reader" className="w-full h-full" ref={readerRef} />
+                <div id="qr-reader" className="w-full h-full" />
                 {/* CSS-only corner brackets overlay with animated pulse */}
                 <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
                   <div className="absolute top-4 left-4 w-12 h-12 border-2 border-transparent border-t-2 border-l-2 animate-pulse" style={{ borderTopColor: `hsl(var(--accent-${theme.accent}))`, borderLeftColor: `hsl(var(--accent-${theme.accent}))`, animationDuration: '2s' }} />

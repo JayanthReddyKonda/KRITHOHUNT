@@ -13,6 +13,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     [2, 0, 3], [4, 2, 3],
     [3, 5, 4], [6, 2, 4]
   ];
+  const storageKey = `krithohunt_connectdots_paths_${teamId}_${rows}_${cols}_${JSON.stringify(initialDots)}`;
 
   const COLOR_MAP = {
     0: { name: 'Empty', accent: 'violet' },
@@ -23,7 +24,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
   };
 
   const [paths, setPaths] = useState(() => {
-    const saved = localStorage.getItem(`krithohunt_connectdots_paths_${teamId}`);
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -48,8 +49,8 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
   const gridRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem(`krithohunt_connectdots_paths_${teamId}`, JSON.stringify(paths));
-  }, [paths, teamId]);
+    localStorage.setItem(storageKey, JSON.stringify(paths));
+  }, [paths, storageKey]);
 
   const getDotAtCell = (r, c) => {
     return initialDots.find(([dr, dc]) => dr === r && dc === c);
@@ -193,7 +194,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
 
       if (data.success) {
         setSuccessMsg('Connect the Dots solved!');
-        localStorage.removeItem(`krithohunt_connectdots_paths_${teamId}`);
+        localStorage.removeItem(storageKey);
         setTimeout(() => {
           onSolved();
         }, 1500);
@@ -228,6 +229,8 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
           ref={gridRef}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onLostPointerCapture={handlePointerUp}
           style={{
             touchAction: 'none',
             display: 'grid',

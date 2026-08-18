@@ -80,7 +80,7 @@ export default function Modal({
       ref={overlayRef}
       className="modal-backdrop"
       onClick={handleOverlayClick}
-      aria-hidden="true"
+      role="presentation"
     >
       <div
         ref={contentRef}

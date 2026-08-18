@@ -31,18 +31,18 @@ All tokens are defined in `src/index.css` and exposed through Tailwind in `tailw
 
 ### Start and play
 
-- `/start?color=<path>` registers or resumes a team.
+- `/start?color=<path>` registers a team or resumes it with its five-digit ID. Duplicate display names are allowed.
 - `/play` displays the current clue, location lock, QR scanner, game, penalties, and progress.
-- Physical QR scans are checked by `scan_location_qr` for team path and expected stage.
+- Physical QR scans carry a random issued token; `scan_location_qr` resolves it and checks team path and expected stage.
 - The direct `/scan` route and the in-app camera route use the same RPC.
 
 ### Admin
 
 - `/admin` contains the organizer login, team monitor, filters, sorting, completion actions, CSV export, and QR generator.
-- QR sheets contain six start codes and thirty location codes.
+- QR sheets contain six start codes and thirty issued-token location codes.
 - QR codes are generated locally, can be shared through the native share sheet or clipboard, and printing is handled by global `@media print` rules in `src/index.css`.
 - Printed QR URLs use `VITE_PUBLIC_APP_URL` when configured so a phone never receives an unreachable development origin such as `127.0.0.1`.
-- The camera scanner rejects non-origin URLs, non-`/scan` paths, unknown colors, malformed stages, and all camera permission failures.
+- The camera scanner rejects non-origin URLs, non-`/scan` paths, malformed tokens, and all camera permission failures.
 
 ### Games
 
@@ -64,6 +64,10 @@ Run `supabase-migration.sql` in a disposable Supabase project before event use. 
 - `admin_delete_team`
 
 The migration sets `search_path` on `SECURITY DEFINER` functions and validates standard answers, GeoGuessr coordinates, and Connect Dots paths server-side.
+
+It also creates `location_qr_tokens`, seeds thirty random tokens, exposes `register_team`, `resume_team`, and `get_location_qr_tokens`, and adds indexes for team code, progress, finish sorting, and token lookup. The current bounded polling model is appropriate for approximately 100–200 concurrent teams.
+
+The admin reset uses `admin_reset_teams` as one transaction, avoiding a request-per-team loop during event operations.
 
 ## Known deployment boundary
 

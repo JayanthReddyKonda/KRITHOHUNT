@@ -15,6 +15,8 @@ const PATH_THEMES = {
 export default function StartScreen({ onRegistered }) {
   const [color, setColor] = useState('');
   const [teamName, setTeamName] = useState('');
+  const [teamCode, setTeamCode] = useState('');
+  const [returning, setReturning] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -31,7 +33,7 @@ export default function StartScreen({ onRegistered }) {
 
   const handleStart = async (e) => {
     e.preventDefault();
-    if (!teamName.trim()) {
+    if (!returning && !teamName.trim()) {
       setError('Please enter a team name.');
       return;
     }
@@ -44,38 +46,36 @@ export default function StartScreen({ onRegistered }) {
     setError('');
 
     try {
-      const trimmedName = teamName.trim();
-
-      const { data: existingTeam, error: fetchError } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('name', trimmedName)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-
-      if (existingTeam) {
-        if (existingTeam.color.toLowerCase() === color) {
-          localStorage.setItem('treasure_hunt_team_id', existingTeam.id);
-          onRegistered(existingTeam.id);
-          return;
-        } else {
-          setError(`"${trimmedName}" is already registered on the ${existingTeam.color.toUpperCase()} path.`);
-          setLoading(false);
+      if (returning) {
+        if (!/^\d{5}$/.test(teamCode)) {
+          setError('Enter the five-digit team ID shown when your team registered.');
           return;
         }
+        const { data, error: resumeError } = await supabase.rpc('resume_team', {
+          p_team_code: teamCode,
+          p_color: color,
+        });
+        if (resumeError) throw resumeError;
+        if (!data?.success) throw new Error(data?.error || 'Team ID not found for this path.');
+        localStorage.setItem('treasure_hunt_team_id', data.team_id);
+        localStorage.setItem('treasure_hunt_team_code', data.team_code);
+        onRegistered(data.team_id);
+      } else {
+        const trimmedName = teamName.trim();
+        if (!trimmedName) {
+          setError('Please enter a team name.');
+          return;
+        }
+        const { data, error: registerError } = await supabase.rpc('register_team', {
+          p_name: trimmedName,
+          p_color: color,
+        });
+        if (registerError) throw registerError;
+        if (!data?.success) throw new Error(data?.error || 'Unable to register team.');
+        localStorage.setItem('treasure_hunt_team_id', data.team_id);
+        localStorage.setItem('treasure_hunt_team_code', data.team_code);
+        onRegistered(data.team_id);
       }
-
-      const { data: newTeam, error: insertError } = await supabase
-        .from('teams')
-        .insert([{ name: trimmedName, color: color, waiting_for_qr: true }])
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      localStorage.setItem('treasure_hunt_team_id', newTeam.id);
-      onRegistered(newTeam.id);
 
     } catch (err) {
       console.error(err);
@@ -147,7 +147,7 @@ export default function StartScreen({ onRegistered }) {
           </div>
 
           <form onSubmit={handleStart} className="space-y-5">
-            <div>
+            {!returning ? <div>
               <Input
                 id="teamName"
                 label="Team Name"
@@ -160,7 +160,21 @@ export default function StartScreen({ onRegistered }) {
                 error={error || undefined}
                 className="min-h-[56px] text-body"
               />
-            </div>
+            </div> : <div>
+              <Input
+                id="teamCode"
+                label="Five-Digit Team ID"
+                type="text"
+                inputMode="numeric"
+                value={teamCode}
+                onChange={(e) => setTeamCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                placeholder="e.g. 48217"
+                maxLength={5}
+                required
+                error={error || undefined}
+                className="min-h-[56px] text-body tracking-[0.3em]"
+              />
+            </div>}
 
             {error && (
               <div className="p-3 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-caption flex gap-2 items-start" role="alert">
@@ -179,7 +193,7 @@ export default function StartScreen({ onRegistered }) {
               className="touch-target"
               style={{ backgroundColor: `hsl(var(--accent-${theme.accent}))` }}
             >
-              {loading ? 'Registering...' : (
+              {loading ? (returning ? 'Resuming...' : 'Registering...') : (
                 <>
                   <Sparkles className="w-4 h-4" />
                   <span>Start Hunt</span>
@@ -187,6 +201,9 @@ export default function StartScreen({ onRegistered }) {
               )}
             </Button>
           </form>
+          <Button variant="ghost" size="sm" fullWidth onClick={() => { setReturning(!returning); setError(''); }}>
+            {returning ? 'Register a new team' : 'Already registered? Use team ID'}
+          </Button>
         </Card>
 
         <p className="text-center text-caption text-muted mt-6 px-4">

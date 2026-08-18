@@ -5,13 +5,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Card, Button } from '@/components/primitives';
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
 const DEFAULT_ROUNDS = [
   {
     round: 1,
@@ -65,6 +58,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
   const [successMsg, setSuccessMsg] = useState('');
   const currentRound = rounds[currentRoundIdx] || rounds[0];
   const totalRounds = rounds.length;
+  const storageKey = `krithohunt_geoguessr_${teamId}`;
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -73,6 +67,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
+    markerRef.current = null;
 
     const bounds = [[0, 0], [1000, 1000]];
 
@@ -126,8 +121,25 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+      markerRef.current = null;
     };
   }, [mapImage]);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      if (saved && Number.isInteger(saved.roundIndex) && saved.roundIndex >= 0 && saved.roundIndex < totalRounds) {
+        setCurrentRoundIdx(saved.roundIndex);
+        setPin(saved.pin || null);
+      }
+    } catch {
+      localStorage.removeItem(storageKey);
+    }
+  }, [storageKey, totalRounds]);
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify({ roundIndex: currentRoundIdx, pin }));
+  }, [storageKey, currentRoundIdx, pin]);
 
   const handleSubmitGuess = async () => {
     if (!pin) {
@@ -160,6 +172,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
           if (error) throw error;
 
           if (data.success) {
+            localStorage.removeItem(storageKey);
             setSuccessMsg(`ALL LOCATIONS FOUND! You completed all ${totalRounds} rounds!`);
             setTimeout(() => {
               onSolved();
@@ -229,7 +242,8 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
             alt={currentRound?.label}
             className="w-full h-full object-contain transition-opacity duration-300"
             onError={(e) => {
-              e.currentTarget.src = `https://via.placeholder.com/800x600/0b1120/6366f1?text=${encodeURIComponent(currentRound?.label || 'Campus Location')}`;
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = '/geo/campus-satellite.png';
             }}
           />
           <div className="absolute bottom-3 left-3 px-2.5 py-1 bg-surface-0/80 backdrop-blur-md rounded-lg text-micro font-bold text-secondary border border-border-subtle">

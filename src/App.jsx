@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import StartScreen from './components/StartScreen';
 import PlayScreen from './components/PlayScreen';
 import AdminDashboard from './components/AdminDashboard';
@@ -50,20 +50,20 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const navigate = (path) => {
+  const navigate = useCallback((path) => {
     window.history.pushState({}, '', path);
     setCurrentPath(window.location.pathname);
-  };
+  }, []);
 
-  const handleStartRegistered = (id) => {
+  const handleStartRegistered = useCallback((id) => {
     setTeamId(id);
     navigate('/play');
-  };
+  }, [navigate]);
 
-  const handleResetSession = () => {
+  const handleResetSession = useCallback(() => {
     setTeamId('');
     navigate('/');
-  };
+  }, [navigate]);
 
   const renderScreen = () => {
     if (currentPath === '/admin') {

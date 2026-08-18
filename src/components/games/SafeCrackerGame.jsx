@@ -89,14 +89,26 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
   const activeAnswerDigits = clueCards.map((c) => normalizeDigit(c?.answer));
 
   const submittingRef = useRef(false);
+  const storageKey = `krithohunt_safe_${teamId}`;
 
-  const [combination, setCombination] = useState([null, null, null, null]);
+  const [combination, setCombination] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      return Array.isArray(saved) && saved.length === 4 ? saved : [null, null, null, null];
+    } catch {
+      return [null, null, null, null];
+    }
+  });
   const [enteredDigit, setEnteredDigit] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [clueErrorMsg, setClueErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [showFinalClue, setShowFinalClue] = useState(false);
+
+  React.useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(combination));
+  }, [storageKey, combination]);
 
   const comboReady = combination.every((digit) => digit !== null);
   const activeIndex = combination.findIndex((d) => d === null);
@@ -193,6 +205,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
         const expectedCode = activeAnswerDigits.join('');
         if (guess === expectedCode) {
           setSuccessMsg('SAFE CRACKED! 🔓');
+          localStorage.removeItem(storageKey);
           setShowFinalClue(true);
           setTimeout(() => {
             onSolved();
@@ -214,6 +227,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
 
       if (data.success) {
         setSuccessMsg('SAFE CRACKED! 🔓');
+        localStorage.removeItem(storageKey);
         setShowFinalClue(true);
         setTimeout(() => {
           onSolved();
