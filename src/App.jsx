@@ -7,6 +7,35 @@ import SafeCrackerGame from './components/games/SafeCrackerGame';
 import { Compass, HelpCircle } from 'lucide-react';
 
 const DEMO_COLOR_THEME = { name: 'Indigo', rgb: '99, 102, 241' };
+const DEMO_SAFE_CRACKER_DATA = {
+  instructions: 'Solve the four clues, build the 4-digit code, and unlock the demo safe.',
+  clues: [
+    {
+      type: 'math',
+      question: '(9 × 2) - 14 = ?',
+      answer: '4',
+    },
+    {
+      type: 'digit_sum',
+      question: '998',
+      answer: '8',
+    },
+    {
+      type: 'riddle',
+      question: 'I am the number of wheels on a bicycle. What digit am I?',
+      answer: '2',
+    },
+    {
+      type: 'roman',
+      question: 'VI',
+      answer: '6',
+    },
+  ],
+  completion_clue: {
+    title: 'FINAL CLUE',
+    message: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+  },
+};
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -86,7 +115,8 @@ export default function App() {
         <SafeCrackerGame
             teamId="demo"
             colorTheme={DEMO_COLOR_THEME}
-            gameData={{}}
+            gameData={DEMO_SAFE_CRACKER_DATA}
+            isDemo={true}
             onSolved={() => window.alert('Safe unlocked!')}
             onIncorrect={() => {}}
           />
