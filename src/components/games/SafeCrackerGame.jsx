@@ -1,13 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { supabase } from '../../supabaseClient';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Loader2,
-  Lock,
-  Unlock,
-  ScrollText,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, Lock, Unlock, ScrollText } from 'lucide-react';
+import { Card, Button, KeypadButton, SafeDigitDisplay } from '@/components/primitives';
 
 const LOCAL_SAFE_CLUES = {
   red: {
@@ -96,7 +90,6 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
 
   const submittingRef = useRef(false);
 
-  // combination holds the solved digits (as strings to preserve '0').
   const [combination, setCombination] = useState([null, null, null, null]);
   const [enteredDigit, setEnteredDigit] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -108,54 +101,42 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
   const comboReady = combination.every((digit) => digit !== null);
   const activeIndex = combination.findIndex((d) => d === null);
 
-  const accentColor = `rgba(${colorTheme.rgb}, 0.9)`;
-  const accentBorder = `rgba(${colorTheme.rgb}, 0.25)`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
 
   const renderClueQuestion = (clue) => {
     const q = clue?.question || 'Missing clue question in game_data.';
-    const commonBox =
-      'rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-3';
+    const commonBox = 'rounded-xl border border-border-subtle bg-surface-2 p-3';
     switch (clue?.type) {
       case 'math':
         return (
           <div className={commonBox}>
-            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
-              {q}
-            </p>
+            <p className="text-body-sm text-secondary leading-relaxed whitespace-pre-line">{q}</p>
           </div>
         );
       case 'digit_sum':
         return (
           <div className={commonBox}>
-            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line font-semibold">
-              {q}
-            </p>
+            <p className="text-body-sm text-secondary leading-relaxed whitespace-pre-line font-semibold">{q}</p>
           </div>
         );
       case 'riddle':
         return (
           <div className={commonBox}>
-            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line italic">
-              {q}
-            </p>
+            <p className="text-body-sm text-secondary leading-relaxed whitespace-pre-line italic">{q}</p>
           </div>
         );
       case 'roman':
         return (
           <div className={commonBox}>
-            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
-              <span className="font-black tracking-wider" style={{ color: accentColor }}>
-                {q}
-              </span>
+            <p className="text-body-sm text-secondary leading-relaxed whitespace-pre-line">
+              <span className="font-black tracking-wider" style={{ color: accentColor }}>{q}</span>
             </p>
           </div>
         );
       default:
         return (
           <div className={commonBox}>
-            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
-              {q}
-            </p>
+            <p className="text-body-sm text-secondary leading-relaxed whitespace-pre-line">{q}</p>
           </div>
         );
     }
@@ -190,7 +171,6 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
       setEnteredDigit(null);
       setClueErrorMsg('');
     } else {
-      // Per-clue wrong answer: do not unlock, do not advance, do not call RPC.
       setClueErrorMsg('Incorrect digit. Try again.');
       setEnteredDigit(null);
     }
@@ -207,7 +187,6 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
     setShowFinalClue(false);
 
     try {
-      // Safe codes must be treated as strings so leading zeroes are preserved.
       const guess = `${combination[0]}${combination[1]}${combination[2]}${combination[3]}`.trim();
 
       if (isDemo) {
@@ -253,55 +232,46 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
     }
   };
 
+  const LABELS = ['Math', 'Digital Root', 'Riddle', 'Roman numeral'];
+
   return (
     <div className="w-full max-w-md mx-auto space-y-5 px-1 pb-6">
-      <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-850 text-left space-y-1">
-        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-          Game 5: 4-Digit Safe Cracker
-        </h4>
-        <p className="text-sm text-slate-300 leading-relaxed">{instructions}</p>
-      </div>
+      <Card variant="panel" padding="md" className="space-y-1">
+        <h4 className="text-caption font-bold text-muted uppercase tracking-wider">Game 5: 4-Digit Safe Cracker</h4>
+        <p className="text-body-sm text-secondary leading-relaxed">{instructions}</p>
+      </Card>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/70 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
-          <ScrollText className="w-4 h-4 text-slate-400" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-            Safe Clue Sheet
-          </span>
+      <Card variant="elevated" padding="none" className="rounded-2xl border border-border-subtle bg-surface-1/90 overflow-hidden">
+        <div className="px-4 py-3 border-b border-border-subtle flex items-center gap-2">
+          <ScrollText className="w-4 h-4 text-muted" />
+          <span className="text-caption font-bold uppercase tracking-widest text-muted">Safe Clue Sheet</span>
         </div>
 
-        <div className="divide-y divide-slate-800/70">
+        <div className="divide-y divide-border-subtle/70">
           {clueCards.map((clue, idx) => {
             const solved = combination[idx] !== null;
             const unlocked = solved || idx === activeIndex;
             const isLocked = !unlocked;
 
-            const labelByIndex = ['Math', 'Digital Root', 'Riddle', 'Roman numeral'][idx] || 'Clue';
-
             return (
-              <div
-                key={idx}
-                className={`p-4 space-y-2 ${isLocked ? 'opacity-50' : ''}`}
-              >
+              <div key={idx} className={`p-4 space-y-2 ${isLocked ? 'opacity-50' : ''}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0"
-                      style={{ backgroundColor: accentBorder, color: accentColor }}
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-caption font-black shrink-0"
+                      style={{ backgroundColor: `hsl(var(--accent-${colorTheme?.accent || 'indigo'}) / 0.1)`, color: accentColor }}
                     >
                       {idx + 1}
                     </span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      {labelByIndex}
-                    </span>
+                    <span className="text-caption font-bold uppercase tracking-wider text-muted">{LABELS[idx] || 'Clue'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {solved ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <CheckCircle2 className="w-4 h-4 text-feedback-success" />
                     ) : unlocked ? (
-                      <Unlock className="w-4 h-4 text-indigo-300" />
+                      <Unlock className="w-4 h-4 text-accent-indigo" />
                     ) : (
-                      <Lock className="w-4 h-4 text-slate-600" />
+                      <Lock className="w-4 h-4 text-muted" />
                     )}
                   </div>
                 </div>
@@ -313,15 +283,15 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
             );
           })}
         </div>
-      </div>
+      </Card>
 
-      <div className="bg-slate-950/50 p-5 rounded-3xl border border-slate-850 shadow-inner space-y-5">
+      <Card variant="panel" padding="lg" className="space-y-5">
         <div className="flex justify-center">
-          <div className="p-3 rounded-full bg-slate-900 border border-slate-800 shadow-inner">
+          <div className="p-3 rounded-full bg-surface-2 border border-border-subtle shadow-inner">
             {successMsg ? (
-              <Unlock className="w-8 h-8 text-emerald-400" />
+              <Unlock className="w-8 h-8 text-feedback-success" />
             ) : (
-              <Lock className="w-8 h-8 text-slate-500 animate-pulse" />
+              <Lock className="w-8 h-8 text-muted animate-pulse" />
             )}
           </div>
         </div>
@@ -329,12 +299,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
         <div className="w-full">
           <div className="grid grid-cols-4 gap-2 mb-1.5">
             {['Digit 1', 'Digit 2', 'Digit 3', 'Digit 4'].map((label, idx) => (
-              <span
-                key={idx}
-                className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-600"
-              >
-                {label}
-              </span>
+              <span key={idx} className="text-center text-micro uppercase tracking-wider font-bold text-muted">{label}</span>
             ))}
           </div>
 
@@ -345,72 +310,56 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
               const shown = solved ? digit : isActive ? (enteredDigit ?? '?') : '?';
 
               return (
-                <div
+                <SafeDigitDisplay
                   key={idx}
-                  className={`h-16 rounded-xl border text-2xl font-black flex items-center justify-center ${
-                    isActive
-                      ? 'bg-slate-950 border-2 text-white scale-105 shadow-lg'
-                      : 'bg-slate-900 border-slate-800 text-slate-400'
-                  }`}
-                  style={isActive ? { borderColor: accentColor } : {}}
-                >
-                  {shown}
-                </div>
+                  digit={shown}
+                  state={solved ? 'correct' : isActive ? 'active' : 'empty'}
+                  className={isActive ? 'ring-2 ring-accent-indigo ring-offset-2 ring-offset-surface-0 scale-105' : ''}
+                />
               );
             })}
           </div>
 
-          <p className="text-[11px] text-slate-600 text-center mt-2">
-            {comboReady
-              ? 'All digits solved. Tap "Unlock Safe" below.'
-              : `Solve Clue ${activeIndex + 1} by entering its digit, then pressing Check.`}
+          <p className="text-caption text-muted text-center mt-2">
+            {comboReady ? 'All digits solved. Tap "Unlock Safe" below.' : `Solve Clue ${activeIndex + 1} by entering its digit, then pressing Check.`}
           </p>
 
           {!comboReady && clueErrorMsg && (
-            <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
-              {clueErrorMsg}
-            </div>
+            <div className="mt-3 p-3 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-body-sm" role="alert">{clueErrorMsg}</div>
           )}
         </div>
 
-        <div className="w-full space-y-2 pt-3 border-t border-slate-900">
-          <span className="text-[11px] uppercase font-bold text-slate-500 block text-left">
-            Keypad
-          </span>
-          <div className="grid grid-cols-5 gap-2">
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-              <button
+        <div className="w-full space-y-2 pt-3 border-t border-border-subtle">
+          <span className="text-caption font-bold text-muted uppercase tracking-wider block text-left">Keypad</span>
+          <div className="grid grid-cols-5 gap-2" role="group" aria-label="Safe keypad">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
+              <KeypadButton
                 key={num}
+                value={num}
                 onClick={() => handleNumberInput(num)}
                 disabled={comboReady || submittingRef.current || loading || !!successMsg}
-                style={{ borderColor: `rgba(${colorTheme.rgb}, 0.15)` }}
-                className="h-12 rounded-lg border border-slate-900 bg-slate-900 text-slate-300 font-bold text-base active:bg-slate-800 active:text-white transition-all active:scale-95 disabled:opacity-50"
-              >
-                {num}
-              </button>
+                className="min-h-[48px] min-w-[48px] text-body"
+                aria-label={`Enter digit ${num}`}
+              />
             ))}
           </div>
 
-          <button
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
             onClick={checkActiveClue}
-            disabled={
-              comboReady ||
-              submittingRef.current ||
-              loading ||
-              !!successMsg ||
-              enteredDigit === null ||
-              activeIndex < 0
-            }
-            className="w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+            disabled={comboReady || submittingRef.current || loading || !!successMsg || enteredDigit === null || activeIndex < 0}
+            className="touch-target"
           >
             Check Clue {activeIndex + 1}
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       <div className="space-y-3 pb-2">
         {errorMsg && (
-          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex gap-2.5 items-start animate-shake">
+          <div className="p-4 rounded-2xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-body-sm flex gap-2.5 items-start animate-shake" role="alert">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold">Access Denied: </span>
@@ -420,7 +369,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
         )}
 
         {successMsg && (
-          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex gap-2.5 items-start">
+          <div className="p-4 rounded-2xl bg-feedback-success/10 border border-feedback-success/20 text-feedback-success text-body-sm flex gap-2.5 items-start" role="status">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold">Access Granted: </span>
@@ -430,28 +379,30 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
         )}
 
         {showFinalClue && (
-          <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 text-sm space-y-1">
-            <div className="font-bold text-indigo-300 uppercase tracking-wider text-xs">
-              {completionTitle}
-            </div>
-            <div>{completionMessage}</div>
-          </div>
+          <Card variant="panel" padding="md" className="bg-accent-indigo/10 border-accent-indigo/20 text-accent-indigo space-y-1">
+            <div className="font-bold uppercase tracking-wider text-caption">{completionTitle}</div>
+            <div className="text-body-sm">{completionMessage}</div>
+          </Card>
         )}
 
-        <button
+        <Button
+          variant="accent"
+          size="lg"
+          fullWidth
           onClick={checkPuzzleSolved}
           disabled={loading || !!successMsg || !comboReady}
-          style={!successMsg && comboReady ? { backgroundColor: accentColor } : {}}
-          className={`w-full h-14 rounded-2xl text-slate-950 font-bold text-sm tracking-wider uppercase shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 ${
-            successMsg ? 'bg-emerald-500 text-slate-950' : comboReady ? 'active:brightness-110' : 'bg-slate-800 text-slate-500'
-          }`}
+          loading={loading}
+          className="min-h-[56px] text-body shadow-xl"
         >
           {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Unlocking...</span>
+            </>
           ) : (
             <span>Unlock Safe</span>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

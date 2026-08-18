@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import GameRenderer from './GameRenderer';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Compass, Trophy, Clock, Skull, RefreshCw, LogOut, Loader2, MapPin, CheckCircle, Camera, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { Trophy, Clock, Skull, RefreshCw, Loader2, MapPin, CheckCircle, Camera, AlertTriangle, CheckCircle2, XCircle, ChevronLeft } from 'lucide-react';
+import { Card, Button, BottomSheet } from '@/components/primitives';
 
 const PATH_THEMES = {
-  red: { name: 'Red', bg: 'bg-red-500', hover: 'hover:bg-red-650', text: 'text-red-400', border: 'border-red-500/30', rgb: '239, 68, 68', gradient: 'from-red-600/10' },
-  blue: { name: 'Blue', bg: 'bg-blue-500', hover: 'hover:bg-blue-650', text: 'text-blue-400', border: 'border-blue-500/30', rgb: '59, 130, 246', gradient: 'from-blue-600/10' },
-  green: { name: 'Green', bg: 'bg-emerald-500', hover: 'hover:bg-emerald-650', text: 'text-emerald-400', border: 'border-emerald-500/30', rgb: '16, 185, 129', gradient: 'from-emerald-600/10' },
-  yellow: { name: 'Yellow', bg: 'bg-amber-500', hover: 'hover:bg-amber-650', text: 'text-amber-400', border: 'border-amber-500/30', rgb: '245, 158, 11', gradient: 'from-amber-600/10' },
-  purple: { name: 'Purple', bg: 'bg-violet-500', hover: 'hover:bg-violet-650', text: 'text-violet-400', border: 'border-violet-500/30', rgb: '139, 92, 246', gradient: 'from-violet-600/10' },
-  orange: { name: 'Orange', bg: 'bg-orange-500', hover: 'hover:bg-orange-650', text: 'text-orange-400', border: 'border-orange-500/30', rgb: '249, 115, 22', gradient: 'from-orange-600/10' }
+  red: { name: 'RED', accent: 'red', rgb: '239, 68, 68', badgeClass: 'path-badge-red' },
+  blue: { name: 'BLUE', accent: 'blue', rgb: '59, 130, 246', badgeClass: 'path-badge-blue' },
+  green: { name: 'GREEN', accent: 'green', rgb: '16, 185, 129', badgeClass: 'path-badge-green' },
+  yellow: { name: 'YELLOW', accent: 'yellow', rgb: '245, 158, 11', badgeClass: 'path-badge-yellow' },
+  purple: { name: 'PURPLE', accent: 'purple', rgb: '139, 92, 246', badgeClass: 'path-badge-purple' },
+  orange: { name: 'ORANGE', accent: 'orange', rgb: '249, 115, 22', badgeClass: 'path-badge-orange' },
 };
 
 export default function PlayScreen({ teamId, onReset }) {
@@ -23,13 +24,14 @@ export default function PlayScreen({ teamId, onReset }) {
   const [scannerError, setScannerError] = useState('');
   const [scannerSuccess, setScannerSuccess] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [verificationFeedback, setVerificationFeedback] = useState(null); // { success: boolean, message: string }
+  const [verificationFeedback, setVerificationFeedback] = useState(null);
+  const html5QrCodeRef = useRef(null);
+  const readerRef = useRef(null);
 
   const fetchGameState = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
       setError('');
-      // 1. Fetch team details
       const { data: teamData, error: teamError } = await supabase
         .from('teams')
         .select('*')
@@ -39,7 +41,6 @@ export default function PlayScreen({ teamId, onReset }) {
       if (teamError) throw teamError;
 
       if (!teamData) {
-        // Session not in DB anymore
         localStorage.removeItem('treasure_hunt_team_id');
         onReset();
         return;
@@ -47,7 +48,6 @@ export default function PlayScreen({ teamId, onReset }) {
 
       setTeam(teamData);
 
-      // 2. Fetch current clue if not finished with digital games securely (excluding solution)
       if (teamData.clues_solved < 5) {
         const { data: clueData, error: clueError } = await supabase
           .rpc('get_current_clue', { p_team_id: teamId });
@@ -69,26 +69,26 @@ export default function PlayScreen({ teamId, onReset }) {
   useEffect(() => {
     fetchGameState();
 
-    // Auto refresh every 10 seconds if team is waiting for the organizer finish
     let intervalId;
     if (team && team.clues_solved === 5 && !team.finish_time) {
-      intervalId = setInterval(() => {
-        fetchGameState(false);
-      }, 10000);
+      intervalId = setInterval(() => fetchGameState(false), 10000);
     }
 
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [team?.clues_solved, team?.finish_time, fetchGameState]);
+  }, [team, fetchGameState]);
 
+  // QR Scanner effect using BottomSheet
   useEffect(() => {
     let html5QrCode;
     if (showScanner && !scannerSuccess && !verifying) {
       setScannerError('');
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         try {
-          html5QrCode = new Html5Qrcode("reader");
+          html5QrCode = new Html5Qrcode("qr-reader");
+          html5QrCodeRef.current = html5QrCode;
+
           const qrCodeSuccessCallback = async (decodedText) => {
             setVerifying(true);
             try {
@@ -97,23 +97,37 @@ export default function PlayScreen({ teamId, onReset }) {
               console.error("Failed to stop scanner", err);
             }
 
+            // Valid path colors and max stages
+            const VALID_COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+            const MAX_STAGE = 5;
+
             let color = '';
             let stage = 0;
+            let isValidUrl = false;
             try {
               const url = new URL(decodedText);
+              // Validate origin matches our app origin to prevent cross-site QR codes
+              if (url.origin === window.location.origin) {
+                isValidUrl = true;
+              }
               color = url.searchParams.get('color') || '';
               stage = parseInt(url.searchParams.get('stage') || '0', 10);
-            } catch (e) {
+            } catch {
               const search = decodedText.includes('?') ? decodedText.substring(decodedText.indexOf('?')) : '?' + decodedText;
               const params = new URLSearchParams(search);
               color = params.get('color') || '';
               stage = parseInt(params.get('stage') || '0', 10);
             }
 
-            if (!color || !stage) {
+            // Validate color is a known path color
+            const isValidColor = VALID_COLORS.includes(color.toLowerCase());
+            // Validate stage is a positive integer within range
+            const isValidStage = Number.isInteger(stage) && stage >= 1 && stage <= MAX_STAGE;
+
+            if (!isValidUrl || !isValidColor || !isValidStage) {
               setVerificationFeedback({
                 success: false,
-                message: '❌ Invalid QR Code. This is not a valid location QR code.'
+                message: 'Invalid QR Code. This is not a valid location QR code.'
               });
               setVerifying(false);
               return;
@@ -132,12 +146,12 @@ export default function PlayScreen({ teamId, onReset }) {
                 setScannerSuccess(true);
                 setVerificationFeedback({
                   success: true,
-                  message: data.message || '✅ LOCATION VERIFIED! Challenge unlocked.'
+                  message: data.message || 'LOCATION VERIFIED! Challenge unlocked.'
                 });
               } else {
                 setVerificationFeedback({
                   success: false,
-                  message: data.error || '❌ WRONG QR. This is not the correct location for your current clue.'
+                  message: data.error || 'WRONG QR. This is not the correct location for your current clue.'
                 });
               }
             } catch (err) {
@@ -152,14 +166,10 @@ export default function PlayScreen({ teamId, onReset }) {
           };
 
           const config = { fps: 10, qrbox: { width: 220, height: 220 } };
-          html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
-            .catch((err) => {
-              console.error(err);
-              setScannerError('Camera access denied or could not find environment camera. Please allow camera permissions.');
-            });
+          await html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback);
         } catch (e) {
           console.error(e);
-          setScannerError('Failed to initialize scanner component.');
+          setScannerError('Camera access denied or could not find environment camera. Please allow camera permissions.');
         }
       }, 300);
 
@@ -171,6 +181,15 @@ export default function PlayScreen({ teamId, onReset }) {
       };
     }
   }, [showScanner, scannerSuccess, verifying, teamId, team?.color, team?.clues_solved]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop().catch(() => {});
+      }
+    };
+  }, []);
 
   const handleLogout = () => {
     if (confirm('Are you sure you want to reset this session? Your progress in the database will NOT be deleted, but you will need to enter your team name again to resume.')) {
@@ -188,11 +207,62 @@ export default function PlayScreen({ teamId, onReset }) {
     return `${minutes}m ${seconds}s`;
   };
 
+  const handleCloseScanner = () => {
+    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+      html5QrCodeRef.current.stop().catch(() => {});
+    }
+    setShowScanner(false);
+    setScannerSuccess(false);
+    setVerificationFeedback(null);
+    setScannerError('');
+  };
+
+  const handleStartChallenge = async () => {
+    setShowScanner(false);
+    setScannerSuccess(false);
+    setVerificationFeedback(null);
+    await fetchGameState();
+  };
+
+  const handleScanAgain = () => {
+    setVerificationFeedback(null);
+    setScannerSuccess(false);
+    setScannerError('');
+  };
+
+  const handleSimulatedScan = async () => {
+    setVerifying(true);
+    try {
+      const { data, error: rpcError } = await supabase.rpc('scan_location_qr', {
+        p_team_id: teamId,
+        p_scanned_color: team.color.toLowerCase(),
+        p_scanned_stage: team.clues_solved + 1
+      });
+      if (rpcError) throw rpcError;
+      if (data.success) {
+        setScannerSuccess(true);
+        setVerificationFeedback({
+          success: true,
+          message: 'LOCATION VERIFIED! Challenge unlocked.'
+        });
+      } else {
+        setVerificationFeedback({
+          success: false,
+          message: data.error || 'WRONG QR. This is not the correct location.'
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[80vh] gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-        <span className="text-xs text-slate-400">Loading game progress...</span>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: `hsl(var(--accent-indigo))` }} />
+        <span className="text-caption text-muted">Loading game progress...</span>
       </div>
     );
   }
@@ -200,79 +270,65 @@ export default function PlayScreen({ teamId, onReset }) {
   if (error && !team) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm">
-          <p className="text-red-400 text-sm mb-4">{error}</p>
-          <button
-            onClick={() => fetchGameState()}
-            className="px-4 py-2 bg-slate-850 border border-slate-700 hover:bg-slate-800 rounded-xl text-xs text-white"
-          >
+        <Card variant="elevated" className="w-full max-w-sm p-6 text-center">
+          <p className="text-feedback-error text-body-sm mb-4">{error}</p>
+          <Button variant="secondary" size="md" onClick={() => fetchGameState()}>
             Retry
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
     );
   }
 
   const theme = PATH_THEMES[team.color.toLowerCase()] || PATH_THEMES.red;
+  const progressPercent = ((team.clues_solved + (team.waiting_for_qr ? 0 : 1)) / 5) * 100;
 
   // SCREEN A: Treasure Hunt Complete (Finished State)
   if (team.finish_time) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8 relative">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-20 bg-emerald-500" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none" style={{ backgroundColor: `hsl(var(--feedback-success) / 0.2)` }} />
 
-        <div className="w-full max-w-sm text-center">
-          <div className="inline-flex p-4 rounded-full bg-emerald-500/10 border border-emerald-500/25 mb-4 shadow-lg animate-bounce">
-            <Trophy className="w-12 h-12 text-emerald-400" />
+        <Card variant="elevated" className="w-full max-w-[360px] text-center p-6">
+          <div className="inline-flex p-4 rounded-full bg-feedback-success/10 border border-feedback-success/25 mb-4 shadow-lg animate-bounce">
+            <Trophy className="w-12 h-12 text-feedback-success" />
           </div>
 
-          <h1 className="text-3xl font-black text-white tracking-tight leading-none mb-1">
-            CONGRATULATIONS!
-          </h1>
-          <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-6">
-            Treasure Hunt Complete
-          </p>
+          <h1 className="text-h1 font-black text-primary tracking-tight leading-none mb-1">CONGRATULATIONS!</h1>
+          <p className="text-caption font-semibold text-feedback-success uppercase tracking-widest mb-6">Treasure Hunt Complete</p>
 
-          <div className="bg-slate-900/60 border border-emerald-500/20 rounded-3xl p-6 shadow-2xl backdrop-blur-lg space-y-6 text-left relative overflow-hidden">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-              <span className="text-sm font-semibold text-slate-400">Team Name</span>
-              <span className="text-sm font-bold text-white uppercase">{team.name}</span>
+          <div className="space-y-4 text-left">
+            <div className="flex justify-between items-center pb-3 border-b border-border-subtle">
+              <span className="text-body-sm text-secondary">Team Name</span>
+              <span className="text-body-sm font-bold text-primary uppercase">{team.name}</span>
             </div>
 
-            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-              <span className="text-sm font-semibold text-slate-400">Path Color</span>
-              <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${theme.bg} text-slate-950`}>
+            <div className="flex justify-between items-center pb-3 border-b border-border-subtle">
+              <span className="text-body-sm text-secondary">Path Color</span>
+<span className={`path-badge ${theme.badgeClass} px-2 py-0.5 rounded text-micro font-bold uppercase`}>
                 {theme.name}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-2xl flex flex-col items-center justify-center">
-                <Clock className="w-5 h-5 text-indigo-400 mb-1" />
-                <span className="text-[10px] uppercase font-semibold text-slate-500">Time Taken</span>
-                <span className="text-base font-extrabold text-white mt-0.5">
-                  {getDurationText(team.start_time, team.finish_time)}
-                </span>
+              <div className="bg-surface-2 border border-border-subtle p-4 rounded-2xl flex flex-col items-center justify-center">
+                <Clock className="w-5 h-5 text-accent-indigo mb-1" />
+                <span className="text-micro uppercase font-semibold text-muted">Time Taken</span>
+                <span className="text-body font-extrabold text-primary mt-0.5">{getDurationText(team.start_time, team.finish_time)}</span>
               </div>
 
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-2xl flex flex-col items-center justify-center">
-                <Skull className="w-5 h-5 text-amber-500 mb-1" />
-                <span className="text-[10px] uppercase font-semibold text-slate-500">Penalties</span>
-                <span className="text-base font-extrabold text-white mt-0.5">{team.penalty_count}</span>
+              <div className="bg-surface-2 border border-border-subtle p-4 rounded-2xl flex flex-col items-center justify-center">
+                <Skull className="w-5 h-5 text-feedback-warning mb-1" />
+                <span className="text-micro uppercase font-semibold text-muted">Penalties</span>
+                <span className="text-body font-extrabold text-primary mt-0.5">{team.penalty_count}</span>
               </div>
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              localStorage.removeItem('treasure_hunt_team_id');
-              onReset();
-            }}
-            className="mt-8 text-xs text-slate-500 hover:text-slate-400 font-semibold underline underline-offset-4"
-          >
+          <Button variant="ghost" size="sm" className="mt-8 text-micro underline underline-offset-2" onClick={() => { localStorage.removeItem('treasure_hunt_team_id'); onReset(); }}>
             Start New Game / Scan New Path
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -281,327 +337,311 @@ export default function PlayScreen({ teamId, onReset }) {
   if (team.clues_solved === 5) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8 relative">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-20 bg-indigo-500" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none" style={{ backgroundColor: `hsl(var(--accent-indigo) / 0.2)` }} />
 
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <div className="inline-flex p-3 rounded-full bg-slate-900 border border-slate-800 mb-3 shadow-inner">
-              <CheckCircle className="w-8 h-8 text-indigo-400" />
-            </div>
-            <h1 className="text-2xl font-black text-white">ALL DIGITAL CHALLENGES COMPLETE!</h1>
+        <Card variant="elevated" className="w-full max-w-[360px] p-6 text-center space-y-6">
+          <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-3 shadow-inner">
+            <CheckCircle className="w-8 h-8 text-accent-indigo" />
           </div>
+          <h1 className="text-h2 font-black text-primary">ALL DIGITAL CHALLENGES COMPLETE!</h1>
 
-          <div className="bg-slate-900/65 border border-slate-800 rounded-3xl p-6 shadow-2xl backdrop-blur-lg text-center space-y-6">
-            <p className="text-sm text-slate-300 leading-relaxed">
-              Your final challenge is physical and awaits you at the <strong className="text-white">START DESK</strong>.
+          <p className="text-body-sm text-secondary leading-relaxed">
+            Your final challenge is physical and awaits you at the <strong className="text-primary">START DESK</strong>.
+          </p>
+
+          <div className="p-4 bg-surface-2 rounded-2xl border border-border-subtle text-left">
+            <h4 className="text-caption font-bold uppercase tracking-wider text-muted mb-1.5">Your Instruction:</h4>
+            <p className="text-caption text-muted leading-relaxed">
+              Organizers will hand you a <strong className="text-accent-indigo">9-piece club logo jigsaw puzzle</strong>. Assemble it correctly, and the organizer will verify your finish to record your final score.
             </p>
-
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-850 text-left">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Your Instruction:</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Organizers will hand you a <strong className="text-indigo-400">9-piece club logo jigsaw puzzle</strong>. Assemble it correctly, and the organizer will verify your finish to record your final score.
-              </p>
-            </div>
-
-            <div className="pt-2 border-t border-slate-850 flex flex-col gap-3">
-              <button
-                onClick={() => fetchGameState(true)}
-                disabled={refreshing}
-                className="w-full py-3.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-xs tracking-wider uppercase rounded-xl flex items-center justify-center gap-2 transition-all"
-              >
-                {refreshing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-                <span>Check If Organizer Marked Finished</span>
-              </button>
-              <p className="text-[10px] text-slate-500">Screen auto-refreshes every 10 seconds</p>
-            </div>
           </div>
-        </div>
+
+          <div className="pt-2 border-t border-border-subtle flex flex-col gap-3">
+            <Button variant="accent" size="lg" fullWidth onClick={() => fetchGameState(true)} disabled={refreshing} loading={refreshing} style={{ backgroundColor: `hsl(var(--accent-indigo))` }}>
+              {refreshing ? 'Checking...' : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Check If Organizer Marked Finished</span>
+                </>
+              )}
+            </Button>
+            <p className="text-micro text-muted">Screen auto-refreshes every 10 seconds</p>
+          </div>
+        </Card>
       </div>
     );
   }
 
   // SCREEN C: Active Gameplay Clue Screen (clues_solved < 5)
   return (
-    <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8 relative">
-      {/* Background glow matching color theme */}
-      <div 
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-15 transition-all duration-500"
-        style={{ backgroundColor: `rgb(${theme.rgb})` }}
+    <div className="flex flex-col min-h-screen relative">
+      {/* Background radial glow */}
+      <div
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none transition-all duration-500 -z-10"
+        style={{ backgroundColor: `hsl(var(--accent-${theme.accent}) / 0.15)` }}
       />
 
-      <div className="w-full max-w-sm">
-        {/* Header toolbar */}
-        <div className="flex justify-between items-center mb-5 px-1">
-          <div className="flex items-center gap-1.5">
-            <Compass className="w-4 h-4 text-slate-400" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              Team: {team.name}
+      {/* Sticky Header - 56px height, surface-0/80 + blur */}
+      <header className="sticky top-0 z-40 h-[56px] flex items-center justify-between px-4 bg-surface-0/80 backdrop-blur-md border-b border-border-subtle">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" aria-label="Back to start" onClick={handleLogout}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex flex-col">
+            <span className="text-micro text-muted uppercase tracking-widest font-semibold">Team: {team.name}</span>
+            <span className={`path-badge ${theme.badgeClass} px-2 py-0.5 rounded text-micro font-bold uppercase`}>
+              {theme.name} Path
             </span>
           </div>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-slate-400 uppercase tracking-wider transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Reset</span>
-          </button>
         </div>
 
-        {/* Clue Panel Container */}
-        <div 
-          className="bg-slate-900/65 border rounded-3xl p-6 shadow-2xl backdrop-blur-lg glow-active relative overflow-hidden transition-all duration-300"
-          style={{ 
-            borderColor: `rgba(${theme.rgb}, 0.25)`,
-            '--theme-color-rgb': theme.rgb
-          }}
-        >
-          {/* Card Header progress tracker */}
-          <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-800">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Active Location</span>
-              <span className={`text-base font-extrabold uppercase tracking-tight ${theme.text}`}>
-                {theme.name} Path
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Progress</span>
-              <span className="text-sm font-black text-slate-300">
-                Clue {team.clues_solved + 1} / 5
-              </span>
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-caption font-semibold text-secondary uppercase tracking-wider">
+            Clue {team.clues_solved + 1} / 5
+          </span>
+          <Button variant="ghost" size="sm" aria-label="Sync game state" onClick={() => fetchGameState(true)} disabled={refreshing} loading={refreshing}>
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+        </div>
+      </header>
 
-          {/* Current Location Clue or Game Challenge */}
-          {team.waiting_for_qr ? (
-            <div className="space-y-6 py-2 animate-fade-in">
-              {/* Clue Header & Text */}
-              <div className="p-5 bg-slate-900 border border-slate-850 rounded-2xl text-left space-y-4">
+      {/* Main Game Container - full viewport height minus header */}
+      <main className="flex-1 overflow-y-auto px-4 py-6 pb-24">
+        <div className="w-full max-w-[360px] mx-auto">
+          {/* Game Card with Progress Bar at top */}
+          <Card variant="elevated" padding="none" className="relative overflow-hidden" style={{ '--theme-color-rgb': theme.rgb }}>
+            {/* Progress Bar - 4px height, accent fill */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-surface-2" aria-hidden="true">
+              <div
+                className="h-full rounded-none"
+                style={{
+                  width: `${progressPercent}%`,
+                  backgroundColor: `hsl(var(--accent-${theme.accent}))`,
+                  transition: 'width 300ms ease-out'
+                }}
+              />
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Card Header progress tracker */}
+              <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-black tracking-widest uppercase text-indigo-400">
-                    CLUE {team.clues_solved + 1}
+                  <span className="text-caption text-muted uppercase tracking-wider">Active Location</span>
+                  <span className="text-body font-extrabold uppercase tracking-tight" style={{ color: `hsl(var(--accent-${theme.accent}))` }}>
+                    {theme.name} Path
                   </span>
-                  <p className="text-sm text-slate-200 leading-relaxed font-semibold mt-1">
-                    {clue ? clue.clue_text : 'Find the next physical location.'}
-                  </p>
                 </div>
-                
-                <div className="flex items-center gap-2 text-[10px] text-slate-400 font-semibold uppercase">
-                  <MapPin className="w-4 h-4 text-indigo-400 animate-pulse" />
-                  <span>📍 Find the location described above.</span>
+                <div className="text-right">
+                  <span className="text-caption text-muted uppercase tracking-wider block">Progress</span>
+                  <span className="text-body-sm font-black text-primary">
+                    {team.clues_solved + 1} / 5
+                  </span>
                 </div>
               </div>
 
-              {/* Lock card and Scanner trigger */}
-              <div className="p-6 bg-slate-950/60 rounded-2xl border border-indigo-500/10 text-center space-y-4">
-                <button
-                  onClick={() => setShowScanner(true)}
-                  style={{ backgroundColor: `rgba(${theme.rgb}, 0.95)` }}
-                  className="w-full py-4 text-slate-950 font-black text-sm tracking-wider uppercase rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg hover:brightness-110 cursor-pointer"
-                >
-                  <Camera className="w-4.5 h-4.5 text-slate-955" style={{ color: `rgb(${theme.rgb})` }} />
-                  <span>📷 SCAN QR</span>
-                </button>
+              {/* Current Location Clue or Game Challenge */}
+              {team.waiting_for_qr ? (
+                <div className="space-y-6 py-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {/* Clue Card */}
+                  <Card variant="panel" padding="lg" className="text-left space-y-4">
+                    <div>
+                      <span className="text-micro font-black tracking-widest uppercase" style={{ color: `hsl(var(--accent-${theme.accent}))` }}>
+                        CLUE {team.clues_solved + 1}
+                      </span>
+                      <p className="text-body text-primary leading-relaxed font-semibold mt-2">
+                        {clue ? clue.clue_text : 'Find the next physical location.'}
+                      </p>
+                    </div>
 
-                <p className="text-[10px] text-slate-500 leading-relaxed max-w-xs mx-auto">
-                  Game {team.clues_solved + 1} is locked until you scan the QR at the correct location.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6 animate-fade-in">
-              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-850 text-slate-400 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5 px-3.5">
-                <MapPin className="w-3.5 h-3.5" style={{ color: `rgb(${theme.rgb})` }} />
-                <span>Active Location Verified</span>
-              </div>
+                    <div className="flex items-center gap-2 text-caption text-muted font-semibold uppercase">
+                      <MapPin className="w-4 h-4 animate-pulse" style={{ color: `hsl(var(--accent-${theme.accent}))` }} />
+                      <span>Find the location described above.</span>
+                    </div>
+                  </Card>
 
-              {clue && (
-                <GameRenderer 
-                  teamId={team.id}
-                  colorTheme={theme}
-                  gameType={clue.game_type}
-                  gameData={clue.game_data}
-                  onSolved={() => fetchGameState(false)}
-                  onIncorrect={() => fetchGameState(false)}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Stats Bar */}
-          <div className="mt-6 pt-4 border-t border-slate-850 flex justify-between text-slate-500 text-[10px] font-semibold uppercase">
-            <span className="flex items-center gap-1">
-              <Skull className="w-3.5 h-3.5 text-amber-500" />
-              <span>Penalties: {team.penalty_count}</span>
-            </span>
-            <button 
-              onClick={() => fetchGameState(true)}
-              className="flex items-center gap-1 text-slate-500 hover:text-slate-400"
-            >
-              <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>Sync</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* QR Scanner Modal Overlay */}
-      {showScanner && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in no-print">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 relative overflow-hidden">
-            
-            <div className="text-center space-y-1">
-              <h3 className="text-lg font-black text-white flex items-center justify-center gap-2">
-                <Camera className="w-5 h-5 text-indigo-400" />
-                <span>📷 QR Code Scanner</span>
-              </h3>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-                Point at the physical location poster
-              </p>
-            </div>
-
-            {/* Viewport/States */}
-            <div className="relative">
-              {/* Camera Scanner Viewport */}
-              {!scannerError && !verifying && !verificationFeedback && (
-                <div className="relative aspect-square max-w-[260px] mx-auto rounded-2xl border border-slate-800 overflow-hidden bg-black shadow-inner">
-                  <div id="reader" className="w-full h-full" />
-                  {/* Scanner overlay target box */}
-                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div className="w-48 h-48 border-2 border-dashed border-indigo-400/50 rounded-lg animate-pulse" />
-                  </div>
-                </div>
-              )}
-
-              {/* Verifying state */}
-              {verifying && (
-                <div className="aspect-square max-w-[260px] mx-auto flex flex-col items-center justify-center gap-3 bg-slate-950/40 rounded-2xl border border-slate-850">
-                  <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-                  <span className="text-xs text-slate-400">Verifying scanned token...</span>
-                </div>
-              )}
-
-              {/* Error initializing state */}
-              {scannerError && !verificationFeedback && (
-                <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/20 text-center space-y-4 max-w-[260px] mx-auto">
-                  <AlertTriangle className="w-8 h-8 text-red-500 mx-auto animate-bounce" />
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider">Scanner Locked</h4>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      {scannerError}
-                    </p>
-                  </div>
-                  {/* Web Testing Sandbox Fallback */}
-                  <div className="pt-2 border-t border-slate-850 space-y-2">
-                    <span className="text-[9px] uppercase font-bold text-slate-500 block">Development Sandbox</span>
-                    <button
-                      onClick={async () => {
-                        setVerifying(true);
-                        try {
-                          const { data, error: rpcError } = await supabase.rpc('scan_location_qr', {
-                            p_team_id: teamId,
-                            p_scanned_color: team.color.toLowerCase(),
-                            p_scanned_stage: team.clues_solved + 1
-                          });
-                          if (rpcError) throw rpcError;
-                          if (data.success) {
-                            setScannerSuccess(true);
-                            setVerificationFeedback({
-                              success: true,
-                              message: '✅ LOCATION VERIFIED! Challenge unlocked.'
-                            });
-                          } else {
-                            setVerificationFeedback({
-                              success: false,
-                              message: data.error || '❌ WRONG QR. This is not the correct location.'
-                            });
-                          }
-                        } catch (e) {
-                          console.error(e);
-                        } finally {
-                          setVerifying(false);
-                        }
-                      }}
-                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+                  {/* Lock card and Scanner trigger - centered Scan QR button 56px h */}
+                  <Card variant="panel" padding="lg" className="text-center space-y-4" style={{ backgroundColor: `hsl(var(--surface-2) / 0.6)` }}>
+                    <Button
+                      variant="accent"
+                      size="lg"
+                      fullWidth
+                      onClick={() => setShowScanner(true)}
+                      className="touch-target"
+                      style={{ backgroundColor: `hsl(var(--accent-${theme.accent}) / 0.95)` }}
                     >
-                      Bypass & Scan Correct QR (Simulated)
-                    </button>
-                  </div>
-                </div>
-              )}
+                      <Camera className="w-5 h-5" style={{ color: `hsl(var(--text-inverse))` }} />
+                      <span>SCAN QR</span>
+                    </Button>
 
-              {/* Scan feedback (Success / Fail) */}
-              {verificationFeedback && (
-                <div className="p-5 rounded-2xl text-center space-y-4 max-w-[260px] mx-auto bg-slate-950/40 border border-slate-850">
-                  {verificationFeedback.success ? (
-                    <>
-                      <div className="inline-block p-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                        <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Location Verified</h4>
-                        <p className="text-[11px] text-slate-300 font-medium">Challenge unlocked!</p>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          setShowScanner(false);
-                          setScannerSuccess(false);
-                          setVerificationFeedback(null);
-                          await fetchGameState();
-                        }}
-                        style={{ backgroundColor: `rgba(${theme.rgb}, 0.95)` }}
-                        className="w-full py-2.5 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
-                      >
-                        Start Challenge
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="inline-block p-2 rounded-full bg-red-500/10 border border-red-500/20">
-                        <XCircle className="w-8 h-8 text-red-500 animate-pulse" />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider">Wrong Location</h4>
-                        <p className="text-[11px] text-slate-400 leading-relaxed">
-                          This QR code does not match your current clue.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setVerificationFeedback(null);
-                          setScannerSuccess(false);
-                          setScannerError('');
-                        }}
-                        className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95 cursor-pointer"
-                      >
-                        Scan Again
-                      </button>
-                    </>
+                    <p className="text-caption text-muted leading-relaxed max-w-xs mx-auto">
+                      Game {team.clues_solved + 1} is locked until you scan the QR at the correct location.
+                    </p>
+                  </Card>
+                </div>
+              ) : (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="p-3 bg-surface-2/60 rounded-xl border border-border-subtle text-caption font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" style={{ color: `hsl(var(--accent-${theme.accent}))` }} />
+                    <span>Active Location Verified</span>
+                  </div>
+
+                  {clue && (
+                    <GameRenderer
+                      teamId={team.id}
+                      colorTheme={theme}
+                      gameType={clue.game_type}
+                      gameData={clue.game_data}
+                      onSolved={() => fetchGameState(false)}
+                      onIncorrect={() => fetchGameState(false)}
+                    />
                   )}
                 </div>
               )}
-            </div>
 
-            {/* Cancel Button */}
-            {(!verificationFeedback || !verificationFeedback.success) && (
-              <button
-                onClick={() => {
-                  setShowScanner(false);
-                  setScannerSuccess(false);
-                  setVerificationFeedback(null);
-                }}
-                className="w-full py-3 bg-slate-950 border border-slate-850 hover:bg-slate-900 text-slate-400 hover:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer"
-              >
-                Cancel Scanner
-              </button>
+              {/* Stats Bar - Bottom of card, fixed position handled by layout */}
+              <div className="pt-4 border-t border-border-subtle flex justify-between text-caption font-semibold uppercase">
+                <span className="flex items-center gap-1.5 text-muted">
+                  <Skull className="w-3.5 h-3.5 text-feedback-warning" />
+                  <span>Penalties: {team.penalty_count}</span>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fetchGameState(true)}
+                  disabled={refreshing}
+                  loading={refreshing}
+                  className="text-secondary hover:text-primary"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Sync</span>
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </main>
+
+      {/* QR Scanner BottomSheet */}
+      <BottomSheet
+        isOpen={showScanner}
+        onClose={handleCloseScanner}
+        title="QR Code Scanner"
+        size="full"
+        className="max-h-[90vh] md:max-w-[500px] md:max-h-[500px] md:rounded-xl md:top-1/2 md:left-1/2 md:transform md:-translate-x-1/2 md:-translate-y-1/2"
+      >
+        <div className="space-y-4">
+          <div className="text-center space-y-1 pb-2 border-b border-border-subtle">
+            <h3 className="text-h2 text-primary flex items-center justify-center gap-2">
+              <Camera className="w-6 h-6" style={{ color: `hsl(var(--accent-${theme.accent}))` }} />
+              <span>QR Code Scanner</span>
+            </h3>
+            <p className="text-micro text-muted uppercase tracking-widest font-bold">
+              Point at the physical location poster
+            </p>
+          </div>
+
+          {/* Camera Viewport - Full-width, aspect-video (16:9) */}
+          <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-border-subtle">
+            {/* Camera feed */}
+            {!scannerError && !verifying && !verificationFeedback && (
+              <>
+                <div id="qr-reader" className="w-full h-full" ref={readerRef} />
+                {/* CSS-only corner brackets overlay with animated pulse */}
+                <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+                  <div className="absolute top-4 left-4 w-12 h-12 border-2 border-transparent border-t-[hsl(var(--accent-indigo))] border-l-[hsl(var(--accent-indigo))] animate-pulse" style={{ animationDuration: '2s' }} />
+                  <div className="absolute top-4 right-4 w-12 h-12 border-2 border-transparent border-t-[hsl(var(--accent-indigo))] border-r-[hsl(var(--accent-indigo))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+                  <div className="absolute bottom-4 left-4 w-12 h-12 border-2 border-transparent border-b-[hsl(var(--accent-indigo))] border-l-[hsl(var(--accent-indigo))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '1s' }} />
+                  <div className="absolute bottom-4 right-4 w-12 h-12 border-2 border-transparent border-b-[hsl(var(--accent-indigo))] border-r-[hsl(var(--accent-indigo))] animate-pulse" style={{ animationDuration: '2s', animationDelay: '1.5s' }} />
+                </div>
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-caption text-secondary/60 uppercase tracking-wider font-semibold">
+                  Align QR code within frame
+                </div>
+              </>
+            )}
+
+            {/* Verifying state */}
+            {verifying && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-0/90 backdrop-blur-sm">
+                <Loader2 className="w-10 h-10 animate-spin" style={{ color: `hsl(var(--accent-indigo))` }} />
+                <span className="text-caption text-secondary">Verifying scanned token...</span>
+              </div>
+            )}
+
+            {/* Error initializing state */}
+            {scannerError && !verificationFeedback && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 bg-surface-0/95 backdrop-blur-sm text-center">
+                <AlertTriangle className="w-12 h-12 text-feedback-error animate-bounce" />
+                <div className="space-y-2 max-w-xs">
+                  <h4 className="text-caption font-bold text-feedback-error uppercase tracking-wider">Scanner Locked</h4>
+                  <p className="text-caption text-muted leading-relaxed">{scannerError}</p>
+                </div>
+                {/* Web Testing Sandbox Fallback */}
+                <div className="pt-4 border-t border-border-subtle w-full max-w-xs space-y-3">
+                  <span className="text-micro font-bold text-muted uppercase tracking-wider block">Development Sandbox</span>
+                  <Button variant="accent" size="md" fullWidth onClick={handleSimulatedScan} style={{ backgroundColor: `hsl(var(--accent-indigo))` }}>
+                    Bypass & Scan Correct QR (Simulated)
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Scan feedback (Success / Fail) */}
+            {verificationFeedback && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 bg-surface-0/95 backdrop-blur-sm text-center">
+                {verificationFeedback.success ? (
+                  <>
+                    <div className="inline-flex p-3 rounded-full bg-feedback-success/10 border border-feedback-success/20">
+                      <CheckCircle2 className="w-10 h-10 text-feedback-success" />
+                    </div>
+                    <div className="space-y-1 max-w-xs">
+                      <h4 className="text-caption font-bold text-feedback-success uppercase tracking-wider">Location Verified</h4>
+                      <p className="text-caption text-secondary font-medium">Challenge unlocked!</p>
+                    </div>
+                    <Button
+                      variant="accent"
+                      size="lg"
+                      fullWidth
+                      onClick={handleStartChallenge}
+                      className="max-w-xs"
+                      style={{ backgroundColor: `hsl(var(--accent-${theme.accent}) / 0.95)` }}
+                    >
+                      Start Challenge
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="inline-flex p-3 rounded-full bg-feedback-error/10 border border-feedback-error/20">
+                      <XCircle className="w-10 h-10 text-feedback-error animate-pulse" />
+                    </div>
+                    <div className="space-y-1 max-w-xs">
+                      <h4 className="text-caption font-bold text-feedback-error uppercase tracking-wider">Wrong Location</h4>
+                      <p className="text-caption text-muted leading-relaxed">
+                        This QR code does not match your current clue.
+                      </p>
+                    </div>
+                    <Button variant="secondary" size="lg" fullWidth onClick={handleScanAgain} className="max-w-xs">
+                      Scan Again
+                    </Button>
+                  </>
+                )}
+              </div>
             )}
           </div>
+
+          {/* Cancel Button - bottom-fixed in sheet */}
+          {(!verificationFeedback || !verificationFeedback.success) && (
+            <Button
+              variant="secondary"
+              size="lg"
+              fullWidth
+              onClick={handleCloseScanner}
+              className="mt-2 touch-target"
+            >
+              Cancel Scanner
+            </Button>
+          )}
         </div>
-      )}
+      </BottomSheet>
     </div>
   );
 }

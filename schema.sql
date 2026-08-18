@@ -178,7 +178,8 @@ BEGIN
   SELECT color, clues_solved, waiting_for_qr, finish_time 
   INTO v_team_color, v_clues_solved, v_waiting_for_qr, v_finish_time
   FROM teams
-  WHERE id = p_team_id;
+  WHERE id = p_team_id
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Team not found');

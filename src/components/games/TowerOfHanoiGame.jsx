@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Card, Button, GameCell } from '@/components/primitives';
 
-export default function TowerOfHanoiGame({ teamId, onSolved, onIncorrect }) {
-  // Pegs: 0 = Tower A (Left), 1 = Tower B (Middle), 2 = Tower C (Right)
-  // Disks: 3 = Large, 2 = Medium, 1 = Small
+export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onIncorrect }) {
   const [pegs, setPegs] = useState({
-    0: [3, 2, 1], // Start stacked on A
+    0: [3, 2, 1],
     1: [],
     2: []
   });
 
-  const [selectedPeg, setSelectedPeg] = useState(null); // index 0, 1, or 2
+  const [selectedPeg, setSelectedPeg] = useState(null);
   const [moves, setMoves] = useState(0);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Check if puzzle is solved (all 3 disks on C [peg index 2] in correct order: [3, 2, 1])
   const isSolved = pegs[2].length === 3 && pegs[2][0] === 3 && pegs[2][1] === 2 && pegs[2][2] === 1;
 
-  // Auto-submit when solved
   useEffect(() => {
     if (isSolved && !successMsg && !loading) {
       const submitSolution = async () => {
@@ -36,7 +33,7 @@ export default function TowerOfHanoiGame({ teamId, onSolved, onIncorrect }) {
           if (error) throw error;
 
           if (data.success) {
-            setSuccessMsg(`🎉 TOWER OF HANOI SOLVED!\nYou solved it in ${moves} moves.`);
+            setSuccessMsg(`Tower of Hanoi solved!\nYou solved it in ${moves} moves.`);
             setTimeout(() => {
               onSolved();
             }, 2000);
@@ -59,7 +56,6 @@ export default function TowerOfHanoiGame({ teamId, onSolved, onIncorrect }) {
     if (successMsg || loading) return;
 
     if (selectedPeg === null) {
-      // Step 1: Select top disk from source peg
       if (pegs[pegIdx].length === 0) {
         setErrorMsg('Select a tower containing disks.');
         return;
@@ -67,25 +63,22 @@ export default function TowerOfHanoiGame({ teamId, onSolved, onIncorrect }) {
       setSelectedPeg(pegIdx);
       setErrorMsg('');
     } else {
-      // Step 2: Move disk to destination peg
       if (selectedPeg === pegIdx) {
-        setSelectedPeg(null); // Cancel selection
+        setSelectedPeg(null);
         return;
       }
 
       const sourcePegDisks = pegs[selectedPeg];
       const targetPegDisks = pegs[pegIdx];
-      const movingDisk = sourcePegDisks[sourcePegDisks.length - 1]; // Top disk of source
+      const movingDisk = sourcePegDisks[sourcePegDisks.length - 1];
 
-      // Tower of Hanoi rule check: larger disk cannot go on top of a smaller disk
       const topTargetDisk = targetPegDisks[targetPegDisks.length - 1];
       if (topTargetDisk && movingDisk > topTargetDisk) {
         setErrorMsg('Invalid move — a larger disk cannot go on a smaller disk.');
-        setSelectedPeg(null); // Reset selection
+        setSelectedPeg(null);
         return;
       }
 
-      // Valid move execution
       const newSource = [...sourcePegDisks];
       newSource.pop();
 
@@ -98,7 +91,7 @@ export default function TowerOfHanoiGame({ teamId, onSolved, onIncorrect }) {
       });
 
       setMoves(prev => prev + 1);
-      setSelectedPeg(null); // Clear selection
+      setSelectedPeg(null);
       setErrorMsg('');
     }
   };
@@ -115,119 +108,126 @@ export default function TowerOfHanoiGame({ teamId, onSolved, onIncorrect }) {
     setSuccessMsg('');
   };
 
-  // Visual styling for disks of different sizes
-  const DISK_STYLES = {
-    1: 'w-16 bg-sky-400 border-sky-300',
-    2: 'w-24 bg-indigo-500 border-indigo-400',
-    3: 'w-32 bg-indigo-700 border-indigo-600'
+  const DISK_COLORS = {
+    1: 'accent-green',
+    2: 'accent-blue',
+    3: 'accent-purple'
   };
 
   return (
-    <div className="space-y-6">
-      {/* Game Rules & Instruction */}
-      <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-850 text-left space-y-2">
-        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+    <div className="space-y-5">
+      <Card variant="panel" padding="md" className="space-y-2">
+        <h4 className="text-caption font-bold text-muted uppercase tracking-wider">
           Game 4: Tower of Hanoi
         </h4>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          Move all 3 disks from <strong className="text-slate-200">Tower A</strong> to <strong className="text-slate-200">Tower C</strong> using Tower B as intermediate.
+        <p className="text-body-sm text-secondary leading-relaxed">
+          Move all 3 disks from <strong className="text-primary">Tower A</strong> to <strong className="text-primary">Tower C</strong> using Tower B as intermediate.
         </p>
-        <ul className="text-[10px] text-slate-500 space-y-1 list-disc list-inside">
+        <ul className="text-body-sm text-secondary space-y-1 list-disc list-inside">
           <li>Move only one disk at a time.</li>
           <li>Only move the top disk from a tower.</li>
-          <li className="font-bold text-amber-500">
-            ⚠️ A larger disk cannot be placed on top of a smaller disk.
+          <li className="font-bold text-accent-yellow text-inverse bg-accent-yellow/20 px-1.5 py-0.5 rounded inline-block">
+            A larger disk cannot be placed on top of a smaller disk.
           </li>
         </ul>
-      </div>
+      </Card>
 
-      {/* Visual Hanoi Board */}
       <div className="flex flex-col items-center select-none">
-        <div className="w-full max-w-[340px] bg-slate-950/45 p-5 rounded-3xl border border-slate-850 shadow-inner flex flex-col gap-6">
-          <div className="flex justify-between items-center text-[10px] uppercase font-bold text-slate-500 px-1">
+        <Card variant="elevated" padding="lg" className="w-full max-w-[340px]">
+          <div className="flex justify-between items-center text-micro font-bold text-muted px-1 mb-4">
             <span>
-              {successMsg 
-                ? 'Solved!' 
-                : selectedPeg !== null 
-                  ? 'Select destination tower' 
-                  : 'Tap a tower to select top disk'
-              }
+              {successMsg
+                ? 'Solved!'
+                : selectedPeg !== null
+                ? 'Select destination tower'
+                : 'Tap a tower to select top disk'}
             </span>
-            <button 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleResetBoard}
               disabled={loading || !!successMsg}
-              className="flex items-center gap-1 text-slate-500 hover:text-slate-400 transition-colors disabled:opacity-30"
+              aria-label="Reset game"
             >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset</span>
-            </button>
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Reset</span>
+            </Button>
           </div>
 
-          {/* Peg columns container */}
-          <div className="flex justify-around items-end h-44 relative px-2 pt-6 pb-2">
+          <div className="flex justify-around items-end h-[280px] relative px-2 pt-6 pb-2">
             {[0, 1, 2].map((pegIdx) => {
               const diskList = pegs[pegIdx];
               const isSelected = selectedPeg === pegIdx;
               const towerName = pegIdx === 0 ? 'A' : pegIdx === 1 ? 'B' : 'C';
 
               return (
-                <div 
+                <div
                   key={pegIdx}
                   onClick={() => handlePegClick(pegIdx)}
                   className="relative flex flex-col items-center justify-end h-full w-24 cursor-pointer group"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePegClick(pegIdx); }}
+                  aria-label={isSelected ? `Tower ${towerName} selected, tap to move disk` : `Tower ${towerName}, ${diskList.length} disks, tap to select`}
                 >
-                  {/* Vertical Peg Rod */}
                   <div className={`
-                    absolute bottom-2 w-1.5 h-32 rounded-full transition-all duration-300
-                    ${isSelected ? 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]' : 'bg-slate-800 group-hover:bg-slate-700'}
+                    absolute bottom-2 w-2 h-[200px] rounded-full transition-all duration-base
+                    ${isSelected ? 'bg-accent-indigo shadow-[0_0_12px_rgba(99,102,241,0.5)]' : 'bg-border-subtle group-hover:bg-border-strong'}
                   `} />
 
-                  {/* Disks stacked vertically */}
-                  <div className="flex flex-col-reverse items-center gap-1.5 w-full z-10 pb-2">
+                  <div className="flex flex-col-reverse items-center gap-2 w-full z-10 pb-2">
                     {diskList.map((diskValue, dIdx) => {
                       const isTop = dIdx === diskList.length - 1;
                       const isDiskSelected = isSelected && isTop;
+                      const diskColor = DISK_COLORS[diskValue];
+
+                      const widthMap = { 1: 'w-16', 2: 'w-24', 3: 'w-32' };
+                      const minHeight = 'min-h-[44px]';
 
                       return (
-                        <div
+                        <GameCell
                           key={diskValue}
-                          className={`
-                            h-6 border rounded-lg shadow-md flex items-center justify-center text-[10px] font-black text-slate-950/80 transition-all select-none
-                            ${DISK_STYLES[diskValue]}
-                            ${isDiskSelected ? 'translate-y-[-16px] scale-105 shadow-xl ring-2 ring-white/20' : ''}
-                          `}
+                          variant={isDiskSelected ? 'selected' : 'filled'}
+                          disabled={!isTop || successMsg || loading}
+                          className={`${widthMap[diskValue]} ${minHeight} text-body font-black transition-all select-none ${diskColor} text-inverse`}
+                          style={
+                            isDiskSelected
+                              ? {
+                                  transform: 'translateY(-16px) scale(1.05)',
+                                  boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
+                                  zIndex: 10
+                                }
+                              : {}
+                          }
+                          aria-label={isDiskSelected ? `Disk ${diskValue} selected from Tower ${towerName}` : `Disk ${diskValue} on Tower ${towerName}`}
                         >
                           {diskValue}
-                        </div>
+                        </GameCell>
                       );
                     })}
                   </div>
 
-                  {/* Tower label */}
-                  <div className="absolute -bottom-5 text-[10px] font-bold text-slate-500 group-hover:text-slate-400 transition-colors uppercase">
+                  <div className="absolute -bottom-6 text-micro font-bold text-secondary group-hover:text-primary transition-colors uppercase">
                     Tower {towerName}
                   </div>
                 </div>
               );
             })}
 
-            {/* Base Stand Bar */}
-            <div className="absolute bottom-1 left-0 right-0 h-1.5 bg-slate-900 border-t border-slate-850 rounded-full" />
+            <div className="absolute bottom-1 left-0 right-0 h-2 bg-surface-0 border-t border-border-subtle rounded-full" />
           </div>
-        </div>
+        </Card>
       </div>
 
-      {/* Info Status (Moves Counters) */}
-      <div className="flex justify-center gap-6 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-        <div>Moves: <span className="text-white">{moves}</span></div>
-        <div>Minimum: <span className="text-slate-400">7</span></div>
+      <div className="flex justify-center gap-6 text-caption font-bold uppercase tracking-wider text-secondary">
+        <div>Moves: <span className="text-primary">{moves}</span></div>
+        <div>Minimum: <span className="text-muted">7</span></div>
       </div>
 
-      {/* Feedback Alerts */}
-      <div className="space-y-4">
+      <div className="space-y-3 max-w-[340px] w-full mx-auto">
         {errorMsg && (
-          <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex gap-2.5 items-start animate-shake">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-body-sm flex gap-2.5 items-start animate-shake" role="alert">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
             <div>
               <span>{errorMsg}</span>
             </div>
@@ -235,8 +235,8 @@ export default function TowerOfHanoiGame({ teamId, onSolved, onIncorrect }) {
         )}
 
         {successMsg && (
-          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex gap-2.5 items-start">
-            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl bg-feedback-success/10 border border-feedback-success/20 text-feedback-success text-body-sm flex gap-2.5 items-start" role="status">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
             <div>
               <span className="font-bold">Success: </span>
               <span className="whitespace-pre-line">{successMsg}</span>

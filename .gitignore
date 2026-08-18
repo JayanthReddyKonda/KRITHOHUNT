@@ -23,6 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .omo
+/.playwright-mcp
 
 # Secrets / Environment variables
 .env

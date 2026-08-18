@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import StartScreen from './components/StartScreen';
 import PlayScreen from './components/PlayScreen';
 import AdminDashboard from './components/AdminDashboard';
 import ScanScreen from './components/ScanScreen';
-import SafeCrackerGame from './components/games/SafeCrackerGame';
+const SafeCrackerGame = lazy(() => import('./components/games/SafeCrackerGame'));
 import { Compass, HelpCircle } from 'lucide-react';
 
 const DEMO_COLOR_THEME = { name: 'Indigo', rgb: '99, 102, 241' };
@@ -112,14 +112,16 @@ export default function App() {
     if (currentPath === '/demo/safe-cracker') {
       return (
         <div className="max-w-lg mx-auto px-4 py-8">
-        <SafeCrackerGame
-            teamId="demo"
-            colorTheme={DEMO_COLOR_THEME}
-            gameData={DEMO_SAFE_CRACKER_DATA}
-            isDemo={true}
-            onSolved={() => window.alert('Safe unlocked!')}
-            onIncorrect={() => {}}
-          />
+          <Suspense fallback={<div className="flex flex-col items-center justify-center py-12 gap-3"><svg className="animate-spin w-8 h-8 text-accent-indigo" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg><span className="text-caption text-muted">Loading demo...</span></div>}>
+            <SafeCrackerGame
+              teamId="demo"
+              colorTheme={DEMO_COLOR_THEME}
+              gameData={DEMO_SAFE_CRACKER_DATA}
+              isDemo={true}
+              onSolved={() => window.alert('Safe unlocked!')}
+              onIncorrect={() => {}}
+            />
+          </Suspense>
         </div>
       );
     }
