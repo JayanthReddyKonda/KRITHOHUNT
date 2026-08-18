@@ -4,6 +4,8 @@ import { HelpCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import ConnectDotsGame from './ConnectDotsGame';
 import SudokuGame from './SudokuGame';
 import TowerOfHanoiGame from './games/TowerOfHanoiGame';
+import SafeCrackerGame from './games/SafeCrackerGame';
+import CampusGeoguessrGame from './CampusGeoguessrGame';
 
 export default function GameRenderer({ teamId, colorTheme, gameType, gameData, onSolved, onIncorrect }) {
   const [loading, setLoading] = useState(false);
@@ -61,6 +63,18 @@ export default function GameRenderer({ teamId, colorTheme, gameType, gameData, o
     );
   }
 
+  if (gameType === 'campus_geoguessr' || gameType === 'geo_guess') {
+    return (
+      <CampusGeoguessrGame
+        teamId={teamId}
+        colorTheme={colorTheme}
+        gameData={gameData}
+        onSolved={onSolved}
+        onIncorrect={onIncorrect}
+      />
+    );
+  }
+
   if (gameType === 'tower_hanoi' || gameType === 'tower_of_hanoi') {
     return (
       <TowerOfHanoiGame
@@ -72,6 +86,18 @@ export default function GameRenderer({ teamId, colorTheme, gameType, gameData, o
     );
   }
 
+  if (gameType === 'safe_cracker') {
+    return (
+      <SafeCrackerGame
+        teamId={teamId}
+        colorTheme={colorTheme}
+        gameData={gameData}
+        onSolved={onSolved}
+        onIncorrect={onIncorrect}
+      />
+    );
+  }
+  
   return (
     <div className="space-y-6">
       <div className="p-5 bg-slate-900 border border-slate-850 rounded-2xl text-center space-y-4">

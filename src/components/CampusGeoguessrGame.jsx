@@ -1,28 +1,148 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { AlertTriangle, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, MapPin, ZoomIn, ZoomOut, ChevronRight } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet default icon URL issues in Vite/Webpack build
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Default target locations for 5 rounds if not supplied in gameData
+const DEFAULT_ROUNDS = [
+  {
+    round: 1,
+    label: "Central Library",
+    photo: "/geo/locations/library.png",
+    target: { x: 0.3100, y: 0.3000 },
+    radius: 0.10
+  },
+  {
+    round: 2,
+    label: "Student Canteen",
+    photo: "/geo/locations/canteen.png",
+    target: { x: 0.3100, y: 0.1600 },
+    radius: 0.10
+  },
+  {
+    round: 3,
+    label: "Auditorium",
+    photo: "/geo/locations/auditorium.png",
+    target: { x: 0.3150, y: 0.2500 },
+    radius: 0.10
+  },
+  {
+    round: 4,
+    label: "Main Circle",
+    photo: "/geo/locations/main-circle.png",
+    target: { x: 0.6495, y: 0.7700 },
+    radius: 0.10
+  },
+  {
+    round: 5,
+    label: "Cricket Ground",
+    photo: "/geo/locations/cricket.png",
+    target: { x: 0.4008, y: 0.1700 },
+    radius: 0.10
+  }
+];
 
 export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSolved, onIncorrect }) {
-  const instructions = gameData?.instructions || 'Identify this campus landmark based on the clue and tap its location on the map.';
-  const label = gameData?.label || 'Target Location';
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerRef = useRef(null);
 
-  // Coordinate states (0 to 100 percentages)
-  const [pin, setPin] = useState(null); // { x, y }
+  // Configuration from props or default
+  const mapImage = gameData?.map_image || '/geo/campus-satellite.png';
+  const rounds = gameData?.rounds || DEFAULT_ROUNDS;
+
+  // Local State
+  const [currentRoundIdx, setCurrentRoundIdx] = useState(0);
+  const [pin, setPin] = useState(null); // { x: 0..1, y: 0..1 }
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const currentRound = rounds[currentRoundIdx] || rounds[0];
+  const totalRounds = rounds.length;
 
-  const handleMapClick = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-    setPin({ x, y });
-    setErrorMsg('');
-  };
+  // Initialize Leaflet Map with ImageOverlay
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
 
-  const checkPuzzleSolved = async () => {
+    // Clean up old instance if exists
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+
+    // Standard image dimensions bound: [ [0, 0], [1000, 1000] ] using simple CRS
+    const bounds = [[0, 0], [1000, 1000]];
+
+    const map = L.map(mapContainerRef.current, {
+      crs: L.CRS.Simple,
+      minZoom: -2,
+      maxZoom: 2,
+      zoomControl: false,
+      attributionControl: false,
+      doubleClickZoom: false
+    });
+
+    mapInstanceRef.current = map;
+
+    // Load satellite image overlay
+    L.imageOverlay(mapImage, bounds).addTo(map);
+    map.fitBounds(bounds);
+
+    // Map Click Handler - Converts lat/lng click inside [0,1000] to normalized (0.0 -> 1.0)
+    map.on('click', (e) => {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+
+      // Clamp coordinates to image boundaries
+      const clampedY = Math.max(0, Math.min(1000, lat));
+      const clampedX = Math.max(0, Math.min(1000, lng));
+
+      // Leaflet CRS Simple: y goes bottom-to-top (0 at bottom, 1000 at top)
+      // Normalized y for game: 0 at top, 1 at bottom
+      const normX = Number((clampedX / 1000).toFixed(4));
+      const normY = Number(((1000 - clampedY) / 1000).toFixed(4));
+
+      setPin({ x: normX, y: normY });
+      setErrorMsg('');
+
+      // Add or update marker on Leaflet map
+      if (markerRef.current) {
+        markerRef.current.setLatLng([clampedY, clampedX]);
+      } else {
+        const customIcon = L.divIcon({
+          className: 'custom-pin-marker',
+          html: `<div class="w-7 h-7 bg-indigo-600 rounded-full border-2 border-white shadow-xl flex items-center justify-center text-white animate-bounce">
+                   <div class="w-2.5 h-2.5 bg-white rounded-full"></div>
+                 </div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+
+        markerRef.current = L.marker([clampedY, clampedX], { icon: customIcon }).addTo(map);
+      }
+    });
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [mapImage]);
+
+  // Handle Guess Submission
+  const handleSubmitGuess = async () => {
     if (!pin) {
-      setErrorMsg('Please tap on the map to place your guess pin first.');
+      setErrorMsg('Please tap or click on the campus map to place your guess marker.');
       return;
     }
 
@@ -30,195 +150,151 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
     setErrorMsg('');
     setSuccessMsg('');
 
+    const targetX = currentRound.target.x;
+    const targetY = currentRound.target.y;
+    const radius = currentRound.radius || 0.08;
+
+    const distance = Math.sqrt(
+      Math.pow(pin.x - targetX, 2) + Math.pow(pin.y - targetY, 2)
+    );
+
+    const isCorrect = distance <= radius;
+
     try {
-      // Format as "x,y" string
-      const coordinateGuess = `${pin.x},${pin.y}`;
+      if (isCorrect) {
+        if (currentRoundIdx + 1 >= totalRounds) {
+          const { data, error } = await supabase.rpc('submit_team_answer', {
+            p_team_id: teamId,
+            p_answer: 'solve'
+          });
 
-      // Call database RPC
-      const { data, error } = await supabase.rpc('submit_team_answer', {
-        p_team_id: teamId,
-        p_answer: coordinateGuess
-      });
+          if (error) throw error;
 
-      if (error) throw error;
-
-      if (data.success) {
-        setSuccessMsg(`🎉 Correct! You identified the ${label}!`);
-        setTimeout(() => {
-          onSolved();
-        }, 1500);
+          if (data.success) {
+            setSuccessMsg(`🎉 ALL LOCATIONS FOUND! You completed all ${totalRounds} rounds!`);
+            setTimeout(() => {
+              onSolved();
+            }, 1800);
+          } else {
+            setErrorMsg(data.error || 'Failed to submit final answer to server.');
+          }
+        } else {
+          setSuccessMsg(`✓ Correct location! Advancing to Round ${currentRoundIdx + 2}/${totalRounds}...`);
+          setTimeout(() => {
+            setCurrentRoundIdx(prev => prev + 1);
+            setPin(null);
+            setSuccessMsg('');
+            if (markerRef.current && mapInstanceRef.current) {
+              mapInstanceRef.current.removeLayer(markerRef.current);
+              markerRef.current = null;
+            }
+          }, 1500);
+        }
       } else {
-        setErrorMsg(data.error || 'Incorrect location. That is not the spot! Penalty count increased (+1).');
+        const { error } = await supabase.rpc('submit_team_answer', {
+          p_team_id: teamId,
+          p_answer: 'wrong'
+        });
+
+        if (error) console.error("Penalty update error:", error);
+
+        setErrorMsg('✗ WRONG LOCATION. Your guess was not close enough. Penalty +1 added.');
         onIncorrect();
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'Connection error. Please try again.');
+      setErrorMsg(err.message || 'Connection error. Please check network and try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper to render the stylized SVG visual clue based on target label
-  const renderVisualClue = () => {
-    switch (label) {
-      case 'Reflecting Pool':
-        return (
-          <svg viewBox="0 0 100 100" className="w-16 h-16 mx-auto stroke-indigo-400 fill-none stroke-[2]">
-            <ellipse cx="50" cy="50" rx="35" ry="20" className="stroke-indigo-500/40" />
-            <path d="M 25 50 Q 50 65 75 50" />
-            <path d="M 30 55 Q 50 70 70 55" className="opacity-60" />
-            <path d="M 40 40 L 40 25 M 60 40 L 60 25 M 50 35 L 50 15" strokeWidth="3" className="stroke-slate-500" />
-          </svg>
-        );
-      case 'Trophy Room':
-        return (
-          <svg viewBox="0 0 100 100" className="w-16 h-16 mx-auto stroke-indigo-400 fill-none stroke-[2]">
-            <path d="M 30 30 L 70 30 L 65 60 Q 65 75 50 75 Q 35 75 35 60 Z" fill="rgba(99,102,241,0.05)" />
-            <path d="M 50 75 L 50 85 M 35 85 L 65 85" strokeWidth="3" />
-            <path d="M 30 40 Q 20 40 25 50 Q 30 60 35 55" />
-            <path d="M 70 40 Q 80 40 75 50 Q 70 60 65 55" />
-          </svg>
-        );
-      case 'Orchid Dome':
-        return (
-          <svg viewBox="0 0 100 100" className="w-16 h-16 mx-auto stroke-indigo-400 fill-none stroke-[2]">
-            <path d="M 15 80 A 35 35 0 0 1 85 80 Z" fill="rgba(99,102,241,0.05)" />
-            <line x1="50" y1="10" x2="50" y2="80" strokeDasharray="3 3" />
-            <line x1="15" y1="80" x2="85" y2="80" strokeWidth="3" />
-            <circle cx="50" cy="50" r="15" className="stroke-indigo-500/30" />
-            <path d="M 35 65 Q 50 50 65 65" />
-          </svg>
-        );
-      case 'Flagpole Plaza':
-        return (
-          <svg viewBox="0 0 100 100" className="w-16 h-16 mx-auto stroke-indigo-400 fill-none stroke-[2]">
-            <line x1="40" y1="90" x2="40" y2="15" strokeWidth="3" />
-            <path d="M 40 20 L 75 30 L 40 40 Z" fill="rgba(99,102,241,0.1)" className="fill-indigo-500/20" />
-            <circle cx="40" cy="15" r="3" fill="#818cf8" />
-            <rect x="25" y="85" width="30" height="8" rx="2" fill="#1e293b" />
-          </svg>
-        );
-      case 'High Voltage Lab':
-        return (
-          <svg viewBox="0 0 100 100" className="w-16 h-16 mx-auto stroke-indigo-400 fill-none stroke-[2]">
-            <path d="M 50 15 L 35 50 L 55 50 L 40 85 L 70 45 L 48 45 Z" fill="rgba(245,158,11,0.1)" className="stroke-amber-400 fill-amber-500/20" />
-            <circle cx="50" cy="50" r="30" strokeDasharray="4 4" className="stroke-indigo-500/30" />
-          </svg>
-        );
-      case 'Espresso Bar':
-        return (
-          <svg viewBox="0 0 100 100" className="w-16 h-16 mx-auto stroke-indigo-400 fill-none stroke-[2]">
-            <path d="M 30 40 L 70 40 L 65 75 A 15 15 0 0 1 35 75 Z" fill="rgba(99,102,241,0.05)" />
-            <path d="M 70 45 Q 80 45 80 52 Q 80 60 70 60" />
-            <path d="M 25 80 L 75 80" strokeWidth="3" />
-            <path d="M 40 15 Q 43 25 40 30 M 50 12 Q 53 22 50 28 M 60 15 Q 63 25 60 30" strokeDasharray="2 2" />
-          </svg>
-        );
-      default:
-        return <Sparkles className="w-10 h-10 text-indigo-400 mx-auto" />;
-    }
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Instructions header */}
-      <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-850 text-left flex gap-3 items-start">
-        <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/25 shrink-0 mt-0.5">
-          {renderVisualClue()}
+    <div className="space-y-5">
+      {/* Round Header & Progress */}
+      <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-left flex justify-between items-center">
+        <div>
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            Campus Geo Guess
+          </span>
+          <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">
+            {currentRound?.label || `Location ${currentRoundIdx + 1}`}
+          </h3>
         </div>
-        <div className="space-y-1">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Game 3: Campus GeoGuessr
-          </h4>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            {instructions}
-          </p>
+
+        <div className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-indigo-400 text-xs font-black uppercase tracking-wider">
+          Round {currentRoundIdx + 1} / {totalRounds}
         </div>
       </div>
 
-      {/* Campus Map SVG Canvas */}
-      <div className="flex flex-col items-center">
-        <div className="relative w-full max-w-[320px] select-none rounded-2xl overflow-hidden border border-slate-850 bg-slate-950 shadow-inner">
-          
-          <svg 
-            viewBox="0 0 400 400" 
-            onClick={handleMapClick}
-            className="w-full h-auto cursor-crosshair bg-slate-950"
-          >
-            {/* Grid blueprint lines */}
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(51, 65, 85, 0.2)" strokeWidth="1" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
+      {/* Location Photograph (The Question) */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-[10px] uppercase font-bold text-slate-400 px-1">
+          <span>Target Photograph</span>
+          <span className="text-slate-500">Where was this taken?</span>
+        </div>
 
-            {/* Campus buildings rendering */}
-            <g opacity="0.85">
-              {/* Library (0,0) - (120,100) */}
-              <rect x="15" y="15" width="100" height="90" rx="8" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-              <text x="65" y="65" fill="#475569" fontSize="10" fontWeight="bold" textAnchor="middle">Library</text>
-
-              {/* Science Block (0,200) - (120,300) */}
-              <rect x="15" y="215" width="100" height="90" rx="8" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-              <text x="65" y="265" fill="#475569" fontSize="10" fontWeight="bold" textAnchor="middle">Science</text>
-
-              {/* Fountain (200,100) */}
-              <circle cx="200" cy="100" r="30" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-              <text x="200" y="104" fill="#475569" fontSize="9" fontWeight="bold" textAnchor="middle">Fountain</text>
-
-              {/* Botanical Garden (200,200) */}
-              <circle cx="200" cy="200" r="30" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-              <text x="200" y="204" fill="#475569" fontSize="9" fontWeight="bold" textAnchor="middle">Garden</text>
-
-              {/* Auditorium (200,320) */}
-              <rect x="140" y="295" width="120" height="85" rx="8" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-              <text x="200" y="340" fill="#475569" fontSize="10" fontWeight="bold" textAnchor="middle">Auditorium</text>
-
-              {/* Gym (330,100) */}
-              <rect x="295" y="55" width="90" height="90" rx="8" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-              <text x="340" y="105" fill="#475569" fontSize="10" fontWeight="bold" textAnchor="middle">Gym</text>
-
-              {/* Open Air Theater / OAT (330,200) */}
-              <circle cx="330" cy="200" r="28" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-              <text x="330" y="203" fill="#475569" fontSize="9" fontWeight="bold" textAnchor="middle">OAT</text>
-
-              {/* Student Cafe (330,280) */}
-              <rect x="295" y="245" width="90" height="90" rx="8" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-              <text x="340" y="295" fill="#475569" fontSize="10" fontWeight="bold" textAnchor="middle">Cafeteria</text>
-
-              {/* Admin Block (70, 150) */}
-              <rect x="15" y="125" width="100" height="70" rx="8" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-              <text x="65" y="165" fill="#475569" fontSize="10" fontWeight="bold" textAnchor="middle">Admin</text>
-            </g>
-
-            {/* Tap Marker Pin */}
-            {pin && (
-              <g transform={`translate(${(pin.x / 100) * 400}, ${(pin.y / 100) * 400})`}>
-                <circle cx="0" cy="0" r="14" className="fill-indigo-500/10 stroke-indigo-500 animate-ping" strokeWidth="1" />
-                <circle cx="0" cy="0" r="5" fill="#6366f1" />
-                {/* Pointer marker icon */}
-                <path d="M 0 -2 L -5 -15 A 5 5 0 0 1 5 -15 Z" fill="#6366f1" />
-                <circle cx="0" cy="-15" r="2" fill="white" />
-              </g>
-            )}
-          </svg>
-
-          {/* Floating Coordinate HUD */}
-          <div className="absolute bottom-2.5 right-2.5 px-2 py-1 bg-slate-950/80 border border-slate-800 rounded-md text-[9px] font-mono text-slate-500 select-none pointer-events-none">
-            {pin ? `Target: X ${pin.x}% | Y ${pin.y}%` : 'Tap to place pin'}
+        <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl">
+          <img
+            src={currentRound?.photo}
+            alt={currentRound?.label}
+            className="w-full h-full object-cover transition-opacity duration-300"
+            onError={(e) => {
+              // Fallback placeholder image
+              e.currentTarget.src = `https://via.placeholder.com/800x600/0f172a/818cf8?text=${encodeURIComponent(currentRound?.label || 'Campus Location')}`;
+            }}
+          />
+          <div className="absolute bottom-3 left-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur-md rounded-lg text-[10px] font-bold text-slate-300 border border-slate-800">
+            📍 {currentRound?.label}
           </div>
         </div>
       </div>
 
-      {/* Submit Action & Alerts */}
-      <div className="space-y-4">
+      {/* Interactive Satellite Campus Map (Leaflet) */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-[10px] uppercase font-bold text-slate-400 px-1">
+          <span>Satellite Campus Map</span>
+          <span>{pin ? `Guess: (${pin.x}, ${pin.y})` : 'Tap to place pin'}</span>
+        </div>
+
+        <div className="relative w-full aspect-square rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl">
+          <div ref={mapContainerRef} className="w-full h-full z-10" />
+
+          {/* Map Controls */}
+          <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
+            <button
+              onClick={() => mapInstanceRef.current?.zoomIn()}
+              className="p-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700 rounded-xl text-white shadow-lg active:scale-95 transition-all cursor-pointer"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => mapInstanceRef.current?.zoomOut()}
+              className="p-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700 rounded-xl text-white shadow-lg active:scale-95 transition-all cursor-pointer"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* HUD Overlay instruction */}
+          {!pin && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-full text-[10px] font-semibold text-slate-400 pointer-events-none shadow-lg animate-pulse flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Tap the satellite map to select location</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Feedback & Actions */}
+      <div className="space-y-3 pt-1">
         {errorMsg && (
           <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex gap-2.5 items-start animate-shake">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">Incorrect Spot: </span>
+              <span className="font-bold">Wrong Location: </span>
               <span>{errorMsg}</span>
             </div>
           </div>
@@ -228,25 +304,28 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
           <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex gap-2.5 items-start">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">Success: </span>
+              <span className="font-bold">Location Found: </span>
               <span>{successMsg}</span>
             </div>
           </div>
         )}
 
         <button
-          onClick={checkPuzzleSolved}
+          onClick={handleSubmitGuess}
           disabled={loading || !pin || !!successMsg}
-          style={pin && !successMsg ? { backgroundColor: `rgba(${colorTheme.rgb}, 0.9)` } : {}}
+          style={pin && !successMsg ? { backgroundColor: `rgba(${colorTheme.rgb}, 0.95)` } : {}}
           className={`
-            w-full py-4 rounded-2xl text-slate-950 font-bold text-xs tracking-wider uppercase shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50
+            w-full py-4 rounded-2xl text-slate-950 font-black text-xs tracking-wider uppercase shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40 cursor-pointer
             ${successMsg ? 'bg-emerald-500 text-slate-950' : 'hover:brightness-110'}
           `}
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <span>Submit Guess</span>
+            <>
+              <span>Submit Guess</span>
+              <ChevronRight className="w-4 h-4" />
+            </>
           )}
         </button>
       </div>
