@@ -150,27 +150,35 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
     setErrorMsg('');
     setSuccessMsg('');
 
+    const targetX = currentRound.target.x;
+    const targetY = currentRound.target.y;
+    const radius = currentRound.radius || 0.08;
+
+    const distance = Math.sqrt(
+      Math.pow(pin.x - targetX, 2) + Math.pow(pin.y - targetY, 2)
+    );
+
+    const isCorrect = distance <= radius;
+
     try {
-      // Send normalized coordinates and current round number to backend
-      const coordinateGuess = `${pin.x},${pin.y},${currentRoundIdx + 1}`;
-
-      const { data, error } = await supabase.rpc('submit_team_answer', {
-        p_team_id: teamId,
-        p_answer: coordinateGuess
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
+      if (isCorrect) {
         if (currentRoundIdx + 1 >= totalRounds) {
-          // Final round finished!
-          setGameComplete(true);
-          setSuccessMsg(`🎉 ALL LOCATIONS FOUND! You completed all ${totalRounds} rounds!`);
-          setTimeout(() => {
-            onSolved();
-          }, 1800);
+          const { data, error } = await supabase.rpc('submit_team_answer', {
+            p_team_id: teamId,
+            p_answer: 'solve'
+          });
+
+          if (error) throw error;
+
+          if (data.success) {
+            setSuccessMsg(`🎉 ALL LOCATIONS FOUND! You completed all ${totalRounds} rounds!`);
+            setTimeout(() => {
+              onSolved();
+            }, 1800);
+          } else {
+            setErrorMsg(data.error || 'Failed to submit final answer to server.');
+          }
         } else {
-          // Proceed to next round
           setSuccessMsg(`✓ Correct location! Advancing to Round ${currentRoundIdx + 2}/${totalRounds}...`);
           setTimeout(() => {
             setCurrentRoundIdx(prev => prev + 1);
@@ -183,7 +191,14 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
           }, 1500);
         }
       } else {
-        setErrorMsg(data.error || '✗ WRONG LOCATION. Your guess was not close enough. Penalty +1 added.');
+        const { error } = await supabase.rpc('submit_team_answer', {
+          p_team_id: teamId,
+          p_answer: 'wrong'
+        });
+
+        if (error) console.error("Penalty update error:", error);
+
+        setErrorMsg('✗ WRONG LOCATION. Your guess was not close enough. Penalty +1 added.');
         onIncorrect();
       }
     } catch (err) {
