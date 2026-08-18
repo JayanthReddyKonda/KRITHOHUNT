@@ -16,38 +16,38 @@ L.Icon.Default.mergeOptions({
 const DEFAULT_ROUNDS = [
   {
     round: 1,
-    label: "Location Place 1",
+    label: "Central Library",
     photo: "/geo/locations/library.png",
-    target: { x: 0.25, y: 0.25 },
-    radius: 0.08
+    target: { x: 0.3100, y: 0.3000 },
+    radius: 0.10
   },
   {
     round: 2,
-    label: "Location Place 2",
+    label: "Student Canteen",
     photo: "/geo/locations/canteen.png",
-    target: { x: 0.75, y: 0.25 },
-    radius: 0.08
+    target: { x: 0.3100, y: 0.1600 },
+    radius: 0.10
   },
   {
     round: 3,
-    label: "Location Place 3",
+    label: "Auditorium",
     photo: "/geo/locations/auditorium.png",
-    target: { x: 0.25, y: 0.75 },
-    radius: 0.08
+    target: { x: 0.3150, y: 0.2500 },
+    radius: 0.10
   },
   {
     round: 4,
-    label: "Location Place 4",
+    label: "Main Circle",
     photo: "/geo/locations/main-circle.png",
-    target: { x: 0.50, y: 0.10 },
-    radius: 0.08
+    target: { x: 0.6495, y: 0.7700 },
+    radius: 0.10
   },
   {
     round: 5,
-    label: "Location Place 5",
+    label: "Cricket Ground",
     photo: "/geo/locations/cricket.png",
-    target: { x: 0.75, y: 0.75 },
-    radius: 0.08
+    target: { x: 0.4008, y: 0.1700 },
+    radius: 0.10
   }
 ];
 
