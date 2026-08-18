@@ -45,6 +45,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const submittingRef = useRef(false);
 
   const gridRef = useRef(null);
 
@@ -178,6 +179,8 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
   };
 
   const checkPuzzleSolved = async () => {
+    if (submittingRef.current || loading || successMsg) return;
+    submittingRef.current = true;
     setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -202,10 +205,12 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
         const errorReason = data.error || clientVal.reason || 'Incorrect connections. Penalty count increased (+1)!';
         setErrorMsg(errorReason);
         onIncorrect();
+        submittingRef.current = false;
       }
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || 'Connection error. Please try again.');
+      submittingRef.current = false;
     } finally {
       setLoading(false);
     }

@@ -56,6 +56,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const submittingRef = useRef(false);
   const currentRound = rounds[currentRoundIdx] || rounds[0];
   const totalRounds = rounds.length;
   const storageKey = `krithohunt_geoguessr_${teamId}`;
@@ -103,11 +104,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
       } else {
         const customIcon = L.divIcon({
           className: 'custom-pin-marker geo-pin-marker',
-          html: `
-            <div class="w-7 h-7 rounded-full border-2 border-surface-0 shadow-[0_0_12px_hsl(var(--accent-brand)_/_0.6)] flex items-center justify-center animate-pulse" style="background-color: hsl(var(--accent-brand));">
-              <div class="w-2.5 h-2.5 bg-surface-0 rounded-full"></div>
-            </div>
-          `,
+          html: '<div class="geo-pin-dot"><div class="geo-pin-core"></div></div>',
           iconSize: [28, 28],
           iconAnchor: [14, 14]
         });
@@ -141,12 +138,28 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
     localStorage.setItem(storageKey, JSON.stringify({ roundIndex: currentRoundIdx, pin }));
   }, [storageKey, currentRoundIdx, pin]);
 
+  useEffect(() => {
+    if (!pin || !mapInstanceRef.current || markerRef.current) return;
+    const map = mapInstanceRef.current;
+    const x = pin.x * 1000;
+    const y = (1 - pin.y) * 1000;
+    const customIcon = L.divIcon({
+      className: 'custom-pin-marker geo-pin-marker',
+      html: '<div class="geo-pin-dot"><div class="geo-pin-core"></div></div>',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+    markerRef.current = L.marker([y, x], { icon: customIcon }).addTo(map);
+  }, [pin]);
+
   const handleSubmitGuess = async () => {
+    if (submittingRef.current || loading || successMsg) return;
     if (!pin) {
       setErrorMsg('Please tap or click on the campus map to place your guess marker.');
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -179,6 +192,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
             }, 1800);
           } else {
             setErrorMsg(data.error || 'Failed to submit final answer to server.');
+            submittingRef.current = false;
           }
         } else {
           setSuccessMsg(`Correct location! Advancing to Round ${currentRoundIdx + 2}/${totalRounds}...`);
@@ -202,10 +216,12 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
 
         setErrorMsg('Wrong location. Your guess was not close enough. Penalty +1 added.');
         onIncorrect();
+        submittingRef.current = false;
       }
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || 'Connection error. Please check network and try again.');
+      submittingRef.current = false;
     } finally {
       setLoading(false);
     }

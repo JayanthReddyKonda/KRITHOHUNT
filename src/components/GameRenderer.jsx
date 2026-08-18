@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react';
+import { Button } from '@/components/primitives';
 
 const ConnectDotsGame = lazy(() => import('./ConnectDotsGame'));
 const SudokuGame = lazy(() => import('./SudokuGame'));
@@ -17,6 +18,20 @@ const GameFallback = () => (
 );
 
 export default function GameRenderer({ teamId, colorTheme, gameType, gameData, onSolved, onIncorrect }) {
+  const supportedGame = ['sudoku', 'connect_dots', 'campus_geoguessr', 'geo_guess', 'tower_hanoi', 'tower_of_hanoi', 'safe_cracker'].includes(gameType);
+
+  if (!supportedGame) {
+    return (
+      <div className="rounded-xl border border-feedback-error/30 bg-feedback-error/10 p-5 text-center space-y-3" role="alert">
+        <h3 className="text-body font-bold text-primary">Challenge unavailable</h3>
+        <p className="text-body-sm text-secondary">This challenge type is not supported by the current app. Sync your game state or contact an organiser.</p>
+        <Button type="button" variant="secondary" size="md" onClick={onIncorrect}>
+          Sync Game State
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <Suspense fallback={<GameFallback />}>
       {gameType === 'sudoku' && (

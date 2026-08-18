@@ -65,6 +65,8 @@ export default function App() {
     navigate('/');
   }, [navigate]);
 
+  const isPlayRoute = currentPath === '/play';
+
   const renderScreen = () => {
     if (currentPath === '/admin') {
       return <AdminDashboard />;
@@ -184,7 +186,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary flex flex-col selection:bg-accent-brand selection:text-inverse">
-      <header className="py-5 px-6 border-b border-border-subtle bg-surface-0/80 backdrop-blur-md sticky top-0 z-40">
+      {!isPlayRoute && <header className="py-5 px-6 border-b border-border-subtle bg-surface-0/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div
             onClick={() => navigate('/')}
@@ -211,15 +213,15 @@ export default function App() {
             </div>
           )}
         </div>
-      </header>
+      </header>}
 
       <main className="flex-1 relative z-10">
         {renderScreen()}
       </main>
 
-      <footer className="py-6 px-6 border-t border-border-subtle bg-surface-0 text-center text-micro text-muted font-medium">
+      {!isPlayRoute && <footer className="py-6 px-6 border-t border-border-subtle bg-surface-0 text-center text-micro text-muted font-medium">
         &copy; {new Date().getFullYear()} KRITHOHUNT
-      </footer>
+      </footer>}
     </div>
   );
 }

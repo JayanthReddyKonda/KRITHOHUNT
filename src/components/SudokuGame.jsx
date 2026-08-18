@@ -28,6 +28,7 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const submittingRef = React.useRef(false);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(board));
@@ -77,6 +78,7 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
   };
 
   const checkPuzzleSolved = async () => {
+    if (submittingRef.current || loading || successMsg) return;
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         if (board[r][c] === 0) {
@@ -86,6 +88,7 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
       }
     }
 
+    submittingRef.current = true;
     setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -109,10 +112,12 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
       } else {
         setErrorMsg(data.error || 'Incorrect answer. Penalty count increased (+1)!');
         onIncorrect();
+        submittingRef.current = false;
       }
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || 'Connection error. Please try again.');
+      submittingRef.current = false;
     } finally {
       setLoading(false);
     }

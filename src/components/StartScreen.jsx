@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Compass, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
+import { Compass, ShieldAlert, Sparkles, Loader2, CheckCircle2, Copy } from 'lucide-react';
 import { Card, Input, Button } from '@/components/primitives';
 
 const PATH_THEMES = {
@@ -17,6 +17,7 @@ export default function StartScreen({ onRegistered }) {
   const [teamName, setTeamName] = useState('');
   const [teamCode, setTeamCode] = useState('');
   const [returning, setReturning] = useState(false);
+  const [issuedTeam, setIssuedTeam] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -74,7 +75,7 @@ export default function StartScreen({ onRegistered }) {
         if (!data?.success) throw new Error(data?.error || 'Unable to register team.');
         localStorage.setItem('treasure_hunt_team_id', data.team_id);
         localStorage.setItem('treasure_hunt_team_code', data.team_code);
-        onRegistered(data.team_id);
+        setIssuedTeam({ id: data.team_id, code: data.team_code, name: data.name });
       }
 
     } catch (err) {
@@ -86,6 +87,41 @@ export default function StartScreen({ onRegistered }) {
   };
 
   const theme = PATH_THEMES[color];
+
+  if (issuedTeam) {
+    const copyTeamCode = async () => {
+      try {
+        await navigator.clipboard.writeText(issuedTeam.code);
+      } catch {
+        // The visible ID remains available if clipboard access is denied.
+      }
+    };
+
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8">
+        <Card variant="elevated" className="w-full max-w-md p-6 text-center space-y-5">
+          <CheckCircle2 className="w-14 h-14 text-feedback-success mx-auto" />
+          <div>
+            <p className="text-micro font-bold uppercase tracking-widest text-feedback-success">Team Registered</p>
+            <h1 className="text-h1 font-black text-primary mt-2">Write down your Team ID</h1>
+          </div>
+          <div className="rounded-xl border border-accent-brand/40 bg-accent-brand/10 p-5">
+            <p className="text-caption text-secondary uppercase tracking-widest">{issuedTeam.name}</p>
+            <p className="font-mono text-display font-black tracking-[0.25em] text-accent-brand">{issuedTeam.code}</p>
+          </div>
+          <p className="text-body-sm text-secondary">Use this five-digit ID to resume your team on another device. The organiser can also see it in the dashboard.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="secondary" size="lg" onClick={copyTeamCode}>
+              <Copy className="w-4 h-4" /> Copy ID
+            </Button>
+            <Button variant="accent" size="lg" onClick={() => onRegistered(issuedTeam.id)}>
+              Continue
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // Render error screen if invalid QR code color
   if (!color && error) {
@@ -157,7 +193,6 @@ export default function StartScreen({ onRegistered }) {
                 placeholder="Enter team name..."
                 maxLength={30}
                 required
-                error={error || undefined}
                 className="min-h-[56px] text-body"
               />
             </div> : <div>
@@ -171,7 +206,6 @@ export default function StartScreen({ onRegistered }) {
                 placeholder="e.g. 48217"
                 maxLength={5}
                 required
-                error={error || undefined}
                 className="min-h-[56px] text-body tracking-[0.3em]"
               />
             </div>}

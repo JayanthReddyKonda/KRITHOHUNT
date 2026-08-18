@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/primitives';
@@ -18,6 +18,7 @@ export default function Modal({
   const overlayRef = useRef(null);
   const contentRef = useRef(null);
   const previousActiveElement = useRef(null);
+  const titleId = useId();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -47,6 +48,19 @@ export default function Modal({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && isOpen) {
         onClose();
+      }
+      if (e.key === 'Tab' && isOpen && contentRef.current) {
+        const focusable = contentRef.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -88,12 +102,12 @@ export default function Modal({
         className={`${variantClasses[effectiveVariant]} ${sizeClasses[size]} ${className}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={title ? 'modal-title' : undefined}
+        aria-labelledby={title ? titleId : undefined}
       >
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between p-5 border-b border-border-subtle">
             {title && (
-              <h2 id="modal-title" className="text-h2 text-primary">
+              <h2 id={titleId} className="text-h2 text-primary">
                 {title}
               </h2>
             )}

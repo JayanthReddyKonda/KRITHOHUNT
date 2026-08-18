@@ -3,16 +3,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-surface-0: hsl(250 35% 5%);
-  --color-surface-1: hsl(250 30% 7%);
-  --color-surface-2: hsl(250 25% 10%);
-  --color-surface-3: hsl(250 20% 14%);
-  --color-border-subtle: hsl(250 15% 20%);
-  --color-border-strong: hsl(250 15% 28%);
-  --color-text-primary: hsl(250 15% 97%);
-  --color-text-secondary: hsl(250 10% 78%);
-  --color-text-muted: hsl(250 8% 58%);
-  --color-text-inverse: hsl(250 35% 5%);
+  --color-surface-0: hsl(220 22% 6%);
+  --color-surface-1: hsl(220 20% 9%);
+  --color-surface-2: hsl(220 18% 13%);
+  --color-surface-3: hsl(220 16% 18%);
+  --color-border-subtle: hsl(220 14% 25%);
+  --color-border-strong: hsl(220 12% 36%);
+  --color-text-primary: hsl(210 25% 97%);
+  --color-text-secondary: hsl(210 14% 78%);
+  --color-text-muted: hsl(210 10% 60%);
+  --color-text-inverse: hsl(220 22% 6%);
   --color-accent-violet: hsl(265 85% 62%);
   --color-accent-amber: hsl(38 92% 52%);
   --color-accent-emerald: hsl(152 72% 42%);
@@ -49,16 +49,16 @@
 }
 
 :root {
-  --surface-0: 250 35% 5%;
-  --surface-1: 250 30% 7%;
-  --surface-2: 250 25% 10%;
-  --surface-3: 250 20% 14%;
-  --border-subtle: 250 15% 20%;
-  --border-strong: 250 15% 28%;
-  --text-primary: 250 15% 97%;
-  --text-secondary: 250 10% 78%;
-  --text-muted: 250 8% 58%;
-  --text-inverse: 250 35% 5%;
+  --surface-0: 220 22% 6%;
+  --surface-1: 220 20% 9%;
+  --surface-2: 220 18% 13%;
+  --surface-3: 220 16% 18%;
+  --border-subtle: 220 14% 25%;
+  --border-strong: 220 12% 36%;
+  --text-primary: 210 25% 97%;
+  --text-secondary: 210 14% 78%;
+  --text-muted: 210 10% 60%;
+  --text-inverse: 220 22% 6%;
   --accent-violet: 265 85% 62%;
   --accent-amber: 38 92% 52%;
   --accent-emerald: 152 72% 42%;
@@ -116,6 +116,85 @@ body {
 .touch-target {
   min-height: 44px;
   min-width: 44px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 8px;
+  color: hsl(var(--text-secondary));
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid hsl(var(--border-subtle));
+  border-radius: 12px;
+  background: hsl(var(--surface-2));
+  color: hsl(var(--text-primary));
+  padding: 12px 14px;
+  font: inherit;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.input::placeholder {
+  color: hsl(var(--text-muted));
+}
+
+.input:focus {
+  border-color: hsl(var(--accent-brand));
+  box-shadow: 0 0 0 3px hsl(var(--accent-brand) / 0.18);
+  outline: none;
+}
+
+.input-error {
+  border-color: hsl(var(--feedback-error));
+}
+
+.helper-text {
+  color: hsl(var(--text-muted));
+  font-size: 0.75rem;
+}
+
+.helper-error {
+  color: hsl(var(--feedback-error));
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: hsl(var(--surface-0) / 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.modal-container {
+  width: min(100%, 560px);
+  max-height: 90dvh;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border-subtle));
+  border-radius: 20px;
+  background: hsl(var(--surface-1));
+  box-shadow: 0 24px 80px hsl(var(--surface-0) / 0.55);
+}
+
+@media (max-width: 767px) {
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-container {
+    max-height: 90dvh;
+    border-radius: 20px 20px 0 0;
+  }
 }
 
 .path-badge {
@@ -198,6 +277,24 @@ body {
 
 .glow-active {
   box-shadow: 0 0 0 1px hsl(var(--accent-brand) / 0.2), 0 16px 48px hsl(var(--accent-brand) / 0.12);
+}
+
+.geo-pin-dot {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 2px solid hsl(var(--surface-0));
+  border-radius: 999px;
+  background: hsl(var(--accent-brand));
+  box-shadow: 0 0 12px hsl(var(--accent-brand) / 0.6);
+}
+
+.geo-pin-core {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: hsl(var(--surface-0));
 }
 
 @media (min-width: 1024px) {

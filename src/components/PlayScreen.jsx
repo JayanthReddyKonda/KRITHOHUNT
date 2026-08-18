@@ -28,6 +28,7 @@ export default function PlayScreen({ teamId, onReset }) {
   const [verifying, setVerifying] = useState(false);
   const [verificationFeedback, setVerificationFeedback] = useState(null);
   const html5QrCodeRef = useRef(null);
+  const scanRequestRef = useRef(0);
 
   const fetchGameState = useCallback(async (isRefresh = false) => {
     const requestId = ++scanRequestRef.current;
