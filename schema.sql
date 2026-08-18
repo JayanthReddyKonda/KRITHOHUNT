@@ -212,28 +212,60 @@ BEGIN
   IF p_answer = 'solve' THEN
     v_answers_match := TRUE;
   ELSIF v_game_type = 'campus_geoguessr' THEN
-    -- Geoguessr answer string format is: target_x,target_y,radius
-    -- User guess is: x,y
+    -- Geoguessr answer string format can be:
+    -- 1. Multi-round: "guess_x,guess_y,round_num" (normalized 0.0 to 1.0)
+    -- 2. Legacy single target: "guess_x,guess_y"
+    -- Correct answer format in DB: "target_x,target_y,radius" or JSON in game_data
     DECLARE
       v_user_x NUMERIC;
       v_user_y NUMERIC;
+      v_round_num INT := 1;
       v_target_x NUMERIC;
       v_target_y NUMERIC;
-      v_radius NUMERIC;
+      v_radius NUMERIC := 0.08;
       v_user_parts TEXT[];
       v_target_parts TEXT[];
+      v_rounds JSONB;
+      v_round_data JSONB;
+      v_distance NUMERIC;
     BEGIN
       v_user_parts := string_to_array(p_answer, ',');
-      v_target_parts := string_to_array(v_correct_answer, ',');
       
-      IF array_length(v_user_parts, 1) = 2 AND array_length(v_target_parts, 1) = 3 THEN
+      IF array_length(v_user_parts, 1) >= 2 THEN
         v_user_x := v_user_parts[1]::numeric;
         v_user_y := v_user_parts[2]::numeric;
-        v_target_x := v_target_parts[1]::numeric;
-        v_target_y := v_target_parts[2]::numeric;
-        v_radius := v_target_parts[3]::numeric;
-        
-        IF sqrt(power(v_user_x - v_target_x, 2) + power(v_user_y - v_target_y, 2)) <= v_radius THEN
+        IF array_length(v_user_parts, 1) >= 3 THEN
+          v_round_num := v_user_parts[3]::int;
+        END IF;
+
+        -- Check if game_data has 'rounds' array
+        v_rounds := v_db_game_data->'rounds';
+        IF v_rounds IS NOT NULL AND jsonb_array_length(v_rounds) >= v_round_num THEN
+          v_round_data := v_rounds->(v_round_num - 1);
+          v_target_x := (v_round_data->'target'->>'x')::numeric;
+          v_target_y := (v_round_data->'target'->>'y')::numeric;
+          v_radius := COALESCE((v_round_data->>'radius')::numeric, 0.08);
+        ELSE
+          -- Fallback to clue 'answer' string format: target_x,target_y,radius
+          v_target_parts := string_to_array(v_correct_answer, ',');
+          IF array_length(v_target_parts, 1) >= 2 THEN
+            v_target_x := v_target_parts[1]::numeric;
+            v_target_y := v_target_parts[2]::numeric;
+            IF array_length(v_target_parts, 1) >= 3 THEN
+              v_radius := v_target_parts[3]::numeric;
+            END IF;
+          END IF;
+        END IF;
+
+        -- Normalize scale if coordinates are given in 0-400 or 0-100 range instead of 0-1
+        IF v_target_x > 1 THEN v_target_x := v_target_x / 400.0; END IF;
+        IF v_target_y > 1 THEN v_target_y := v_target_y / 400.0; END IF;
+        IF v_user_x > 1 THEN v_user_x := v_user_x / 100.0; END IF;
+        IF v_user_y > 1 THEN v_user_y := v_user_y / 100.0; END IF;
+
+        v_distance := sqrt(power(v_user_x - v_target_x, 2) + power(v_user_y - v_target_y, 2));
+
+        IF v_distance <= v_radius THEN
           v_answers_match := TRUE;
         END IF;
       END IF;
@@ -708,42 +740,42 @@ INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) 
 -- RED PATH
 ('red', 0, 'Head to the Central Library Entrance and scan the location QR code to unlock Game 1.', 'sudoku', '[[1,2,3,4],[3,4,1,2],[2,1,4,3],[4,3,2,1]]', '{"puzzle": [[1,0,3,0],[0,4,0,2],[2,0,4,0],[0,3,0,1]]}'),
 ('red', 1, 'Proceed to the Fountain Courtyard. Locate the QR code on the brass plaque bench.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('red', 2, 'Go to the Science Block, Room 204. Locate the location QR code on the notice board.', 'campus_geoguessr', '200,100,30', '{"instructions": "The photo shows the reflection of the clock tower in the water pool. Point out where this is on the campus map.", "label": "Reflecting Pool"}'),
+('red', 2, 'Go to the Science Block, Room 204. Locate the location QR code on the notice board.', 'campus_geoguessr', 'geoguessr_5_rounds', '{"map_image": "/geo/campus-satellite.png", "rounds": [{"round": 1, "label": "Location Place 1", "photo": "/geo/locations/library.png", "target": {"x": 0.25, "y": 0.25}, "radius": 0.08}, {"round": 2, "label": "Location Place 2", "photo": "/geo/locations/canteen.png", "target": {"x": 0.75, "y": 0.25}, "radius": 0.08}, {"round": 3, "label": "Location Place 3", "photo": "/geo/locations/auditorium.png", "target": {"x": 0.25, "y": 0.75}, "radius": 0.08}, {"round": 4, "label": "Location Place 4", "photo": "/geo/locations/main-circle.png", "target": {"x": 0.50, "y": 0.10}, "radius": 0.08}, {"round": 5, "label": "Location Place 5", "photo": "/geo/locations/cricket.png", "target": {"x": 0.75, "y": 0.75}, "radius": 0.08}]}'),
 ('red', 3, 'Walk to the Student Center Cafe and find the location QR code posted near the menu board.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('red', 4, 'Search the Auditorium main lobby doors for the location QR code.', 'safe_cracker', '4826', '{"instructions": "Riddle: Combine the numbers: Second digit of fountain bench year, number of pillars at central library, first digit of post office box, and number of library doors."}'),
 
 -- BLUE PATH
 ('blue', 0, 'Go to the Gym registration desk and scan the location QR code to unlock Game 1.', 'sudoku', '[[2,3,4,1],[4,1,2,3],[3,2,1,4],[1,4,3,2]]', '{"puzzle": [[2,0,4,0],[0,1,0,3],[3,0,1,0],[0,4,0,2]]}'),
 ('blue', 1, 'Proceed to the Dean office reception area. Scan the location QR code on the brochures stand.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('blue', 2, 'Go to the IT Lab, Block A. Scan the location QR code posted on the server room window.', 'campus_geoguessr', '330,100,25', '{"instructions": "The photo shows a wall of basketball trophies. Pinpoint the correct block on the campus map.", "label": "Trophy Room"}'),
+('blue', 2, 'Go to the IT Lab, Block A. Scan the location QR code posted on the server room window.', 'campus_geoguessr', 'geoguessr_5_rounds', '{"map_image": "/geo/campus-satellite.png", "rounds": [{"round": 1, "label": "Location Place 1", "photo": "/geo/locations/library.png", "target": {"x": 0.25, "y": 0.25}, "radius": 0.08}, {"round": 2, "label": "Location Place 2", "photo": "/geo/locations/canteen.png", "target": {"x": 0.75, "y": 0.25}, "radius": 0.08}, {"round": 3, "label": "Location Place 3", "photo": "/geo/locations/auditorium.png", "target": {"x": 0.25, "y": 0.75}, "radius": 0.08}, {"round": 4, "label": "Location Place 4", "photo": "/geo/locations/main-circle.png", "target": {"x": 0.50, "y": 0.10}, "radius": 0.08}, {"round": 5, "label": "Location Place 5", "photo": "/geo/locations/cricket.png", "target": {"x": 0.75, "y": 0.75}, "radius": 0.08}]}'),
 ('blue', 3, 'Walk to the Football Field grandstand. Locate the QR code near Row C.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('blue', 4, 'Find the location QR code posted near the Art Gallery side entrance.', 'safe_cracker', '1973', '{"instructions": "Riddle: Code is: First year the college was opened. Year starts with 197_."}'),
 
 -- GREEN PATH
 ('green', 0, 'Go to the Botanical Garden entrance. Scan the location QR code on the welcome sign.', 'sudoku', '[[3,4,1,2],[1,2,3,4],[4,3,2,1],[2,1,4,3]]', '{"puzzle": [[0,4,0,2],[1,0,3,0],[0,3,0,1],[2,0,4,0]]}'),
 ('green', 1, 'Walk to the Chemistry Lab lobby. Scan the QR code posted on the safety cabinet door.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('green', 2, 'Proceed to the parking lot near Block B. Locate the QR code on the blue dumpster.', 'campus_geoguessr', '200,200,30', '{"instructions": "The photo shows a rare hybrid orchid blossom. Locate this zone on the campus map.", "label": "Orchid Dome"}'),
+('green', 2, 'Proceed to the parking lot near Block B. Locate the QR code on the blue dumpster.', 'campus_geoguessr', 'geoguessr_5_rounds', '{"map_image": "/geo/campus-satellite.png", "rounds": [{"round": 1, "label": "Location Place 1", "photo": "/geo/locations/library.png", "target": {"x": 0.25, "y": 0.25}, "radius": 0.08}, {"round": 2, "label": "Location Place 2", "photo": "/geo/locations/canteen.png", "target": {"x": 0.75, "y": 0.25}, "radius": 0.08}, {"round": 3, "label": "Location Place 3", "photo": "/geo/locations/auditorium.png", "target": {"x": 0.25, "y": 0.75}, "radius": 0.08}, {"round": 4, "label": "Location Place 4", "photo": "/geo/locations/main-circle.png", "target": {"x": 0.50, "y": 0.10}, "radius": 0.08}, {"round": 5, "label": "Location Place 5", "photo": "/geo/locations/cricket.png", "target": {"x": 0.75, "y": 0.75}, "radius": 0.08}]}'),
 ('green', 3, 'Go to the Open Air Theater (OAT) center stage. Scan the QR code on the speaker cover.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('green', 4, 'Find the location QR code at the base of the clock tower.', 'safe_cracker', '3628', '{"instructions": "Riddle: Safe code digits match: Total workshop bays, chemistry labs, seminar rooms, and main gates."}'),
 
 -- YELLOW PATH
 ('yellow', 0, 'Go to the Admin Block lobby. Scan the location QR code behind the central pillar.', 'sudoku', '[[4,1,2,3],[2,3,4,1],[1,2,3,4],[3,4,1,2]]', '{"puzzle": [[0,1,0,3],[2,0,4,0],[0,2,0,4],[3,0,1,0]]}'),
 ('yellow', 1, 'Proceed to the Seminar Hall entrance. Scan the QR code posted on the frame.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('yellow', 2, 'Go to the Tennis Court referee stand. Scan the QR code on the clipboard hook.', 'campus_geoguessr', '70,150,25', '{"instructions": "The photo shows a flag hoisted high over columns. Pinpoint this administrative location on the campus map.", "label": "Flagpole Plaza"}'),
+('yellow', 2, 'Go to the Tennis Court referee stand. Scan the QR code on the clipboard hook.', 'campus_geoguessr', 'geoguessr_5_rounds', '{"map_image": "/geo/campus-satellite.png", "rounds": [{"round": 1, "label": "Location Place 1", "photo": "/geo/locations/library.png", "target": {"x": 0.25, "y": 0.25}, "radius": 0.08}, {"round": 2, "label": "Location Place 2", "photo": "/geo/locations/canteen.png", "target": {"x": 0.75, "y": 0.25}, "radius": 0.08}, {"round": 3, "label": "Location Place 3", "photo": "/geo/locations/auditorium.png", "target": {"x": 0.25, "y": 0.75}, "radius": 0.08}, {"round": 4, "label": "Location Place 4", "photo": "/geo/locations/main-circle.png", "target": {"x": 0.50, "y": 0.10}, "radius": 0.08}, {"round": 5, "label": "Location Place 5", "photo": "/geo/locations/cricket.png", "target": {"x": 0.75, "y": 0.75}, "radius": 0.08}]}'),
 ('yellow', 3, 'Proceed to the Hostel Block mess hall entrance. Scan the QR code on the menu stand.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('yellow', 4, 'Go to the campus Post Office drop box. Scan the QR code on the side.', 'safe_cracker', '7159', '{"instructions": "Riddle: Safe code is: The digits of the campus zip code reversed."}'),
 
 -- PURPLE PATH
 ('purple', 0, 'Go to the Mechanical Workshop main bay. Scan the QR code on the toolbox rack.', 'sudoku', '[[1,3,2,4],[2,4,1,3],[4,2,3,1],[3,1,4,2]]', '{"puzzle": [[1,0,2,0],[0,4,0,3],[4,0,3,0],[0,1,0,2]]}'),
 ('purple', 1, 'Proceed to the Physics Lab research wing. Scan the QR code on the emergency pull.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('purple', 2, 'Walk to the Cafeteria rooftop. Scan the location QR code under the parasol base.', 'campus_geoguessr', '70,250,25', '{"instructions": "The photo shows a Tesla coil glowing in the dark. Mark this science lab room on the campus map.", "label": "High Voltage Lab"}'),
+('purple', 2, 'Walk to the Cafeteria rooftop. Scan the location QR code under the parasol base.', 'campus_geoguessr', 'geoguessr_5_rounds', '{"map_image": "/geo/campus-satellite.png", "rounds": [{"round": 1, "label": "Location Place 1", "photo": "/geo/locations/library.png", "target": {"x": 0.25, "y": 0.25}, "radius": 0.08}, {"round": 2, "label": "Location Place 2", "photo": "/geo/locations/canteen.png", "target": {"x": 0.75, "y": 0.25}, "radius": 0.08}, {"round": 3, "label": "Location Place 3", "photo": "/geo/locations/auditorium.png", "target": {"x": 0.25, "y": 0.75}, "radius": 0.08}, {"round": 4, "label": "Location Place 4", "photo": "/geo/locations/main-circle.png", "target": {"x": 0.50, "y": 0.10}, "radius": 0.08}, {"round": 5, "label": "Location Place 5", "photo": "/geo/locations/cricket.png", "target": {"x": 0.75, "y": 0.75}, "radius": 0.08}]}'),
 ('purple', 3, 'Proceed to the campus Bank ATM booth. Scan the QR code near the receipts bin.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('purple', 4, 'Find the location QR code near the counter of the Stationary Shop.', 'safe_cracker', '8492', '{"instructions": "Riddle: Enter the numbers that correspond to letters H, D, I, B in standard alphabet index."}'),
 
 -- ORANGE PATH
 ('orange', 0, 'Go to the Main Parking Area entrance gate. Scan the QR code on the ticket box.', 'sudoku', '[[4,2,3,1],[3,1,4,2],[2,4,1,3],[1,3,2,4]]', '{"puzzle": [[0,2,0,1],[3,0,4,0],[0,4,0,3],[1,0,2,0]]}'),
 ('orange', 1, 'Proceed to the Music Room lobby. Scan the QR code on top of the upright piano.', 'connect_dots', '7x7_custom_validated', '{"rows": 7, "cols": 7, "dots": [[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('orange', 2, 'Go to the Computer Lab block lobby. Scan the QR code beneath the stairs.', 'campus_geoguessr', '330,280,25', '{"instructions": "The photo shows a steam espresso dial ticking. Choose this catering spot on the campus map.", "label": "Espresso Bar"}'),
+('orange', 2, 'Go to the Computer Lab block lobby. Scan the QR code beneath the stairs.', 'campus_geoguessr', 'geoguessr_5_rounds', '{"map_image": "/geo/campus-satellite.png", "rounds": [{"round": 1, "label": "Location Place 1", "photo": "/geo/locations/library.png", "target": {"x": 0.25, "y": 0.25}, "radius": 0.08}, {"round": 2, "label": "Location Place 2", "photo": "/geo/locations/canteen.png", "target": {"x": 0.75, "y": 0.25}, "radius": 0.08}, {"round": 3, "label": "Location Place 3", "photo": "/geo/locations/auditorium.png", "target": {"x": 0.25, "y": 0.75}, "radius": 0.08}, {"round": 4, "label": "Location Place 4", "photo": "/geo/locations/main-circle.png", "target": {"x": 0.50, "y": 0.10}, "radius": 0.08}, {"round": 5, "label": "Location Place 5", "photo": "/geo/locations/cricket.png", "target": {"x": 0.75, "y": 0.75}, "radius": 0.08}]}'),
 ('orange', 3, 'Go to the Conference Center reception desk. Scan the QR code under the mat.', 'tower_hanoi', 'hanoi_solved', '{}'),
 ('orange', 4, 'Find the location QR code posted on the Student Council office mail slot.', 'safe_cracker', '6205', '{"instructions": "Riddle: Code is: Reverse of the first digits of the five campus blocks."}')
 ON CONFLICT (color, clue_number) 

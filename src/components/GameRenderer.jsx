@@ -5,6 +5,7 @@ import ConnectDotsGame from './ConnectDotsGame';
 import SudokuGame from './SudokuGame';
 import TowerOfHanoiGame from './games/TowerOfHanoiGame';
 import SafeCrackerGame from './games/SafeCrackerGame';
+import CampusGeoguessrGame from './CampusGeoguessrGame';
 
 export default function GameRenderer({ teamId, colorTheme, gameType, gameData, onSolved, onIncorrect }) {
   const [loading, setLoading] = useState(false);
@@ -53,6 +54,18 @@ export default function GameRenderer({ teamId, colorTheme, gameType, gameData, o
   if (gameType === 'connect_dots') {
     return (
       <ConnectDotsGame
+        teamId={teamId}
+        colorTheme={colorTheme}
+        gameData={gameData}
+        onSolved={onSolved}
+        onIncorrect={onIncorrect}
+      />
+    );
+  }
+
+  if (gameType === 'campus_geoguessr' || gameType === 'geo_guess') {
+    return (
+      <CampusGeoguessrGame
         teamId={teamId}
         colorTheme={colorTheme}
         gameData={gameData}
