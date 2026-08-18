@@ -15,11 +15,11 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
   ];
 
   const COLOR_MAP = {
-    0: { name: 'Empty', accent: 'indigo' },
-    1: { name: 'Red', accent: 'red' },
-    2: { name: 'Blue', accent: 'blue' },
-    3: { name: 'Green', accent: 'green' },
-    4: { name: 'Yellow', accent: 'yellow' }
+    0: { name: 'Empty', accent: 'violet' },
+    1: { name: 'Red', accent: 'rose' },
+    2: { name: 'Blue', accent: 'cyan' },
+    3: { name: 'Green', accent: 'emerald' },
+    4: { name: 'Yellow', accent: 'amber' }
   };
 
   const [paths, setPaths] = useState(() => {
@@ -210,7 +210,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     }
   };
 
-  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'violet'}))`;
 
   return (
     <div className="space-y-5">
@@ -250,7 +250,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
                 return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
               }).join(' ');
 
-              const accentKey = COLOR_MAP[cid]?.accent || 'indigo';
+              const accentKey = COLOR_MAP[cid]?.accent || 'violet';
               const isYellowOrOrange = accentKey === 'yellow' || accentKey === 'orange';
               const strokeColor = `hsl(var(--accent-${accentKey}))`;
 
@@ -278,7 +278,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
               const dot = getDotAtCell(r, c);
               const isDot = !!dot;
               const colorId = isDot ? dot[2] : 0;
-              const accentKey = COLOR_MAP[colorId]?.accent || 'indigo';
+              const accentKey = COLOR_MAP[colorId]?.accent || 'violet';
               const isYellowOrOrange = accentKey === 'yellow' || accentKey === 'orange';
               const bgColor = `hsl(var(--accent-${accentKey}))`;
               const textColor = isYellowOrOrange ? 'hsl(var(--text-inverse))' : 'hsl(var(--text-primary))';

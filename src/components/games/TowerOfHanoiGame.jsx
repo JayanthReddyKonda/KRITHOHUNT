@@ -114,7 +114,7 @@ export default function TowerOfHanoiGame({ teamId, _colorTheme, onSolved, onInco
     3: 'accent-purple'
   };
 
-  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'violet'}))`;
 
   return (
     <div className="space-y-5">

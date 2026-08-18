@@ -4,11 +4,11 @@ import { Compass, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
 import { Card, Input, Button } from '@/components/primitives';
 
 const PATH_THEMES = {
-  red: { name: 'RED', accent: 'red', badgeClass: 'path-badge-red' },
-  blue: { name: 'BLUE', accent: 'blue', badgeClass: 'path-badge-blue' },
-  green: { name: 'GREEN', accent: 'green', badgeClass: 'path-badge-green' },
-  yellow: { name: 'YELLOW', accent: 'yellow', badgeClass: 'path-badge-yellow' },
-  purple: { name: 'PURPLE', accent: 'purple', badgeClass: 'path-badge-purple' },
+  red: { name: 'RED', accent: 'rose', badgeClass: 'path-badge-rose' },
+  blue: { name: 'BLUE', accent: 'cyan', badgeClass: 'path-badge-cyan' },
+  green: { name: 'GREEN', accent: 'emerald', badgeClass: 'path-badge-emerald' },
+  yellow: { name: 'YELLOW', accent: 'amber', badgeClass: 'path-badge-amber' },
+  purple: { name: 'PURPLE', accent: 'violet', badgeClass: 'path-badge-violet' },
   orange: { name: 'ORANGE', accent: 'orange', badgeClass: 'path-badge-orange' },
 };
 
@@ -88,16 +88,16 @@ export default function StartScreen({ onRegistered }) {
   const theme = PATH_THEMES[color];
 
   // Render error screen if invalid QR code color
-  if (!color && error) {
+if (!color && error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
-        <Card variant="elevated" className="w-full max-w-md text-center p-6" style={{ '--theme-color-rgb': 'var(--accent-red)' }}>
-          <ShieldAlert className="w-16 h-16 text-accent-red mx-auto mb-4" />
+        <Card variant="elevated" className="w-full max-w-md text-center p-6" style={{ '--theme-color-rgb': 'var(--accent-rose)' }}>
+          <ShieldAlert className="w-16 h-16 text-accent-rose mx-auto mb-4" />
           <h2 className="text-h2 text-primary mb-2">Access Error</h2>
           <p className="text-secondary text-body-sm mb-6">{error}</p>
           <div className="text-caption text-muted bg-surface-2 p-3 rounded-xl border border-border-subtle text-left">
             Path QR codes format:<br />
-            <code className="text-accent-indigo">/start?color=red</code> (or blue, green, etc.)
+            <code className="text-accent-violet">/start?color=red</code> (or blue, green, etc.)
           </div>
         </Card>
       </div>

@@ -7,7 +7,7 @@ const SafeCrackerGame = lazy(() => import('./components/games/SafeCrackerGame'))
 import { Compass, HelpCircle } from 'lucide-react';
 import { Card, Button } from '@/components/primitives';
 
-const DEMO_COLOR_THEME = { name: 'Indigo', accent: 'indigo', rgb: '99, 102, 241' };
+const DEMO_COLOR_THEME = { name: 'Violet', accent: 'violet', rgb: '139, 92, 246' };
 const DEMO_SAFE_CRACKER_DATA = {
   instructions: 'Solve the four clues, build the 4-digit code, and unlock the demo safe.',
   clues: [

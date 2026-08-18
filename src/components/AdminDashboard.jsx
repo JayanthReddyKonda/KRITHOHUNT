@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
-import { RefreshCw, Users, Award, ShieldAlert, CheckCircle, Clock, Trash2, Search, Filter, Lock, KeyRound, Printer, Menu, LogOut } from 'lucide-react';
+import { RefreshCw, Users, Award, ShieldAlert, CheckCircle, Clock, Trash2, Search, Filter, Lock, KeyRound, Printer, Menu, LogOut, Download, RotateCcw } from 'lucide-react';
 import { Card, Button, Input } from '@/components/primitives';
 
 // XSS Prevention: Sanitize user-generated content for safe rendering
@@ -12,11 +12,11 @@ function sanitizeHtml(text) {
 }
 
 const PATH_BADGES = {
-  red: 'bg-accent-red/10 border-accent-red/30 text-accent-red',
-  blue: 'bg-accent-blue/10 border-accent-blue/30 text-accent-blue',
-  green: 'bg-accent-green/10 border-accent-green/30 text-accent-green',
-  yellow: 'bg-accent-yellow/10 border-accent-yellow/30 text-accent-yellow text-inverse',
-  purple: 'bg-accent-purple/10 border-accent-purple/30 text-accent-purple',
+  red: 'bg-accent-rose/10 border-accent-rose/30 text-accent-rose',
+  blue: 'bg-accent-cyan/10 border-accent-cyan/30 text-accent-cyan',
+  green: 'bg-accent-emerald/10 border-accent-emerald/30 text-accent-emerald',
+  yellow: 'bg-accent-amber/10 border-accent-amber/30 text-accent-amber text-inverse',
+  purple: 'bg-accent-violet/10 border-accent-violet/30 text-accent-violet',
   orange: 'bg-accent-orange/10 border-accent-orange/30 text-accent-orange text-inverse'
 };
 
@@ -97,6 +97,78 @@ export default function AdminDashboard() {
     setAdminPassword('');
   };
 
+  const handleExportCSV = () => {
+    if (teams.length === 0) return;
+    
+    const headers = ['Rank', 'Team Name', 'Path', 'Start Time', 'Progress', 'Penalties', 'Duration', 'Status'];
+    const rows = sortedTeams.map((team, idx) => {
+      const status = getStatusText(team.clues_solved, team.finish_time, team.waiting_for_qr);
+      const progress = team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`;
+      const duration = team.finish_time ? getDurationText(team.start_time, team.finish_time) : 'Playing...';
+      return [
+        idx + 1,
+        `"${team.name}"`,
+        team.color.toUpperCase(),
+        new Date(team.start_time).toLocaleString(),
+        `${progress} (${team.clues_solved}/5)`,
+        team.penalty_count,
+        duration,
+        status
+      ];
+    });
+    
+    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `krithohunt-teams-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const handleResetAllTeams = async () => {
+    if (!confirm('WARNING: This will delete ALL teams and reset the entire event. This action is PERMANENT and CANNOT BE UNDONE. Type "RESET ALL" to confirm.')) {
+      return;
+    }
+    
+    const confirmation = prompt('Type "RESET ALL" to confirm:');
+    if (confirmation !== 'RESET ALL') {
+      alert('Reset cancelled. Confirmation text did not match.');
+      return;
+    }
+
+    setActionLoading('reset-all');
+    try {
+      const { error } = await supabase.from('teams').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
+      await fetchTeams(false);
+      alert('All teams have been deleted. Event reset complete.');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to reset event.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePrintQRCodes = async () => {
+    const qrArea = document.getElementById('printable-qr-area');
+    if (!qrArea) { window.print(); return; }
+    
+    const images = qrArea.querySelectorAll('img');
+    const loadPromises = Array.from(images).map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+    });
+    
+    try {
+      await Promise.all(loadPromises);
+      await new Promise(r => setTimeout(r, 100));
+      window.print();
+    } catch {
+      window.print();
+    }
+  };
+
   const handleMarkFinished = async (teamId, teamName) => {
     const safeName = sanitizeHtml(teamName);
     if (!confirm(`Mark team "${safeName}" as finished? This records their official completion timestamp.`)) {
@@ -132,13 +204,17 @@ export default function AdminDashboard() {
 
     setActionLoading(teamId);
     try {
-      const { error: deleteError } = await supabase
-        .from('teams')
-        .delete()
-        .eq('id', teamId);
+      const { data, error: rpcError } = await supabase.rpc('admin_delete_team', {
+        p_team_id: teamId
+      });
 
-      if (deleteError) throw deleteError;
-      await fetchTeams(false);
+      if (rpcError) throw rpcError;
+
+      if (data.success) {
+        await fetchTeams(false);
+      } else {
+        alert(data.error || 'Failed to delete team.');
+      }
     } catch (err) {
       console.error(err);
       alert(err.message || 'Failed to delete team.');
@@ -211,11 +287,11 @@ export default function AdminDashboard() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-8 relative">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-20 bg-accent-indigo" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-20 bg-accent-violet" />
         <div className="w-full max-w-sm relative z-10">
           <div className="text-center mb-8">
             <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-3 shadow-inner">
-              <KeyRound className="w-8 h-8 text-accent-indigo" />
+              <KeyRound className="w-8 h-8 text-accent-violet" />
             </div>
             <h1 className="text-h1 font-black text-primary tracking-tight">ORGANIZER ACCESS</h1>
             <p className="text-caption text-muted mt-1 uppercase tracking-widest font-semibold">Enter Password to Unlock Dashboard</p>
@@ -243,7 +319,7 @@ export default function AdminDashboard() {
                 size="lg"
                 fullWidth
                 className="touch-target"
-                style={{ backgroundColor: 'hsl(var(--accent-indigo))' }}
+                style={{ backgroundColor: 'hsl(var(--accent-violet))' }}
               >
                 Unlock Dashboard
               </Button>
@@ -345,7 +421,7 @@ export default function AdminDashboard() {
                 <p className="text-body-sm text-muted mt-1">Monitor teams, record completions, and manage the event live.</p>
               </div>
 
-              <div className="flex gap-2 w-full md:w-auto">
+              <div className="flex gap-2 w-full md:w-auto flex-wrap">
                 <Button
                   variant="secondary"
                   size="md"
@@ -358,6 +434,27 @@ export default function AdminDashboard() {
                 </Button>
 
                 <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={handleExportCSV}
+                  disabled={teams.length === 0}
+                  className="flex items-center gap-2 justify-center w-full md:w-auto"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Export CSV</span>
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={handlePrintQRCodes}
+                  className="flex items-center gap-2 justify-center w-full md:w-auto"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print QR</span>
+                </Button>
+
+                <Button
                   variant="ghost"
                   size="md"
                   onClick={handleLogout}
@@ -365,6 +462,18 @@ export default function AdminDashboard() {
                 >
                   <Lock className="w-4 h-4" />
                   <span>Lock</span>
+                </Button>
+
+                <Button
+                  variant="danger"
+                  size="md"
+                  onClick={handleResetAllTeams}
+                  disabled={actionLoading === 'reset-all'}
+                  loading={actionLoading === 'reset-all'}
+                  className="flex items-center gap-2 justify-center w-full md:w-auto"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Reset All</span>
                 </Button>
               </div>
             </div>
@@ -381,7 +490,7 @@ export default function AdminDashboard() {
             {/* Stats Panel - Responsive Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <Card variant="elevated" padding="lg" className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent-indigo/10 text-accent-indigo">
+                <div className="p-3 rounded-xl bg-accent-violet/10 text-accent-violet">
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
@@ -391,7 +500,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card variant="elevated" padding="lg" className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent-green/10 text-accent-green">
+                <div className="p-3 rounded-xl bg-accent-emerald/10 text-accent-emerald">
                   <Award className="w-6 h-6" />
                 </div>
                 <div>
@@ -401,7 +510,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card variant="elevated" padding="lg" className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent-yellow/10 text-accent-yellow">
+                <div className="p-3 rounded-xl bg-accent-amber/10 text-accent-amber">
                   <CheckCircle className="w-6 h-6" />
                 </div>
                 <div>
@@ -411,7 +520,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card variant="elevated" padding="lg" className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent-blue/10 text-accent-blue">
+                <div className="p-3 rounded-xl bg-accent-cyan/10 text-accent-cyan">
                   <Clock className="w-6 h-6" />
                 </div>
                 <div>
@@ -704,18 +813,18 @@ export default function AdminDashboard() {
 
               {/* Start QRs */}
               <h3 className="text-caption font-bold text-muted uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-emerald" />
                 <span>Stage 1: Start Desk QR Codes (6 total)</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 qr-card-grid">
                 {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => {
                   const startUrl = `${window.location.origin}/start?color=${color.toLowerCase()}`;
-                  const qrColors = { red: 'ef3b3b', blue: '3a86ff', green: '22c55e', yellow: 'eab308', purple: 'a855f7', orange: 'f97316' };
+                  const qrColors = { red: 'ef3b3b', blue: '06b6d4', green: '10b981', yellow: 'f59e0b', purple: 'a855f7', orange: 'f97316' };
                   const hexColor = qrColors[color.toLowerCase()] || '000000';
 
                   return (
                     <Card key={color} variant="elevated" padding="lg" className="text-center space-y-3 qr-card">
-                      <span className="text-micro font-black tracking-widest uppercase text-accent-indigo">KRITHOHUNT START</span>
+                      <span className="text-micro font-black tracking-widest uppercase text-accent-violet">KRITHOHUNT START</span>
                       <div className="bg-white p-2 rounded-xl inline-block shadow-lg mx-auto">
                         <img
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=${hexColor}&data=${encodeURIComponent(startUrl)}`}
@@ -724,7 +833,7 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <h4 className="text-caption font-extrabold uppercase text-primary tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? 'hsl(var(--accent-yellow))' : color.toLowerCase() }}>
+                        <h4 className="text-caption font-extrabold uppercase text-primary tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? 'hsl(var(--accent-amber))' : 'hsl(var(--accent-' + {red:'rose', blue:'cyan', green:'emerald', yellow:'amber', purple:'violet', orange:'orange'}[color.toLowerCase()] + '))' }}>
                           {color} Path Start
                         </h4>
                         <p className="text-micro text-muted font-mono break-all line-clamp-1">{startUrl}</p>
@@ -736,19 +845,19 @@ export default function AdminDashboard() {
 
               {/* Location QRs */}
               <h3 className="text-caption font-bold text-muted uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-indigo" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-violet" />
                 <span>Stage 2-6: Physical Location QR Codes (30 total)</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 qr-card-grid">
                 {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => {
-                  const qrColors = { red: 'ef3b3b', blue: '3a86ff', green: '22c55e', yellow: 'eab308', purple: 'a855f7', orange: 'f97316' };
+                  const qrColors = { red: 'ef3b3b', blue: '06b6d4', green: '10b981', yellow: 'f59e0b', purple: 'a855f7', orange: 'f97316' };
                   const hexColor = qrColors[color.toLowerCase()] || '000000';
 
                   return [1, 2, 3, 4, 5].map((stage) => {
                     const locationUrl = `${window.location.origin}/scan?color=${color.toLowerCase()}&stage=${stage}`;
                     return (
                       <Card key={`${color}-${stage}`} variant="elevated" padding="lg" className="text-center space-y-3 qr-card">
-                        <span className="text-micro font-black tracking-widest uppercase text-accent-indigo">KRITHOHUNT GATE</span>
+                        <span className="text-micro font-black tracking-widest uppercase text-accent-violet">KRITHOHUNT GATE</span>
                         <div className="bg-white p-2 rounded-xl inline-block shadow-lg mx-auto">
                           <img
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=${hexColor}&data=${encodeURIComponent(locationUrl)}`}
@@ -757,7 +866,7 @@ export default function AdminDashboard() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <h4 className="text-caption font-extrabold uppercase text-primary tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? 'hsl(var(--accent-yellow))' : color.toLowerCase() }}>
+                          <h4 className="text-caption font-extrabold uppercase text-primary tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? 'hsl(var(--accent-amber))' : 'hsl(var(--accent-' + {red:'rose', blue:'cyan', green:'emerald', yellow:'amber', purple:'violet', orange:'orange'}[color.toLowerCase()] + '))' }}>
                             {color} — Stage {stage}
                           </h4>
                           <p className="text-micro text-muted font-mono break-all line-clamp-1">{locationUrl}</p>

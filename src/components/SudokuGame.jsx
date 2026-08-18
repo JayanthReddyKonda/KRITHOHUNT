@@ -114,8 +114,8 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
     }
   };
 
-  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
-  const accentBorder = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}) / 0.25)`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'violet'}))`;
+  const accentBorder = `hsl(var(--accent-${colorTheme?.accent || 'violet'}) / 0.25)`;
 
   return (
     <div className="space-y-5">
@@ -143,9 +143,9 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
                     isFixed={isFixed}
                     isSelected={isSelected}
                     onClick={() => handleCellClick(rIdx, cIdx)}
-                    style={
+style={
                       isSelected && !isFixed
-                        ? { borderColor: accentColor, boxShadow: `0 0 12px ${accentBorder}` }
+                        ? { borderColor: `hsl(var(--accent-${colorTheme?.accent || 'violet'}) / 0.25)` }
                         : {}
                     }
                     aria-label={isFixed ? `Fixed digit ${cellValue}, row ${rIdx + 1}, column ${cIdx + 1}` : `Empty cell, row ${rIdx + 1}, column ${cIdx + 1}`}

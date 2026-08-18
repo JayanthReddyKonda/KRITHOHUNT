@@ -61,7 +61,15 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
     verifyScannedToken();
   }, [teamId, colorParam, stageParam]);
 
-  const accentColor = `hsl(var(--accent-${teamColor || 'blue'}))`;
+  const colorToAccent = {
+  red: 'rose',
+  blue: 'cyan',
+  green: 'emerald',
+  yellow: 'amber',
+  purple: 'violet',
+  orange: 'orange',
+};
+const accentColor = `hsl(var(--accent-${colorToAccent[teamColor] || 'cyan'}))`;
 
   // Case A: No team session registered yet
   if (!teamId) {

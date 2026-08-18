@@ -101,7 +101,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
   const comboReady = combination.every((digit) => digit !== null);
   const activeIndex = combination.findIndex((d) => d === null);
 
-  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'violet'}))`;
 
   const renderClueQuestion = (clue) => {
     const q = clue?.question || 'Missing clue question in game_data.';

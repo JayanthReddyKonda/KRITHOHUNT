@@ -54,11 +54,6 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
-  const accentColorRef = useRef(`hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`);
-
-  useEffect(() => {
-    accentColorRef.current = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
-  }, [colorTheme?.accent]);
 
   const mapImage = gameData?.map_image || '/geo/campus-satellite.png';
   const rounds = gameData?.rounds || DEFAULT_ROUNDS;
@@ -114,7 +109,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
         const customIcon = L.divIcon({
           className: 'custom-pin-marker geo-pin-marker',
           html: `
-            <div class="w-7 h-7 rounded-full border-2 border-surface-0 shadow-[0_0_12px_rgba(99,102,241,0.6)] flex items-center justify-center animate-pulse" style="background-color: ${accentColorRef.current};">
+            <div class="w-7 h-7 rounded-full border-2 border-surface-0 shadow-[0_0_12px_rgba(139,92,246,0.6)] flex items-center justify-center animate-pulse" style="background-color: hsl(var(--accent-violet));">
               <div class="w-2.5 h-2.5 bg-surface-0 rounded-full"></div>
             </div>
           `,
@@ -203,7 +198,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
     }
   };
 
-  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'indigo'}))`;
+  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'violet'}))`;
 
   return (
     <div className="space-y-5">

@@ -7,46 +7,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Design System Tokens (DESIGN.md)
         surface: {
-          0: 'hsl(var(--surface-0))', // #060a12
-          1: 'hsl(var(--surface-1))', // #0b1120
-          2: 'hsl(var(--surface-2))', // #121a2e
-          3: 'hsl(var(--surface-3))', // #1a243c
+          0: 'hsl(var(--surface-0))',
+          1: 'hsl(var(--surface-1))',
+          2: 'hsl(var(--surface-2))',
+          3: 'hsl(var(--surface-3))',
         },
         border: {
-          subtle: 'hsl(var(--border-subtle))', // #26324a
-          strong: 'hsl(var(--border-strong))', // #3a4860
+          subtle: 'hsl(var(--border-subtle))',
+          strong: 'hsl(var(--border-strong))',
         },
         text: {
-          primary: 'hsl(var(--text-primary))',   // #f1f5f9
-          secondary: 'hsl(var(--text-secondary))', // #a8b8d0
-          muted: 'hsl(var(--text-muted))',       // #7c8da8
-          inverse: 'hsl(var(--text-inverse))',   // #060a12
+          primary: 'hsl(var(--text-primary))',
+          secondary: 'hsl(var(--text-secondary))',
+          muted: 'hsl(var(--text-muted))',
+          inverse: 'hsl(var(--text-inverse))',
         },
         accent: {
-          red: 'hsl(var(--accent-red))',       // #ef3b3b
-          blue: 'hsl(var(--accent-blue))',     // #3a86ff
-          green: 'hsl(var(--accent-green))',   // #22c55e
-          yellow: 'hsl(var(--accent-yellow))', // #eab308
-          purple: 'hsl(var(--accent-purple))', // #a855f7
-          orange: 'hsl(var(--accent-orange))', // #f97316
-          indigo: 'hsl(var(--accent-indigo))', // #6366f1
+          violet: 'hsl(var(--accent-violet))',
+          amber: 'hsl(var(--accent-amber))',
+          emerald: 'hsl(var(--accent-emerald))',
+          rose: 'hsl(var(--accent-rose))',
+          cyan: 'hsl(var(--accent-cyan))',
+          orange: 'hsl(var(--accent-orange))',
         },
         feedback: {
-          success: 'hsl(var(--feedback-success))', // #22c55e
-          warning: 'hsl(var(--feedback-warning))', // #fbbf24
-          error: 'hsl(var(--feedback-error))',     // #ef4444
+          success: 'hsl(var(--feedback-success))',
+          warning: 'hsl(var(--feedback-warning))',
+          error: 'hsl(var(--feedback-error))',
         },
-        // Legacy hunt palette (kept for backward compat)
-        hunt: {
-          red: '#EF4444',
-          blue: '#3B82F6',
-          green: '#10B981',
-          yellow: '#F59E0B',
-          purple: '#8B5CF6',
-          orange: '#F97316',
-        }
       },
       fontSize: {
         'display': ['clamp(2.25rem, 6vw, 3rem)', { lineHeight: '1.1', fontWeight: '800' }],

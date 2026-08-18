@@ -733,6 +733,32 @@ BEGIN
 END;
 $$;
 
+-- E. Admin: Delete a team (secure, runs as SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION admin_delete_team(p_team_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_team_name TEXT;
+BEGIN
+  -- Get team name for confirmation logging
+  SELECT name INTO v_team_name FROM teams WHERE id = p_team_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Team not found');
+  END IF;
+
+  -- Delete the team
+  DELETE FROM teams WHERE id = p_team_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', 'Team "' || v_team_name || '" deleted successfully'
+  );
+END;
+$$;
+
 -- ====================================================================
 -- Seeding Real Game Data
 -- ====================================================================

@@ -6,11 +6,11 @@ import { Trophy, Clock, Skull, RefreshCw, Loader2, MapPin, CheckCircle, Camera, 
 import { Card, Button, BottomSheet } from '@/components/primitives';
 
 const PATH_THEMES = {
-  red: { name: 'RED', accent: 'red', badgeClass: 'path-badge-red' },
-  blue: { name: 'BLUE', accent: 'blue', badgeClass: 'path-badge-blue' },
-  green: { name: 'GREEN', accent: 'green', badgeClass: 'path-badge-green' },
-  yellow: { name: 'YELLOW', accent: 'yellow', badgeClass: 'path-badge-yellow' },
-  purple: { name: 'PURPLE', accent: 'purple', badgeClass: 'path-badge-purple' },
+  red: { name: 'RED', accent: 'rose', badgeClass: 'path-badge-rose' },
+  blue: { name: 'BLUE', accent: 'cyan', badgeClass: 'path-badge-cyan' },
+  green: { name: 'GREEN', accent: 'emerald', badgeClass: 'path-badge-emerald' },
+  yellow: { name: 'YELLOW', accent: 'amber', badgeClass: 'path-badge-amber' },
+  purple: { name: 'PURPLE', accent: 'violet', badgeClass: 'path-badge-violet' },
   orange: { name: 'ORANGE', accent: 'orange', badgeClass: 'path-badge-orange' },
 };
 
