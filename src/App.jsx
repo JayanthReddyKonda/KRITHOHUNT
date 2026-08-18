@@ -3,7 +3,10 @@ import StartScreen from './components/StartScreen';
 import PlayScreen from './components/PlayScreen';
 import AdminDashboard from './components/AdminDashboard';
 import ScanScreen from './components/ScanScreen';
+import SafeCrackerGame from './components/games/SafeCrackerGame';
 import { Compass, HelpCircle } from 'lucide-react';
+
+const DEMO_COLOR_THEME = { name: 'Indigo', rgb: '99, 102, 241' };
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -77,6 +80,19 @@ export default function App() {
       }
     }
 
+    if (currentPath === '/demo/safe-cracker') {
+      return (
+        <div className="max-w-lg mx-auto px-4 py-8">
+        <SafeCrackerGame
+            teamId="demo"
+            colorTheme={DEMO_COLOR_THEME}
+            gameData={{}}
+            onSolved={() => window.alert('Safe unlocked!')}
+            onIncorrect={() => {}}
+          />
+        </div>
+      );
+    }
     // Default or root Path "/"
     if (teamId) {
       // If team session exists, auto redirect to play
