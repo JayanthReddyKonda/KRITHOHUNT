@@ -1,0 +1,14 @@
+{
+  "name": "KRITHOHUNT",
+  "short_name": "KRITHOHUNT",
+  "description": "College Treasure Hunt Game",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060a12",
+  "theme_color": "#060a12",
+  "icons": [
+    { "src": "/krithomedh.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["games", "education"],
+  "orientation": "portrait-primary"
+}
