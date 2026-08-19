@@ -1,14 +1,115 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { RefreshCw, Users, Award, ShieldAlert, CheckCircle, Clock, Trash2, Search, Filter, Lock, KeyRound, Printer } from 'lucide-react';
+import { RefreshCw, Users, Award, ShieldAlert, CheckCircle, Clock, Trash2, Search, Filter, Lock, KeyRound, Printer, Menu, LogOut, Download, RotateCcw, Share2, Check } from 'lucide-react';
+import { Card, Button, Input } from '@/components/primitives';
+import QRCode from 'qrcode';
+
+function escapeCsv(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
 
 const PATH_BADGES = {
-  red: 'bg-red-500/10 border-red-500/30 text-red-400',
-  blue: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
-  green: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
-  yellow: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
-  purple: 'bg-violet-500/10 border-violet-500/30 text-violet-400',
-  orange: 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+  red: 'bg-accent-rose/10 border-accent-rose/30 text-accent-rose',
+  blue: 'bg-accent-cyan/10 border-accent-cyan/30 text-accent-cyan',
+  green: 'bg-accent-emerald/10 border-accent-emerald/30 text-accent-emerald',
+  yellow: 'bg-accent-amber/10 border-accent-amber/30 text-accent-amber text-inverse',
+  purple: 'bg-accent-violet/10 border-accent-violet/30 text-accent-violet',
+  orange: 'bg-accent-orange/10 border-accent-orange/30 text-accent-orange text-inverse'
+};
+
+const PATH_DISPLAY = {
+  red: 'RED',
+  blue: 'BLUE',
+  green: 'GREEN',
+  yellow: 'YELLOW',
+  purple: 'PURPLE',
+  orange: 'ORANGE'
+};
+
+const pathAccentMap = { red: 'rose', blue: 'cyan', green: 'emerald', yellow: 'amber', purple: 'violet', orange: 'orange' };
+const qrColors = { red: 'ef3b3b', blue: '06b6d4', green: '10b981', yellow: 'f59e0b', purple: 'a855f7', orange: 'f97316' };
+const qrOrigin = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
+
+const getQrEntries = (tokens = []) => [
+  ...['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => ({
+    title: 'KRITHOHUNT START',
+    subtitle: 'Path Start',
+    color,
+    url: `${qrOrigin}/start?color=${color.toLowerCase()}`,
+  })),
+  ...tokens.map(({ token, color, stage }) => ({
+    title: 'KRITHOHUNT GATE',
+    subtitle: `Stage ${stage}`,
+    color: color[0].toUpperCase() + color.slice(1),
+    url: `${qrOrigin}/scan?token=${encodeURIComponent(token)}`,
+  })),
+];
+
+const QRCard = ({ title, subtitle, url, color }) => {
+  const accent = pathAccentMap[color.toLowerCase()] || 'brand';
+  const hexColor = qrColors[color.toLowerCase()] || '0f766e';
+  const [qrDataUrl, setQrDataUrl] = React.useState('');
+  const [qrError, setQrError] = React.useState('');
+  const [shared, setShared] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setQrDataUrl('');
+    setQrError('');
+    QRCode.toDataURL(url, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 320,
+      color: { dark: `#${hexColor}`, light: '#ffffff' },
+    })
+      .then((dataUrl) => {
+        if (!cancelled) setQrDataUrl(dataUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setQrError('QR generation failed. Copy the URL below.');
+      });
+
+    return () => { cancelled = true; };
+  }, [url, hexColor]);
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${title} - ${color} ${subtitle}`, text: url, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+      setShared(true);
+      setTimeout(() => setShared(false), 1800);
+    } catch (error) {
+      if (error.name !== 'AbortError') setQrError('Unable to share. Copy the URL below.');
+    }
+  };
+
+  return (
+    <Card key={`${color}-${subtitle}`} variant="elevated" padding="lg" className="text-center space-y-3 qr-card">
+      <span className="text-micro font-black tracking-widest uppercase text-accent-brand">{title}</span>
+      <div className="bg-white p-3 rounded-xl inline-block shadow-lg mx-auto qr-image-frame" data-qr-status={qrDataUrl ? 'ready' : qrError ? 'error' : 'loading'}>
+        {qrDataUrl ? (
+          <img src={qrDataUrl} alt={`${color} ${subtitle} QR`} className="w-36 h-36 mx-auto qr-image" />
+        ) : (
+          <div className="w-36 h-36 flex items-center justify-center text-center text-xs text-slate-700">
+            {qrError || 'Generating QR...'}
+          </div>
+        )}
+      </div>
+      <div className="space-y-1">
+        <h4 className="text-caption font-extrabold uppercase text-primary tracking-wide" style={{ color: `hsl(var(--accent-${accent}))` }}>
+          {color} {subtitle}
+        </h4>
+        <p className="text-micro text-muted font-mono break-all line-clamp-1">{url}</p>
+      </div>
+      <Button variant="ghost" size="sm" onClick={handleShare} className="no-print mx-auto">
+        {shared ? <Check className="w-4 h-4 text-feedback-success" /> : <Share2 className="w-4 h-4" />}
+        <span>{shared ? 'Copied' : 'Share URL'}</span>
+      </Button>
+    </Card>
+  );
 };
 
 export default function AdminDashboard() {
@@ -21,19 +122,25 @@ export default function AdminDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [colorFilter, setColorFilter] = useState('all');
-  const [actionLoading, setActionLoading] = useState(null); // teamId of active action
+  const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [qrTokens, setQrTokens] = useState([]);
+  const [qrTokenError, setQrTokenError] = useState('');
+  const teamsRequestRef = useRef(0);
 
-  const fetchTeams = async (showRefreshIndicator = false) => {
+  const fetchTeams = useCallback(async (showRefreshIndicator = false) => {
+    const requestId = ++teamsRequestRef.current;
     if (showRefreshIndicator) setRefreshing(true);
     try {
       setError('');
+      await supabase.rpc('expire_overdue_teams');
       const { data, error: fetchError } = await supabase
         .from('teams')
         .select('*');
 
       if (fetchError) throw fetchError;
-      setTeams(data || []);
+      if (requestId === teamsRequestRef.current) setTeams(data || []);
     } catch (err) {
       console.error(err);
       setError('Failed to fetch teams from database.');
@@ -41,24 +148,36 @@ export default function AdminDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchTeams();
 
-    // Auto-refresh every 15 seconds
     const interval = setInterval(() => {
       fetchTeams(false);
     }, 15000);
 
     return () => clearInterval(interval);
+  }, [isAuthenticated, fetchTeams]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    supabase.rpc('get_location_qr_tokens').then(({ data, error: tokenError }) => {
+      if (tokenError) setQrTokenError('Location QR tokens are unavailable. Run the latest Supabase migration.');
+      else setQrTokens(data || []);
+    });
   }, [isAuthenticated]);
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
-    const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'organizer123';
-    
+    const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+
+    if (!correctPassword) {
+      setPassError('Admin password not configured. Set VITE_ADMIN_PASSWORD environment variable.');
+      return;
+    }
+
     if (adminPassword === correctPassword) {
       sessionStorage.setItem('admin_authenticated', 'true');
       setIsAuthenticated(true);
@@ -68,12 +187,126 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLock = () => {
+  const handleLogout = () => {
     sessionStorage.removeItem('admin_authenticated');
     setIsAuthenticated(false);
     setAdminPassword('');
   };
 
+  const handleExportCSV = () => {
+    if (teams.length === 0) return;
+
+    const headers = ['Rank', 'Team Name', 'Team ID', 'Path', 'Start Time', 'Progress', 'Penalties', 'Duration', 'Status'];
+    const rows = sortedTeams.map((team, idx) => {
+      const status = getStatusText(team);
+      const progress = team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`;
+      const duration = team.finish_time ? getDurationText(team.start_time, team.finish_time) : 'Playing...';
+      return [
+        idx + 1,
+        team.name,
+        team.team_code || '',
+        team.color.toUpperCase(),
+        new Date(team.start_time).toLocaleString(),
+        `${progress} (${team.clues_solved}/5)`,
+        team.penalty_count,
+        duration,
+        status
+      ];
+    });
+
+    const csvContent = [headers, ...rows].map(row => row.map(escapeCsv).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `krithohunt-teams-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const handleResetAllTeams = async () => {
+    if (!confirm('WARNING: This will delete ALL teams and reset the entire event. This action is PERMANENT and CANNOT BE UNDONE. Type "RESET ALL" to confirm.')) {
+      return;
+    }
+
+    const confirmation = prompt('Type "RESET ALL" to confirm:');
+    if (confirmation !== 'RESET ALL') {
+      alert('Reset cancelled. Confirmation text did not match.');
+      return;
+    }
+
+    setActionLoading('reset-all');
+    try {
+      const { data, error: resetError } = await supabase.rpc('admin_reset_teams');
+      if (resetError) throw resetError;
+      if (!data?.success) throw new Error(data?.error || 'Reset failed.');
+      await fetchTeams(false);
+      alert('All teams have been deleted. Event reset complete.');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to reset event.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePrintQRCodes = async () => {
+    let printWindow = window.open('', '_blank', 'width=1100,height=800');
+    let fallbackFrame = null;
+    if (!printWindow) {
+      fallbackFrame = document.createElement('iframe');
+      fallbackFrame.title = 'KRITHOHUNT QR print sheet';
+      fallbackFrame.style.position = 'fixed';
+      fallbackFrame.style.width = '1px';
+      fallbackFrame.style.height = '1px';
+      fallbackFrame.style.border = '0';
+      fallbackFrame.style.opacity = '0';
+      document.body.appendChild(fallbackFrame);
+      printWindow = fallbackFrame.contentWindow;
+    }
+
+    printWindow.document.write('<!doctype html><title>KRITHOHUNT QR Sheet</title><p style="font:16px sans-serif;padding:24px">Generating QR sheet...</p>');
+    printWindow.document.close();
+
+    try {
+      const entries = getQrEntries(qrTokens);
+      if (entries.length !== 36) throw new Error('Expected 6 start codes plus 30 issued location tokens. Run the latest Supabase migration.');
+      const cards = await Promise.all(entries.map(async (entry) => {
+        const colorKey = entry.color.toLowerCase();
+        const dataUrl = await QRCode.toDataURL(entry.url, {
+          errorCorrectionLevel: 'M',
+          margin: 2,
+          width: 320,
+          color: { dark: `#${qrColors[colorKey]}`, light: '#ffffff' },
+        });
+        return `<article class="qr-card"><div class="qr-label">${entry.title}</div><img src="${dataUrl}" alt="${entry.color} ${entry.subtitle} QR"><strong>${entry.color} ${entry.subtitle}</strong><code>${entry.url}</code></article>`;
+      }));
+
+      printWindow.document.open();
+      printWindow.document.write(`<!doctype html><html><head><title>KRITHOHUNT QR Sheet</title><style>
+        @page { size: A4; margin: 12mm; }
+        * { box-sizing: border-box; }
+        body { margin: 0; color: #111827; font-family: Arial, sans-serif; }
+        h1 { font-size: 20px; margin: 0 0 16px; }
+        .sheet { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .section { grid-column: 1 / -1; font-size: 12px; font-weight: 700; margin-top: 10px; padding: 6px 0; border-bottom: 1px solid #9ca3af; }
+        .qr-card { min-height: 230px; border: 1px dashed #6b7280; padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; text-align: center; break-inside: avoid; }
+        .qr-card img { display: block; width: 150px; height: 150px; }
+        .qr-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+        .qr-card strong { font-size: 12px; text-transform: uppercase; }
+        .qr-card code { max-width: 100%; overflow-wrap: anywhere; font-size: 8px; }
+        @media print { .qr-card { page-break-inside: avoid; } }
+      </style></head><body><h1>KRITHOHUNT QR SHEET</h1><main class="sheet"><div class="section">START DESK CODES</div>${cards.slice(0, 6).join('')}<div class="section">LOCATION CODES</div>${cards.slice(6).join('')}</main></body></html>`);
+      printWindow.document.close();
+      window.setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        if (fallbackFrame) window.setTimeout(() => fallbackFrame.remove(), 1000);
+      }, 250);
+    } catch (error) {
+      if (fallbackFrame) fallbackFrame.remove();
+      else printWindow.close();
+      alert(`QR sheet generation failed: ${error.message}`);
+    }
+  };
 
   const handleMarkFinished = async (teamId, teamName) => {
     if (!confirm(`Mark team "${teamName}" as finished? This records their official completion timestamp.`)) {
@@ -87,9 +320,8 @@ export default function AdminDashboard() {
       });
 
       if (rpcError) throw rpcError;
-      
+
       if (data.success) {
-        // Refresh local list
         await fetchTeams(false);
       } else {
         alert(data.error || 'Failed to update team finish state.');
@@ -109,16 +341,35 @@ export default function AdminDashboard() {
 
     setActionLoading(teamId);
     try {
-      const { error: deleteError } = await supabase
-        .from('teams')
-        .delete()
-        .eq('id', teamId);
+      const { data, error: rpcError } = await supabase.rpc('admin_delete_team', {
+        p_team_id: teamId
+      });
 
-      if (deleteError) throw deleteError;
-      await fetchTeams(false);
+      if (rpcError) throw rpcError;
+
+      if (data.success) {
+        await fetchTeams(false);
+      } else {
+        alert(data.error || 'Failed to delete team.');
+      }
     } catch (err) {
       console.error(err);
       alert(err.message || 'Failed to delete team.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCloseTeam = async (teamId, teamName) => {
+    if (!confirm(`Close ${teamName}'s game now? Current progress will be preserved.`)) return;
+    setActionLoading(`close-${teamId}`);
+    try {
+      const { data, error: closeError } = await supabase.rpc('admin_close_team', { p_team_id: teamId });
+      if (closeError) throw closeError;
+      if (!data?.success) throw new Error(data?.error || 'Unable to close team.');
+      await fetchTeams(false);
+    } catch (err) {
+      alert(err.message || 'Unable to close team.');
     } finally {
       setActionLoading(null);
     }
@@ -133,45 +384,43 @@ export default function AdminDashboard() {
     return `${minutes}m ${seconds}s`;
   };
 
-  const getStatusText = (cluesSolved, finishTime, waitingForQr) => {
-    if (finishTime) return 'Finished';
-    if (cluesSolved === 5) return 'Ready for Final Challenge';
-    if (waitingForQr) return 'Waiting for QR';
+  const getStatusText = (team) => {
+    if (team.finish_time) return 'Finished';
+    if (team.closed_at) return team.close_reason === 'time_limit' ? 'Time Expired' : 'Closed by Organizer';
+    if (team.clues_solved === 5) return 'Ready for Final Challenge';
+    if (team.waiting_for_qr) return 'Waiting for QR';
     return 'Playing';
   };
 
-  // Sort logic:
-  // 1. Finished teams first, sorted by duration (ascending, i.e. fastest first)
-  // 2. Teams ready for jigsaw second, sorted by start_time (first who got there first)
-  // 3. Teams playing third, sorted by clues_solved (descending) then penalties (ascending)
-  const sortedTeams = [...teams].sort((a, b) => {
-    // Check finish state
-    const aFinished = !!a.finish_time;
-    const bFinished = !!b.finish_time;
-    
-    if (aFinished && !bFinished) return -1;
-    if (!aFinished && bFinished) return 1;
+  const getTimeLimitText = (team) => {
+    if (team.closed_at || team.finish_time) return 'Closed';
+    const remaining = Math.max(0, new Date(team.deadline_at) - Date.now());
+    return `${Math.floor(remaining / 60000)}m ${Math.floor((remaining % 60000) / 1000)}s left`;
+  };
 
-    // Both finished
-    if (aFinished && bFinished) {
+  const sortedTeams = [...teams].sort((a, b) => {
+    const getRankBucket = (team) => {
+      if (team.finish_time) return 0;
+      if (team.closed_at) return 4;
+      if (team.clues_solved === 5) return 1;
+      if (!team.waiting_for_qr) return 2;
+      return 3;
+    };
+    const aBucket = getRankBucket(a);
+    const bBucket = getRankBucket(b);
+
+    if (aBucket !== bBucket) return aBucket - bBucket;
+
+    if (aBucket === 0) {
       const durationA = new Date(a.finish_time) - new Date(a.start_time);
       const durationB = new Date(b.finish_time) - new Date(b.start_time);
       return durationA - durationB;
     }
 
-    // Check ready for jigsaw
-    const aReady = a.clues_solved === 5;
-    const bReady = b.clues_solved === 5;
-
-    if (aReady && !bReady) return -1;
-    if (!aReady && bReady) return 1;
-
-    // Both ready for jigsaw (sort by start time, earlier first)
-    if (aReady && bReady) {
+    if (aBucket === 1) {
       return new Date(a.start_time) - new Date(b.start_time);
     }
 
-    // Both playing (sort by clues_solved desc, then penalties asc)
     if (a.clues_solved !== b.clues_solved) {
       return b.clues_solved - a.clues_solved;
     }
@@ -188,452 +437,616 @@ export default function AdminDashboard() {
     return matchesSearch && matchesColor;
   });
 
-  // Basic stats
   const totalCount = teams.length;
   const completedCount = teams.filter(t => t.finish_time).length;
   const readyCount = teams.filter(t => t.clues_solved === 5 && !t.finish_time).length;
-  const activeCount = totalCount - completedCount - readyCount;
+  const waitingCount = teams.filter(t => !t.finish_time && t.clues_solved < 5 && t.waiting_for_qr).length;
+  const activeCount = teams.filter(t => !t.finish_time && t.clues_solved < 5 && !t.waiting_for_qr).length;
+  const pathMetrics = Object.keys(PATH_DISPLAY).map((color) => {
+    const pathTeams = teams.filter((team) => team.color.toLowerCase() === color);
+    return {
+      color,
+      total: pathTeams.length,
+      playing: pathTeams.filter(t => !t.finish_time && t.clues_solved < 5 && !t.waiting_for_qr).length,
+      waiting: pathTeams.filter(t => !t.finish_time && t.clues_solved < 5 && t.waiting_for_qr).length,
+      finished: pathTeams.filter(t => t.finish_time).length,
+    };
+  });
 
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 py-8 relative">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-20 bg-indigo-500" />
-        
-        <div className="w-full max-w-sm">
+      <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-8 relative">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-20 bg-accent-brand" />
+        <div className="w-full max-w-sm relative z-10">
           <div className="text-center mb-8">
-            <div className="inline-flex p-3 rounded-full bg-slate-900 border border-slate-800 mb-3 shadow-inner">
-              <KeyRound className="w-8 h-8 text-indigo-400" />
+            <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-3 shadow-inner">
+              <KeyRound className="w-8 h-8 text-accent-brand" />
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">ORGANIZER ACCESS</h1>
-            <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Enter Password to Unlock Dashboard</p>
+            <h1 className="text-h1 font-black text-primary tracking-tight">ORGANIZER ACCESS</h1>
+            <p className="text-caption text-muted mt-1 uppercase tracking-widest font-semibold">Enter Password to Unlock Dashboard</p>
           </div>
 
-          <div className="bg-slate-900/65 border border-slate-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-lg relative overflow-hidden">
+          <Card variant="elevated" padding="lg" className="space-y-5">
             <form onSubmit={handlePasswordSubmit} className="space-y-5">
               <div>
-                <label htmlFor="adminPass" className="block text-xs font-medium text-slate-300 mb-2 uppercase tracking-wide">
-                  Organizer Password
-                </label>
-                <input
+                <Input
                   id="adminPass"
+                  label="Organizer Password"
                   type="password"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
                   placeholder="Enter passcode..."
                   required
-                  className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-white text-base outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  error={passError || undefined}
+                  className="min-h-[56px] text-body"
                 />
               </div>
 
-              {passError && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex gap-2 items-center">
-                  <ShieldAlert className="w-4 h-4 shrink-0" />
-                  <span>{passError}</span>
-                </div>
-              )}
-
-              <button
+              <Button
                 type="submit"
-                className="w-full py-3.5 px-4 bg-indigo-650 hover:bg-indigo-700 text-slate-950 font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-lg text-white"
+                variant="accent"
+                size="lg"
+                fullWidth
+                className="touch-target"
+                style={{ backgroundColor: 'hsl(var(--accent-brand))' }}
               >
                 Unlock Dashboard
-              </button>
+              </Button>
             </form>
-          </div>
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Admin header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            Organizers Dashboard
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Monitor teams, record completions, and manage the event live.
-          </p>
-        </div>
+    <div className="min-h-screen bg-surface-0 flex flex-col">
+      <header className="md:hidden sticky top-0 z-40 h-[56px] flex items-center justify-between px-4 bg-surface-0/80 backdrop-blur-md border-b border-border-subtle">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+          className="p-2 min-h-[44px] min-w-[44px]"
+        >
+          <Menu className="w-6 h-6" />
+        </Button>
+        <span className="text-h2 font-black text-primary tracking-tight">Admin</span>
+        <div className="w-10" />
+      </header>
 
-        <div className="flex gap-2 w-full md:w-auto">
-          <button
-            onClick={() => fetchTeams(true)}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300 transition-colors disabled:opacity-50 justify-center w-full md:w-auto"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </button>
-          
-          <button
-            onClick={handleLock}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-950/20 hover:bg-red-950/40 border border-red-500/20 rounded-xl text-xs font-semibold text-red-400 transition-colors justify-center w-full md:w-auto"
-          >
-            <Lock className="w-3.5 h-3.5" />
-            <span>Lock</span>
-          </button>
-        </div>
-      </div>
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <aside
+          className={`admin-sidebar flex flex-col ${sidebarOpen ? 'open' : ''}`}
+          aria-label="Admin navigation"
+        >
+          <div className="p-4 border-b border-border-subtle">
+            <h2 className="text-h2 font-black text-primary">KRITHOHUNT</h2>
+            <p className="text-caption text-muted mt-1 uppercase tracking-wider">Organizer Panel</p>
+          </div>
 
-      {error && (
-        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-sm flex gap-3">
-          <ShieldAlert className="w-5 h-5 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Main navigation">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => fetchTeams(true)}
+              disabled={refreshing}
+              className="w-full justify-start"
+            >
+              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh Data</span>
+            </Button>
 
-      {/* Stats Panel */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-slate-900 border border-slate-850 p-5 rounded-2xl flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[10px] uppercase font-bold text-slate-500">Total Teams</span>
-            <h3 className="text-2xl font-black text-white">{totalCount}</h3>
-          </div>
-        </div>
+            <Button
+              variant="ghost"
+              size="md"
+              onClick={handleLogout}
+              className="w-full justify-start text-feedback-error hover:bg-feedback-error/10"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Lock Dashboard</span>
+            </Button>
+          </nav>
 
-        <div className="bg-slate-900 border border-slate-850 p-5 rounded-2xl flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
-            <Award className="w-6 h-6" />
+          <div className="p-4 border-t border-border-subtle space-y-3">
+            <h3 className="text-caption font-bold text-muted uppercase tracking-wider px-2">Stats Overview</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
+                <span className="text-micro text-muted uppercase tracking-wider block">Total</span>
+                <span className="text-h2 font-black text-primary">{totalCount}</span>
+              </div>
+              <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
+                <span className="text-micro text-muted uppercase tracking-wider block">Active</span>
+                <span className="text-h2 font-black text-accent-cyan">{activeCount}</span>
+              </div>
+              <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
+                <span className="text-micro text-muted uppercase tracking-wider block">Ready</span>
+                <span className="text-h2 font-black text-accent-amber">{readyCount}</span>
+              </div>
+              <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
+                <span className="text-micro text-muted uppercase tracking-wider block">Finished</span>
+                <span className="text-h2 font-black text-accent-emerald">{completedCount}</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <span className="text-[10px] uppercase font-bold text-slate-500">Completed</span>
-            <h3 className="text-2xl font-black text-white">{completedCount}</h3>
-          </div>
-        </div>
+        </aside>
 
-        <div className="bg-slate-900 border border-slate-850 p-5 rounded-2xl flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
-            <CheckCircle className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[10px] uppercase font-bold text-slate-500">Ready Jigsaw</span>
-            <h3 className="text-2xl font-black text-white">{readyCount}</h3>
-          </div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-850 p-5 rounded-2xl flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400">
-            <Clock className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[10px] uppercase font-bold text-slate-500">Active Playing</span>
-            <h3 className="text-2xl font-black text-white">{activeCount}</h3>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters Bar */}
-      <div className="bg-slate-900/50 border border-slate-850 rounded-2xl p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:max-w-xs">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search teams..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-slate-700"
+        {sidebarOpen && (
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-surface-0/60 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
           />
-        </div>
+        )}
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <Filter className="w-3.5 h-3.5 text-slate-500" />
-          <select
-            value={colorFilter}
-            onChange={(e) => setColorFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-slate-700 w-full md:w-auto"
-          >
-            <option value="all">All Paths</option>
-            <option value="red">Red Path</option>
-            <option value="blue">Blue Path</option>
-            <option value="green">Green Path</option>
-            <option value="yellow">Yellow Path</option>
-            <option value="purple">Purple Path</option>
-            <option value="orange">Orange Path</option>
-          </select>
-        </div>
-      </div>
+        <main className="flex-1 flex flex-col overflow-y-auto md:overflow-y-auto">
+          <div className="w-full max-w-[1400px] mx-auto flex-1 p-6 md:p-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+              <div>
+                <h1 className="text-display font-extrabold text-primary tracking-tight flex items-center gap-2">
+                  Organizers Dashboard
+                </h1>
+                <p className="text-body-sm text-muted mt-1">Monitor teams, record completions, and manage the event live.</p>
+              </div>
 
-      {/* Table Container */}
-      {loading ? (
-        <div className="flex flex-col justify-center items-center py-20 gap-3">
-          <RefreshCw className="w-8 h-8 animate-spin text-indigo-500" />
-          <span className="text-xs text-slate-400">Loading database data...</span>
-        </div>
-      ) : filteredTeams.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-850 p-12 text-center rounded-2xl text-slate-500 text-sm">
-          No teams found matching the filters.
-        </div>
-      ) : (
-        <div className="bg-slate-900/60 border border-slate-850 rounded-2xl overflow-hidden shadow-xl">
-          {/* Scrollable table on desktop */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-950 border-b border-slate-850 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  <th className="py-4 px-5">Rank & Team</th>
-                  <th className="py-4 px-4">Path</th>
-                  <th className="py-4 px-4">Start Time</th>
-                  <th className="py-4 px-4">Progress</th>
-                  <th className="py-4 px-4 text-center">Penalties</th>
-                  <th className="py-4 px-4">Duration</th>
-                  <th className="py-4 px-4">Status</th>
-                  <th className="py-4 px-5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-850 text-xs">
-                {filteredTeams.map((team, idx) => {
-                  const status = getStatusText(team.clues_solved, team.finish_time, team.waiting_for_qr);
-                  const isCompleted = status === 'Finished';
-                  const isReady = status === 'Ready for Final Challenge';
-                  const isWaitingQr = status === 'Waiting for QR';
-                  
-                  return (
-                    <tr 
-                      key={team.id} 
-                      className={`hover:bg-slate-900/40 transition-colors ${
-                        isReady ? 'bg-indigo-500/5' : isCompleted ? 'bg-emerald-500/5' : isWaitingQr ? 'bg-amber-500/5' : ''
-                      }`}
-                    >
-                      {/* Rank & Team Name */}
-                      <td className="py-4 px-5 font-bold text-white flex items-center gap-3">
-                        <span className="w-5 text-slate-500 text-right">{idx + 1}.</span>
-                        <span className="uppercase tracking-wide">{team.name}</span>
-                      </td>
+              <div className="flex gap-2 w-full md:w-auto flex-wrap">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => fetchTeams(true)}
+                  disabled={refreshing}
+                  className="flex items-center gap-2 justify-center w-full md:w-auto"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </Button>
 
-                      {/* Path Color */}
-                      <td className="py-4 px-4">
-                        <span className={`inline-block px-2.5 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider ${
-                          PATH_BADGES[team.color.toLowerCase()] || 'bg-slate-800'
-                        }`}>
-                          {team.color}
-                        </span>
-                      </td>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={handleExportCSV}
+                  disabled={teams.length === 0}
+                  className="flex items-center gap-2 justify-center w-full md:w-auto"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Export CSV</span>
+                </Button>
 
-                      {/* Start Time */}
-                      <td className="py-4 px-4 text-slate-400">
-                        {new Date(team.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </td>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={handlePrintQRCodes}
+                  className="flex items-center gap-2 justify-center w-full md:w-auto"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print QR</span>
+                </Button>
 
-                      {/* Progress Bar & Text */}
-                      <td className="py-4 px-4">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-extrabold text-slate-200">
-                            {team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`}
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-semibold uppercase">{team.clues_solved} / 5 Solved</span>
-                        </div>
-                      </td>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 justify-center w-full md:w-auto"
+                >
+                  <Lock className="w-4 h-4" />
+                  <span>Lock</span>
+                </Button>
 
-                      {/* Penalties */}
-                      <td className="py-4 px-4 text-center font-bold text-amber-500">
-                        {team.penalty_count}
-                      </td>
+                <Button
+                  variant="danger"
+                  size="md"
+                  onClick={handleResetAllTeams}
+                  disabled={actionLoading === 'reset-all'}
+                  loading={actionLoading === 'reset-all'}
+                  className="flex items-center gap-2 justify-center w-full md:w-auto"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Reset All</span>
+                </Button>
+              </div>
+            </div>
 
-                      {/* Duration */}
-                      <td className="py-4 px-4 font-mono text-slate-300">
-                        {team.finish_time ? (
-                          getDurationText(team.start_time, team.finish_time)
-                        ) : (
-                          <span className="text-[10px] text-slate-500">Playing...</span>
-                        )}
-                      </td>
+            {error && (
+              <Card variant="panel" padding="md" className="mb-6 border-feedback-error/30 bg-feedback-error/5">
+                <div className="flex gap-3">
+                  <ShieldAlert className="w-5 h-5 shrink-0 text-feedback-error" />
+                  <span className="text-feedback-error text-body-sm">{error}</span>
+                </div>
+              </Card>
+            )}
 
-                      {/* Status */}
-                      <td className="py-4 px-4">
-                        {isCompleted ? (
-                          <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span>Finished</span>
-                          </span>
-                        ) : isReady ? (
-                          <span className="text-indigo-400 font-bold animate-pulse flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                            <span>Ready Jigsaw</span>
-                          </span>
-                        ) : isWaitingQr ? (
-                          <span className="text-amber-500 font-bold flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                            <span>Waiting for QR</span>
-                          </span>
-                        ) : (
-                          <span className="text-sky-400 font-medium flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
-                            <span>Playing</span>
-                          </span>
-                        )}
-                      </td>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <Card variant="elevated" padding="lg" className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-accent-brand/10 text-accent-brand">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-caption text-muted uppercase tracking-wider block">Total Teams</span>
+                  <span className="text-h2 font-black text-primary">{totalCount}</span>
+                </div>
+              </Card>
 
-                      {/* Actions */}
-                      <td className="py-4 px-5 text-right">
-                        <div className="flex justify-end gap-2">
-                          {isReady && (
-                            <button
-                              onClick={() => handleMarkFinished(team.id, team.name)}
-                              disabled={actionLoading === team.id}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg transition-colors flex items-center gap-1"
-                            >
-                              <span>Mark Finished</span>
-                            </button>
-                          )}
-                          
-                          <button
-                            onClick={() => handleDeleteTeam(team.id, team.name)}
-                            disabled={actionLoading === team.id}
-                            className="p-1.5 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-lg transition-colors"
-                            title="Delete Team"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+              <Card variant="elevated" padding="lg" className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-accent-emerald/10 text-accent-emerald">
+                  <Award className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-caption text-muted uppercase tracking-wider block">Completed</span>
+                  <span className="text-h2 font-black text-primary">{completedCount}</span>
+                </div>
+              </Card>
 
-      {/* Printable QR Area */}
-      <div className="mt-12 border-t border-slate-850 pt-8" id="printable-qr-area">
-        {/* Dynamic Print Style Override */}
-        <style>{`
-          @media print {
-            body {
-              background: white !important;
-              color: black !important;
-            }
-            /* Hide dashboard elements */
-            nav, header, button, .no-print, h1, p, table, .bg-slate-900, .grid {
-              display: none !important;
-            }
-            /* Show only QR printable section */
-            #printable-qr-area {
-              display: block !important;
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-              margin: 0;
-              padding: 0;
-            }
-            .qr-print-title {
-              display: none !important;
-            }
-            .qr-card-grid {
-              display: grid !important;
-              grid-template-cols: repeat(2, 1fr) !important;
-              gap: 20px !important;
-              background: white !important;
-            }
-            .qr-card {
-              border: 2px dashed #94a3b8 !important;
-              background: white !important;
-              color: black !important;
-              padding: 15px !important;
-              text-align: center !important;
-              page-break-inside: avoid !important;
-            }
-            .qr-card img {
-              margin: 0 auto !important;
-            }
-            .qr-card h4, .qr-card span {
-              color: black !important;
-            }
-          }
-        `}</style>
+              <Card variant="elevated" padding="lg" className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-accent-amber/10 text-accent-amber">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-caption text-muted uppercase tracking-wider block">Ready Jigsaw</span>
+                  <span className="text-h2 font-black text-primary">{readyCount}</span>
+                </div>
+              </Card>
 
-        <div className="flex justify-between items-center mb-6 no-print">
-          <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <Printer className="w-5 h-5 text-indigo-400" />
-              <span>Event QR Sheet Generator</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Generate and print starting QR codes and location verification QRs. Cards print in a grid with cut marks.
-            </p>
-          </div>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Print QR Sheet</span>
-          </button>
-        </div>
+              <Card variant="elevated" padding="lg" className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-accent-cyan/10 text-accent-cyan">
+                  <Clock className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-caption text-muted uppercase tracking-wider block">Active Playing</span>
+                  <span className="text-h2 font-black text-primary">{activeCount}</span>
+                </div>
+              </Card>
+            </div>
 
-        {/* Start QRs */}
-        <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span>Stage 1: Start Desk QR Codes (6 total)</span>
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8 qr-card-grid">
-          {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => {
-            const startUrl = `${window.location.origin}/start?color=${color.toLowerCase()}`;
-            const qrColors = { red: 'ef4444', blue: '3b82f6', green: '10b981', yellow: 'd97706', purple: '8b5cf6', orange: 'f97316' };
-            const hexColor = qrColors[color.toLowerCase()] || '000000';
-            
-            return (
-              <div key={color} className="p-5 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-3 qr-card shadow-inner">
-                <span className="text-[10px] font-black tracking-widest uppercase text-indigo-400">KRITHOHUNT START</span>
-                <div className="bg-white p-2 rounded-xl inline-block shadow-lg mx-auto">
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=${hexColor}&data=${encodeURIComponent(startUrl)}`}
-                    alt={`${color} Path Start QR`}
-                    className="w-32 h-32"
+            <Card variant="panel" padding="md" className="mb-8">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-h2 font-bold text-primary">Live Path Monitor</h2>
+                  <p className="text-caption text-muted">Playing now, waiting for a location QR, and finished teams.</p>
+                </div>
+                <span className="text-micro font-bold uppercase tracking-wider text-accent-cyan">{activeCount} playing now · {waitingCount} waiting</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {pathMetrics.map(({ color, total, playing, waiting, finished }) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setColorFilter(color)}
+                    className="text-left rounded-xl border border-border-subtle bg-surface-1 p-3 hover:bg-surface-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+                  >
+                    <span className={`path-badge ${PATH_BADGES[color]} px-2 py-0.5 rounded text-micro font-bold uppercase`}>{color}</span>
+                    <span className="block text-h2 font-black text-primary mt-2">{total}</span>
+                    <span className="block text-micro text-accent-cyan">{playing} playing</span>
+                    <span className="block text-micro text-accent-amber">{waiting} waiting</span>
+                    <span className="block text-micro text-accent-emerald">{finished} finished</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            <Card variant="panel" padding="md" className="mb-6">
+              <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="relative w-full md:max-w-xs">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                  <Input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search teams..."
+                    className="pl-10 min-h-[48px]"
                   />
                 </div>
-                <div className="space-y-1">
-                  <h4 className="text-xs font-extrabold uppercase text-white tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? '#fbbf24' : color.toLowerCase() }}>
-                    {color} Path Start
-                  </h4>
-                  <p className="text-[9px] text-slate-500 font-mono break-all line-clamp-1">{startUrl}</p>
+
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <Filter className="w-4 h-4 text-muted" />
+                  <select
+                    value={colorFilter}
+                    onChange={(e) => setColorFilter(e.target.value)}
+                    className="w-full md:w-auto bg-surface-2 border border-border-subtle rounded-xl px-3 py-2.5 text-body text-primary focus:outline-none focus:border-accent-brand"
+                  >
+                    <option value="all">All Paths</option>
+                    <option value="red">Red Path</option>
+                    <option value="blue">Blue Path</option>
+                    <option value="green">Green Path</option>
+                    <option value="yellow">Yellow Path</option>
+                    <option value="purple">Purple Path</option>
+                    <option value="orange">Orange Path</option>
+                  </select>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </Card>
 
-        {/* Location QRs */}
-        <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-          <span>Stage 2-6: Physical Location QR Codes (30 total)</span>
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 qr-card-grid">
-          {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => {
-            const qrColors = { red: 'ef4444', blue: '3b82f6', green: '10b981', yellow: 'd97706', purple: '8b5cf6', orange: 'f97316' };
-            const hexColor = qrColors[color.toLowerCase()] || '000000';
-            
-            return [1, 2, 3, 4, 5].map((stage) => {
-              const locationUrl = `${window.location.origin}/scan?color=${color.toLowerCase()}&stage=${stage}`;
-              return (
-                <div key={`${color}-${stage}`} className="p-5 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-3 qr-card shadow-inner">
-                  <span className="text-[10px] font-black tracking-widest uppercase text-indigo-400">KRITHOHUNT GATE</span>
-                  <div className="bg-white p-2 rounded-xl inline-block shadow-lg mx-auto">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=${hexColor}&data=${encodeURIComponent(locationUrl)}`}
-                      alt={`${color} Stage ${stage} QR`}
-                      className="w-32 h-32"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-extrabold uppercase text-white tracking-wide" style={{ color: color.toLowerCase() === 'yellow' ? '#fbbf24' : color.toLowerCase() }}>
-                      {color} — Stage {stage}
-                    </h4>
-                    <p className="text-[9px] text-slate-500 font-mono break-all line-clamp-1">{locationUrl}</p>
-                  </div>
+            {loading ? (
+              <Card variant="elevated" padding="xl" className="text-center">
+                <RefreshCw className="w-8 h-8 animate-spin text-accent-brand mx-auto mb-3" />
+                <span className="text-body-sm text-muted">Loading database data...</span>
+              </Card>
+            ) : filteredTeams.length === 0 ? (
+              <Card variant="elevated" padding="xl" className="text-center">
+                <span className="text-body-sm text-muted">No teams found matching the filters.</span>
+              </Card>
+            ) : (
+              <>
+                <div className="hidden lg:block">
+                  <Card variant="elevated" padding="none" className="overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-surface-1 border-b border-border-subtle text-caption font-bold uppercase tracking-wider text-muted">
+                            <th className="py-4 px-5">Rank & Team</th>
+                            <th className="py-4 px-4">Team ID</th>
+                            <th className="py-4 px-4">Path</th>
+                            <th className="py-4 px-4">Start Time</th>
+                            <th className="py-4 px-4">Progress</th>
+                            <th className="py-4 px-4 text-center">Penalties</th>
+                            <th className="py-4 px-4">Time Limit</th>
+                            <th className="py-4 px-4">Status</th>
+                            <th className="py-4 px-5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-subtle text-body-sm">
+                          {filteredTeams.map((team, idx) => {
+                            const status = getStatusText(team);
+                            const isCompleted = status === 'Finished';
+                            const isReady = status === 'Ready for Final Challenge';
+                            const isWaitingQr = status === 'Waiting for QR';
+                            const isClosed = status === 'Time Expired' || status === 'Closed by Organizer';
+
+                            return (
+                              <tr
+                                key={team.id}
+                                className={`hover:bg-surface-2/50 transition-colors ${isReady ? 'bg-accent-brand/5' : isCompleted ? 'bg-accent-emerald/5' : isWaitingQr ? 'bg-accent-amber/5' : ''
+                                  }`}
+                              >
+                                <td className="py-4 px-5 font-bold text-primary flex items-center gap-3">
+                                  <span className="w-5 text-muted text-right">{idx + 1}.</span>
+                                  <span className="uppercase tracking-wide">{team.name}</span>
+                                </td>
+
+                                <td className="py-4 px-4 font-mono font-bold tracking-widest text-accent-brand">{team.team_code || '-----'}</td>
+
+                                <td className="py-4 px-4">
+                                  <span className={`inline-block px-2.5 py-0.5 rounded border text-caption font-bold uppercase tracking-wider ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
+                                    {PATH_DISPLAY[team.color.toLowerCase()] || team.color.toUpperCase()}
+                                  </span>
+                                </td>
+
+                                <td className="py-4 px-4 text-muted">
+                                  {new Date(team.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </td>
+
+                                <td className="py-4 px-4">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="font-extrabold text-primary">
+                                      {team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`}
+                                    </span>
+                                    <span className="text-micro text-muted font-semibold uppercase">{team.clues_solved} / 5 Solved</span>
+                                  </div>
+                                </td>
+
+                                <td className="py-4 px-4 text-center font-bold text-feedback-warning">
+                                  {team.penalty_count}
+                                </td>
+
+                                <td className="py-4 px-4 font-mono text-secondary">
+                                  {team.finish_time ? getDurationText(team.start_time, team.finish_time) : getTimeLimitText(team)}
+                                </td>
+
+                                <td className="py-4 px-4">
+                                  {isCompleted ? (
+                                    <span className="text-accent-emerald font-bold flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-emerald" />
+                                      <span>Finished</span>
+                                    </span>
+                                  ) : isClosed ? (
+                                    <span className="text-feedback-warning font-bold">{status}</span>
+                                  ) : isReady ? (
+                                    <span className="text-accent-brand font-bold animate-pulse flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-brand" />
+                                      <span>Ready Jigsaw</span>
+                                    </span>
+                                  ) : isWaitingQr ? (
+                                    <span className="text-accent-amber font-bold flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-amber animate-pulse" />
+                                      <span>Waiting for QR</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-accent-cyan font-medium flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
+                                      <span>Playing</span>
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td className="py-4 px-5 text-right">
+                                  <div className="flex justify-end gap-2">
+                                    {isReady && (
+                                      <Button
+                                        variant="accent"
+                                        size="sm"
+                                        onClick={() => handleMarkFinished(team.id, team.name)}
+                                        disabled={actionLoading === team.id}
+                                        loading={actionLoading === team.id}
+                                        className="flex items-center gap-1"
+                                      >
+                                        <span className="hidden sm:inline">Mark Finished</span>
+                                      </Button>
+                                    )}
+
+                                    {!isCompleted && !isClosed && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleCloseTeam(team.id, team.name)}
+                                        disabled={actionLoading === `close-${team.id}`}
+                                      >
+                                        Close Game
+                                      </Button>
+                                    )}
+
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteTeam(team.id, team.name)}
+                                      disabled={actionLoading === team.id}
+                                      className="text-feedback-error hover:bg-feedback-error/10 p-2 min-h-[40px] min-w-[40px]"
+                                      aria-label={`Delete team ${team.name}`}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
                 </div>
-              );
-            });
-          })}
-        </div>
+
+                <div className="lg:hidden space-y-4">
+                  {filteredTeams.map((team, idx) => {
+                    const status = getStatusText(team);
+                    const isCompleted = status === 'Finished';
+                    const isReady = status === 'Ready for Final Challenge';
+                    const isWaitingQr = status === 'Waiting for QR';
+                    const isClosed = status === 'Time Expired' || status === 'Closed by Organizer';
+
+                    return (
+                      <Card
+                        key={team.id}
+                        variant={isReady ? 'elevated' : isCompleted ? 'elevated' : 'default'}
+                        className={`relative overflow-hidden ${isReady ? 'border-accent-brand/30' : isCompleted ? 'border-accent-emerald/30' : isWaitingQr ? 'border-accent-amber/30' : ''
+                          }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 text-muted text-right text-h2 font-black">{idx + 1}.</span>
+                            <div>
+                              <span className="text-body font-bold text-primary uppercase tracking-wide block">{team.name}</span>
+                              <span className="text-micro font-mono font-bold tracking-widest text-accent-brand">ID {team.team_code || '-----'}</span>
+                              <span className={`inline-block px-2 py-0.5 rounded border text-micro font-bold uppercase tracking-wider mt-1 ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
+                                {PATH_DISPLAY[team.color.toLowerCase()] || team.color.toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto text-center sm:text-left">
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-micro text-muted uppercase tracking-wider">Progress</span>
+                              <span className="text-body font-extrabold text-primary">{Math.min(team.clues_solved + 1, 5)} / 5</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-micro text-muted uppercase tracking-wider">Penalties</span>
+                              <span className="text-body font-extrabold text-feedback-warning">{team.penalty_count}</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-micro text-muted uppercase tracking-wider">Status</span>
+                              <span className={`text-caption font-bold ${isCompleted ? 'text-accent-emerald' : isReady ? 'text-accent-brand' : isWaitingQr ? 'text-accent-amber' : 'text-accent-cyan'
+                                }`}>
+                                {isCompleted ? 'Finished' : isClosed ? status : isReady ? 'Ready Jigsaw' : isWaitingQr ? 'Waiting for QR' : 'Playing'}
+                              </span>
+                              <span className="text-micro text-muted">{getTimeLimitText(team)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-border-subtle px-4 py-3 bg-surface-2/50 flex justify-end gap-2">
+                          {isReady && (
+                            <Button
+                              variant="accent"
+                              size="sm"
+                              onClick={() => handleMarkFinished(team.id, team.name)}
+                              disabled={actionLoading === team.id}
+                              loading={actionLoading === team.id}
+                              className="flex items-center gap-1"
+                            >
+                              <span className="hidden sm:inline">Mark Finished</span>
+                            </Button>
+                          )}
+                          {!isCompleted && !isClosed && (
+                            <Button variant="ghost" size="sm" onClick={() => handleCloseTeam(team.id, team.name)} disabled={actionLoading === `close-${team.id}`}>
+                              Close Game
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTeam(team.id, team.name)}
+                            disabled={actionLoading === team.id}
+                            className="text-feedback-error hover:bg-feedback-error/10 p-2 min-h-[40px] min-w-[40px]"
+                            aria-label={`Delete team ${team.name}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            <div className="mt-12 border-t border-border-subtle pt-8" id="printable-qr-area">
+              <div className="flex justify-between items-center mb-6 no-print">
+                <div>
+                  <h2 className="text-h2 font-bold text-primary flex items-center gap-2">
+                    <Printer className="w-5 h-5 text-accent-brand" />
+                    <span>Event QR Sheet Generator</span>
+                  </h2>
+                  <p className="text-caption text-muted mt-0.5">
+                    Generate and print starting QR codes and location verification QRs. Cards print in a grid with cut marks.
+                  </p>
+                </div>
+                <Button
+                  variant="accent"
+                  size="md"
+                  onClick={handlePrintQRCodes}
+                  className="flex items-center gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print QR Sheet</span>
+                </Button>
+              </div>
+
+              <h3 className="text-caption font-bold text-muted uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-emerald" />
+                <span>Stage 1: Start Desk QR Codes (6 total)</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 qr-card-grid">
+                {['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'].map((color) => {
+                  const startUrl = `${qrOrigin}/start?color=${color.toLowerCase()}`;
+                  return (
+                    <QRCard
+                      key={color}
+                      title="KRITHOHUNT START"
+                      subtitle="Path Start"
+                      url={startUrl}
+                      color={color}
+                    />
+                  );
+                })}
+              </div>
+
+              <h3 className="text-caption font-bold text-muted uppercase tracking-widest mb-4 no-print flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-brand" />
+                <span>Stage 2-6: Physical Location QR Codes (30 total)</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 qr-card-grid">
+                {qrTokens.map(({ token, color, stage }) => (
+                  <QRCard
+                    key={token}
+                    title="KRITHOHUNT GATE"
+                    subtitle={`Stage ${stage}`}
+                    url={`${qrOrigin}/scan?token=${encodeURIComponent(token)}`}
+                    color={color}
+                  />
+                ))}
+              </div>
+              {qrTokenError && <p className="text-feedback-error text-body-sm mt-3">{qrTokenError}</p>}
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );

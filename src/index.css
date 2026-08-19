@@ -2,36 +2,434 @@
 
 @import "tailwindcss";
 
-body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  @apply bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white overflow-x-hidden;
+@theme {
+  --color-surface-0: hsl(220 22% 6%);
+  --color-surface-1: hsl(220 20% 9%);
+  --color-surface-2: hsl(220 18% 13%);
+  --color-surface-3: hsl(220 16% 18%);
+  --color-border-subtle: hsl(220 14% 25%);
+  --color-border-strong: hsl(220 12% 36%);
+  --color-text-primary: hsl(210 25% 97%);
+  --color-text-secondary: hsl(210 14% 78%);
+  --color-text-muted: hsl(210 10% 60%);
+  --color-text-inverse: hsl(220 22% 6%);
+  --color-accent-violet: hsl(265 85% 62%);
+  --color-accent-amber: hsl(38 92% 52%);
+  --color-accent-emerald: hsl(152 72% 42%);
+  --color-accent-rose: hsl(345 82% 56%);
+  --color-accent-cyan: hsl(188 85% 48%);
+  --color-accent-orange: hsl(24 95% 53%);
+  --color-accent-brand: hsl(172 66% 45%);
+  --color-feedback-success: hsl(152 72% 42%);
+  --color-feedback-warning: hsl(38 92% 52%);
+  --color-feedback-error: hsl(355 84% 58%);
+  --font-size-display: clamp(2.25rem, 6vw, 3rem);
+  --font-size-h1: clamp(1.5rem, 4vw, 2rem);
+  --font-size-h2: clamp(1.125rem, 3vw, 1.375rem);
+  --font-size-body: 0.9375rem;
+  --font-size-body-sm: 0.8125rem;
+  --font-size-caption: 0.75rem;
+  --font-size-micro: 0.6875rem;
+  --font-size-button: 0.8125rem;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 24px;
+  --spacing-6: 32px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 350ms;
+  --min-height-touch: 44px;
+  --min-width-touch: 44px;
+
+  --surface-0: 220 22% 6%;
+  --surface-1: 220 20% 9%;
+  --surface-2: 220 18% 13%;
+  --surface-3: 220 16% 18%;
+  --border-subtle: 220 14% 25%;
+  --border-strong: 220 12% 36%;
+  --text-primary: 210 25% 97%;
+  --text-secondary: 210 14% 78%;
+  --text-muted: 210 10% 60%;
+  --text-inverse: 220 22% 6%;
+  --accent-violet: 265 85% 62%;
+  --accent-amber: 38 92% 52%;
+  --accent-emerald: 152 72% 42%;
+  --accent-rose: 345 82% 56%;
+  --accent-cyan: 188 85% 48%;
+  --accent-orange: 24 95% 53%;
+  --accent-brand: 172 66% 45%;
+  --feedback-success: 152 72% 42%;
+  --feedback-warning: 38 92% 52%;
+  --feedback-error: 355 84% 58%;
 }
 
-/* Custom premium pulse animation */
-@keyframes glowPulse {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(var(--theme-color-rgb), 0.2);
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: hsl(var(--surface-0));
+  color: hsl(var(--text-primary));
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: hsl(var(--accent-brand));
+  color: hsl(var(--text-inverse));
+}
+
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--accent-brand)), 0 0 0 4px hsl(var(--surface-0));
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-  50% {
-    box-shadow: 0 0 25px rgba(var(--theme-color-rgb), 0.6);
+}
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 8px;
+  color: hsl(var(--text-secondary));
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid hsl(var(--border-subtle));
+  border-radius: 12px;
+  background: hsl(var(--surface-2));
+  color: hsl(var(--text-primary));
+  padding: 12px 14px;
+  font: inherit;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.input::placeholder {
+  color: hsl(var(--text-muted));
+}
+
+.input:focus {
+  border-color: hsl(var(--accent-brand));
+  box-shadow: 0 0 0 3px hsl(var(--accent-brand) / 0.18);
+  outline: none;
+}
+
+.input-error {
+  border-color: hsl(var(--feedback-error));
+}
+
+.helper-text {
+  color: hsl(var(--text-muted));
+  font-size: 0.75rem;
+}
+
+.helper-error {
+  color: hsl(var(--feedback-error));
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: hsl(var(--surface-0) / 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.modal-container {
+  width: min(100%, 560px);
+  max-height: 90dvh;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border-subtle));
+  border-radius: 20px;
+  background: hsl(var(--surface-1));
+  box-shadow: 0 24px 80px hsl(var(--surface-0) / 0.55);
+}
+
+@media (max-width: 767px) {
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-container {
+    max-height: 90dvh;
+    border-radius: 20px 20px 0 0;
+  }
+}
+
+.path-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+}
+
+.path-badge-rose {
+  background: hsl(var(--accent-rose) / 0.12);
+  border-color: hsl(var(--accent-rose) / 0.35);
+  color: hsl(var(--accent-rose));
+}
+
+.path-badge-cyan {
+  background: hsl(var(--accent-cyan) / 0.12);
+  border-color: hsl(var(--accent-cyan) / 0.35);
+  color: hsl(var(--accent-cyan));
+}
+
+.path-badge-emerald {
+  background: hsl(var(--accent-emerald) / 0.12);
+  border-color: hsl(var(--accent-emerald) / 0.35);
+  color: hsl(var(--accent-emerald));
+}
+
+.path-badge-amber {
+  background: hsl(var(--accent-amber) / 0.18);
+  border-color: hsl(var(--accent-amber) / 0.4);
+  color: hsl(var(--text-inverse));
+}
+
+.path-badge-violet {
+  background: hsl(var(--accent-violet) / 0.12);
+  border-color: hsl(var(--accent-violet) / 0.35);
+  color: hsl(var(--accent-violet));
+}
+
+.path-badge-orange {
+  background: hsl(var(--accent-orange) / 0.18);
+  border-color: hsl(var(--accent-orange) / 0.4);
+  color: hsl(var(--text-inverse));
+}
+
+@keyframes krithohunt-shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: krithohunt-shake 220ms ease-in-out;
+}
+
+.animate-in {
+  animation: krithohunt-rise 300ms ease-out both;
+}
+
+@keyframes krithohunt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 .glow-active {
-  animation: glowPulse 2s infinite ease-in-out;
+  box-shadow: 0 0 0 1px hsl(var(--accent-brand) / 0.2), 0 16px 48px hsl(var(--accent-brand) / 0.12);
 }
 
-/* Custom scrollbar for premium look */
-::-webkit-scrollbar {
-  width: 6px;
+.geo-pin-dot {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 2px solid hsl(var(--surface-0));
+  border-radius: 999px;
+  background: hsl(var(--accent-brand));
+  box-shadow: 0 0 12px hsl(var(--accent-brand) / 0.6);
 }
-::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+
+.geo-pin-core {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: hsl(var(--surface-0));
 }
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 3px;
+
+@media (min-width: 1024px) {
+  .admin-sidebar {
+    display: block;
+  }
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+
+@media (max-width: 1023px) {
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 300ms cubic-bezier(0.05, 0.85, 0.25, 1);
+    width: 280px;
+    max-width: 85vw;
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+/* ==========================================================================
+   PRINT STYLES (Admin Dashboard QR Sheets)
+   ========================================================================== */
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 20px !important;
+  }
+
+  /* Hide dashboard UI elements */
+  header,
+  aside,
+  button,
+  .no-print,
+  .bg-surface-0,
+  .bg-surface-1,
+  .bg-surface-2,
+  .bg-surface-3,
+  .admin-sidebar,
+  header,
+  footer,
+  nav {
+    display: none !important;
+  }
+
+  /* Hide headers and titles */
+  h1,
+  h2,
+  h3,
+  .text-display,
+  .text-h1,
+  .text-h2 {
+    display: none !important;
+  }
+
+  /* Show only QR printable section */
+  #printable-qr-area {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .qr-print-title {
+    display: none !important;
+  }
+
+  .qr-card-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px !important;
+    background: white !important;
+    padding: 20px !important;
+  }
+
+  .qr-card {
+    border: 2px dashed #94a3b8 !important;
+    background: white !important;
+    color: black !important;
+    padding: 20px !important;
+    text-align: center !important;
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  .qr-image-frame {
+    display: block !important;
+    background: white !important;
+    padding: 12px !important;
+  }
+
+  .qr-card img {
+    margin: 0 auto !important;
+    width: 160px !important;
+    max-width: 160px !important;
+    min-height: 160px !important;
+    height: auto !important;
+  }
+
+  .qr-card h4,
+  .qr-card span,
+  .qr-card p {
+    color: black !important;
+    margin: 0 !important;
+  }
+
+  .qr-card .text-accent-brand,
+  .qr-card .text-accent-violet,
+  .qr-card .text-accent-amber,
+  .qr-card .text-accent-emerald,
+  .qr-card .text-accent-rose,
+  .qr-card .text-accent-cyan,
+  .qr-card .text-accent-orange,
+  .qr-card .text-primary,
+  .qr-card .text-secondary,
+  .qr-card .text-muted {
+    color: black !important;
+  }
+
+  /* Page breaks */
+  @page {
+    margin: 15mm !important;
+    size: A4 !important;
+  }
 }
