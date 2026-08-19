@@ -61,7 +61,6 @@ Run `supabase-migration.sql` in a disposable Supabase project before event use. 
 - `scan_location_qr`
 - `submit_team_answer`
 - `submit_connect_dots`
-- `mark_team_finished`
 - `admin_delete_team`
 
 The migration sets `search_path` on `SECURITY DEFINER` functions and validates standard answers, GeoGuessr coordinates, and Connect Dots paths server-side.

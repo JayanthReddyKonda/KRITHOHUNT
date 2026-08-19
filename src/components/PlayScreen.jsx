@@ -78,20 +78,6 @@ export default function PlayScreen({ teamId, onReset }) {
 
       if (requestId !== scanRequestRef.current) return;
 
-      // Auto-finish team on server if all 5 clues are solved but finish_time is not recorded yet
-      if (teamData.clues_solved >= 5 && !teamData.finish_time && !teamData.closed_at) {
-        try {
-          const { data: finishData } = await supabase.rpc('mark_team_finished', { p_team_id: teamId });
-          if (finishData && !finishData.error) {
-            teamData.finish_time = finishData.finish_time || new Date().toISOString();
-            if (finishData.total_time_seconds) teamData.total_time_seconds = finishData.total_time_seconds;
-            if (finishData.final_score !== undefined) teamData.final_score = finishData.final_score;
-          }
-        } catch (err) {
-          console.warn('Auto-finish trigger error:', err);
-        }
-      }
-
       setTeam(teamData);
 
       if (teamData.clues_solved < 5) {
@@ -321,9 +307,7 @@ export default function PlayScreen({ teamId, onReset }) {
   // GAME COMPLETED / FINISHED / CLOSED SCREEN
   if (team.finish_time || team.clues_solved >= 5 || team.closed_at) {
     const isCompleted = Boolean(team.finish_time || team.clues_solved >= 5);
-    const durationText = team.total_time_seconds
-      ? `${Math.floor(team.total_time_seconds / 60)}m ${team.total_time_seconds % 60}s`
-      : getElapsedDurationText(team.start_time, team.finish_time);
+    const durationText = getElapsedDurationText(team.start_time, team.finish_time);
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8 relative">
@@ -368,7 +352,7 @@ export default function PlayScreen({ teamId, onReset }) {
                 <div className="p-3.5 bg-surface-2/50 rounded-xl border border-border-subtle text-center">
                   <p className="text-micro text-muted font-medium">Final score</p>
                   <p className="text-body font-bold text-accent-brand mt-0.5">
-                    {team.final_score !== null && team.final_score !== undefined ? `${team.final_score} pts` : '100 pts'}
+                    {Math.max(0, 100 - (team.penalty_count || 0) * 10)} pts
                   </p>
                 </div>
               </div>
@@ -616,19 +600,24 @@ export default function PlayScreen({ teamId, onReset }) {
           </div>
 
           <div className="relative w-full max-w-[260px] mx-auto aspect-square bg-black rounded-2xl overflow-hidden border border-border-subtle shadow-2xl">
+            {/* qr-reader div must ALWAYS be in the DOM when the scanner sheet is open,
+                otherwise Html5Qrcode cannot attach the camera feed and the browser
+                permission prompt will never appear. It is hidden until granted. */}
+            <div
+              id="qr-reader"
+              className={`w-full h-full ${cameraPermission === 'granted' ? '' : 'opacity-0'}`}
+            />
+
             {cameraPermission === 'granted' && !scannerError && !verifying && !verificationFeedback && (
-              <>
-                <div id="qr-reader" className="w-full h-full" />
-                <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-                  <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-accent-brand" />
-                  <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-accent-brand" />
-                  <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-accent-brand" />
-                  <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-accent-brand" />
-                </div>
+              <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+                <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-accent-brand" />
+                <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-accent-brand" />
+                <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-accent-brand" />
+                <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-accent-brand" />
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap text-[0.6875rem] text-white/80 font-medium px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md">
                   Align QR inside frame
                 </div>
-              </>
+              </div>
             )}
 
             {cameraPermission === 'requesting' && (

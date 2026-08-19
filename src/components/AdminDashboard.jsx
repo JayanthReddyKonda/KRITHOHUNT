@@ -198,11 +198,12 @@ export default function AdminDashboard() {
   const handleExportCSV = () => {
     if (teams.length === 0) return;
 
-    const headers = ['Rank', 'Team Name', 'Team ID', 'Path', 'Start Time', 'Progress', 'Penalties', 'Duration', 'Status'];
+    const headers = ['Rank', 'Team Name', 'Team ID', 'Path', 'Start Time', 'Progress', 'Penalties', 'Duration', 'Status', 'Game 1', 'Game 2', 'Game 3', 'Game 4', 'Game 5'];
     const rows = sortedTeams.map((team, idx) => {
       const status = getStatusText(team);
       const progress = team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`;
       const duration = team.finish_time ? getDurationText(team.start_time, team.finish_time) : 'Playing...';
+      const stageTimes = getStageTimes(team);
       return [
         idx + 1,
         team.name,
@@ -212,7 +213,8 @@ export default function AdminDashboard() {
         `${progress} (${team.clues_solved}/5)`,
         team.penalty_count,
         duration,
-        status
+        status,
+        ...stageTimes.map((t) => t || '-')
       ];
     });
 
@@ -310,32 +312,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleMarkFinished = async (teamId, teamName) => {
-    if (!confirm(`Mark team "${teamName}" as finished? This records their official completion timestamp.`)) {
-      return;
-    }
-
-    setActionLoading(teamId);
-    try {
-      const { data, error: rpcError } = await supabase.rpc('mark_team_finished', {
-        p_team_id: teamId
-      });
-
-      if (rpcError) throw rpcError;
-
-      if (data.success) {
-        await fetchTeams(false);
-      } else {
-        alert(data.error || 'Failed to update team finish state.');
-      }
-    } catch (err) {
-      console.error(err);
-      alert(err.message || 'Error occurred while updating the database.');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const handleDeleteTeam = async (teamId, teamName) => {
     if (!confirm(`WARNING: Are you absolutely sure you want to delete team "${teamName}"? This action is permanent and cannot be undone.`)) {
       return;
@@ -389,9 +365,16 @@ export default function AdminDashboard() {
   const getStatusText = (team) => {
     if (team.finish_time) return 'Finished';
     if (team.closed_at) return team.close_reason === 'time_limit' ? 'Time Expired' : 'Closed by Organizer';
-    if (team.clues_solved === 5) return 'Ready for Final Challenge';
+    if (team.clues_solved === 5) return 'Finished';
     if (team.waiting_for_qr) return 'Waiting for QR';
     return 'Playing';
+  };
+
+  // Format the per-game completion timestamps (index 0-4 => clue 1-5) for tie-breaking.
+  const getStageTimes = (team) => {
+    const times = team.game_completion_times || [];
+    if (!Array.isArray(times) || times.length === 0) return [];
+    return times.map((t) => (t ? getDurationText(team.start_time, t) : null));
   };
 
   const getTimeLimitText = (team) => {
@@ -440,8 +423,7 @@ export default function AdminDashboard() {
   });
 
   const totalCount = teams.length;
-  const completedCount = teams.filter(t => t.finish_time).length;
-  const readyCount = teams.filter(t => t.clues_solved === 5 && !t.finish_time).length;
+  const completedCount = teams.filter(t => t.finish_time || t.clues_solved >= 5).length;
   const waitingCount = teams.filter(t => !t.finish_time && t.clues_solved < 5 && t.waiting_for_qr).length;
   const activeCount = teams.filter(t => !t.finish_time && t.clues_solved < 5 && !t.waiting_for_qr).length;
   const pathMetrics = Object.keys(PATH_DISPLAY).map((color) => {
@@ -451,7 +433,7 @@ export default function AdminDashboard() {
       total: pathTeams.length,
       playing: pathTeams.filter(t => !t.finish_time && t.clues_solved < 5 && !t.waiting_for_qr).length,
       waiting: pathTeams.filter(t => !t.finish_time && t.clues_solved < 5 && t.waiting_for_qr).length,
-      finished: pathTeams.filter(t => t.finish_time).length,
+      finished: pathTeams.filter(t => t.finish_time || t.clues_solved >= 5).length,
     };
   });
 
@@ -561,8 +543,8 @@ export default function AdminDashboard() {
                 <span className="text-body-sm font-semibold text-accent-cyan">{activeCount}</span>
               </div>
               <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
-                <span className="text-micro text-muted uppercase tracking-wide block">Ready</span>
-                <span className="text-body-sm font-semibold text-accent-amber">{readyCount}</span>
+                <span className="text-micro text-muted uppercase tracking-wide block">Waiting</span>
+                <span className="text-body-sm font-semibold text-accent-amber">{waitingCount}</span>
               </div>
               <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
                 <span className="text-micro text-muted uppercase tracking-wide block">Finished</span>
@@ -647,8 +629,8 @@ export default function AdminDashboard() {
 
               <div className="p-3.5 rounded-xl bg-surface-2/30 border border-border-subtle/50 hover:bg-surface-2/40 transition-colors shadow-inner flex items-center justify-between">
                 <div>
-                  <span className="text-micro font-semibold text-muted uppercase tracking-wide block">Ready jigsaw</span>
-                  <span className="text-body font-semibold text-primary mt-1 block leading-none">{readyCount}</span>
+                  <span className="text-micro font-semibold text-muted uppercase tracking-wide block">Waiting QR</span>
+                  <span className="text-body font-semibold text-primary mt-1 block leading-none">{waitingCount}</span>
                 </div>
                 <div className="p-1.5 rounded-md bg-accent-amber/10 text-accent-amber shrink-0">
                   <CheckCircle className="w-4 h-4" />
@@ -756,15 +738,13 @@ export default function AdminDashboard() {
                           {filteredTeams.map((team, idx) => {
                             const status = getStatusText(team);
                             const isCompleted = status === 'Finished';
-                            const isReady = status === 'Ready for Final Challenge';
                             const isWaitingQr = status === 'Waiting for QR';
                             const isClosed = status === 'Time Expired' || status === 'Closed by Organizer';
 
                             return (
                               <tr
                                 key={team.id}
-                                className={`hover:bg-surface-2/50 transition-colors ${isReady ? 'bg-accent-brand/5' : isCompleted ? 'bg-accent-emerald/5' : isWaitingQr ? 'bg-accent-amber/5' : ''
-                                  }`}
+                                className={`hover:bg-surface-2/50 transition-colors ${isCompleted ? 'bg-accent-emerald/5' : isWaitingQr ? 'bg-accent-amber/5' : ''}`}
                               >
                                 <td className="py-4 px-5 font-semibold text-primary flex items-center gap-3">
                                   <span className="w-5 text-muted text-right">{idx + 1}.</span>
@@ -789,6 +769,15 @@ export default function AdminDashboard() {
                                       {team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`}
                                     </span>
                                     <span className="text-micro text-muted font-semibold uppercase">{team.clues_solved} / 5 Solved</span>
+                                    {getStageTimes(team).some(Boolean) && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {getStageTimes(team).map((t, i) => t ? (
+                                          <span key={i} title={`Game ${i + 1} completed`} className="text-[0.625rem] font-mono text-secondary bg-surface-3/50 border border-border-subtle px-1.5 py-0.5 rounded">
+                                            G{i + 1}: <span className="text-primary">{t}</span>
+                                          </span>
+                                        ) : null)}
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
 
@@ -808,11 +797,6 @@ export default function AdminDashboard() {
                                     </span>
                                   ) : isClosed ? (
                                     <span className="text-feedback-warning font-semibold">{status}</span>
-                                  ) : isReady ? (
-                                    <span className="text-accent-brand font-semibold animate-pulse flex items-center gap-1.5">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-accent-brand" />
-                                      <span>Ready Jigsaw</span>
-                                    </span>
                                   ) : isWaitingQr ? (
                                     <span className="text-accent-amber font-semibold flex items-center gap-1.5">
                                       <span className="w-1.5 h-1.5 rounded-full bg-accent-amber animate-pulse" />
@@ -828,19 +812,6 @@ export default function AdminDashboard() {
 
                                 <td className="py-4 px-5 text-right">
                                   <div className="flex justify-end gap-2">
-                                    {isReady && (
-                                      <Button
-                                        variant="accent"
-                                        size="sm"
-                                        onClick={() => handleMarkFinished(team.id, team.name)}
-                                        disabled={actionLoading === team.id}
-                                        loading={actionLoading === team.id}
-                                        className="flex items-center gap-1"
-                                      >
-                                        <span className="hidden sm:inline">Mark Finished</span>
-                                      </Button>
-                                    )}
-
                                     {!isCompleted && !isClosed && (
                                       <Button
                                         variant="ghost"
@@ -877,7 +848,6 @@ export default function AdminDashboard() {
                   {filteredTeams.map((team, idx) => {
                     const status = getStatusText(team);
                     const isCompleted = status === 'Finished';
-                    const isReady = status === 'Ready for Final Challenge';
                     const isWaitingQr = status === 'Waiting for QR';
                     const isClosed = status === 'Time Expired' || status === 'Closed by Organizer';
 
@@ -885,13 +855,11 @@ export default function AdminDashboard() {
                       <div
                         key={team.id}
                         className={`relative overflow-hidden rounded-2xl border bg-surface-1 shadow-md transition-all
-                          ${isReady
-                            ? 'border-accent-brand/40 bg-accent-brand/5'
-                            : isCompleted
-                              ? 'border-accent-emerald/40 bg-accent-emerald/5'
-                              : isWaitingQr
-                                ? 'border-accent-amber/40 bg-accent-amber/5'
-                                : 'border-border-subtle'
+                          ${isCompleted
+                            ? 'border-accent-emerald/40 bg-accent-emerald/5'
+                            : isWaitingQr
+                              ? 'border-accent-amber/40 bg-accent-amber/5'
+                              : 'border-border-subtle'
                           }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
@@ -917,9 +885,9 @@ export default function AdminDashboard() {
                             </div>
                             <div className="flex flex-col items-center gap-1">
                               <span className="text-micro text-muted uppercase tracking-wide">Status</span>
-                              <span className={`text-caption font-semibold ${isCompleted ? 'text-accent-emerald' : isReady ? 'text-accent-brand' : isWaitingQr ? 'text-accent-amber' : 'text-accent-cyan'
+                              <span className={`text-caption font-semibold ${isCompleted ? 'text-accent-emerald' : isWaitingQr ? 'text-accent-amber' : 'text-accent-cyan'
                                 }`}>
-                                {isCompleted ? 'Finished' : isClosed ? status : isReady ? 'Ready Jigsaw' : isWaitingQr ? 'Waiting for QR' : 'Playing'}
+                                {isCompleted ? 'Finished' : isClosed ? status : isWaitingQr ? 'Waiting for QR' : 'Playing'}
                               </span>
                               <span className="text-micro text-muted">{getTimeLimitText(team)}</span>
                             </div>
@@ -927,18 +895,6 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="border-t border-border-subtle/50 px-4 py-3 bg-surface-2/30 flex justify-end gap-2">
-                          {isReady && (
-                            <Button
-                              variant="accent"
-                              size="sm"
-                              onClick={() => handleMarkFinished(team.id, team.name)}
-                              disabled={actionLoading === team.id}
-                              loading={actionLoading === team.id}
-                              className="flex items-center gap-1"
-                            >
-                              <span className="hidden sm:inline">Mark Finished</span>
-                            </Button>
-                          )}
                           {!isCompleted && !isClosed && (
                             <Button variant="ghost" size="sm" onClick={() => handleCloseTeam(team.id, team.name)} disabled={actionLoading === `close-${team.id}`}>
                               Close Game

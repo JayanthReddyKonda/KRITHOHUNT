@@ -53,7 +53,7 @@ Run the complete [`supabase-migration.sql`](supabase-migration.sql) in the Supab
 - `teams` and `clues` tables with RLS.
 - Public team select/insert policies required by registration and dashboard polling.
 - Explicit table grants and RPC execute grants.
-- `get_current_clue`, `scan_location_qr`, `submit_team_answer`, `submit_connect_dots`, `mark_team_finished`, and `admin_delete_team`.
+- `get_current_clue`, `scan_location_qr`, `submit_team_answer`, `submit_connect_dots`, and `admin_delete_team`.
 - `register_team`, `resume_team`, and `get_location_qr_tokens`.
 - `admin_reset_teams` performs one transactional event reset instead of one request per team.
 - Thirty clues across all six paths.
