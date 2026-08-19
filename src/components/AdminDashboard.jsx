@@ -87,28 +87,30 @@ const QRCard = ({ title, subtitle, url, color }) => {
   };
 
   return (
-    <Card key={`${color}-${subtitle}`} variant="elevated" padding="lg" className="text-center space-y-3 qr-card">
-      <span className="text-micro font-black tracking-widest uppercase text-accent-brand">{title}</span>
-      <div className="bg-white p-3 rounded-xl inline-block shadow-lg mx-auto qr-image-frame" data-qr-status={qrDataUrl ? 'ready' : qrError ? 'error' : 'loading'}>
-        {qrDataUrl ? (
-          <img src={qrDataUrl} alt={`${color} ${subtitle} QR`} className="w-36 h-36 mx-auto qr-image" />
-        ) : (
-          <div className="w-36 h-36 flex items-center justify-center text-center text-xs text-slate-700">
-            {qrError || 'Generating QR...'}
-          </div>
-        )}
-      </div>
-      <div className="space-y-1">
-        <h4 className="text-caption font-extrabold uppercase text-primary tracking-wide" style={{ color: `hsl(var(--accent-${accent}))` }}>
-          {color} {subtitle}
-        </h4>
-        <p className="text-micro text-muted font-mono break-all line-clamp-1">{url}</p>
+    <div key={`${color}-${subtitle}`} className="text-center space-y-3 qr-card bg-surface-1 border border-border-subtle p-5 rounded-2xl shadow-md flex flex-col justify-between">
+      <div className="space-y-3">
+        <span className="text-micro font-semibold tracking-wide uppercase text-accent-brand block">{title}</span>
+        <div className="bg-white p-3 rounded-xl inline-block shadow-lg mx-auto qr-image-frame" data-qr-status={qrDataUrl ? 'ready' : qrError ? 'error' : 'loading'}>
+          {qrDataUrl ? (
+            <img src={qrDataUrl} alt={`${color} ${subtitle} QR`} className="w-36 h-36 mx-auto qr-image" />
+          ) : (
+            <div className="w-36 h-36 flex items-center justify-center text-center text-xs text-slate-700">
+              {qrError || 'Generating QR...'}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1">
+          <h4 className="text-caption font-semibold uppercase text-primary tracking-wide" style={{ color: `hsl(var(--accent-${accent}))` }}>
+            {color} {subtitle}
+          </h4>
+          <p className="text-micro text-muted font-mono break-all line-clamp-1">{url}</p>
+        </div>
       </div>
       <Button variant="ghost" size="sm" onClick={handleShare} className="no-print mx-auto">
         {shared ? <Check className="w-4 h-4 text-feedback-success" /> : <Share2 className="w-4 h-4" />}
         <span>{shared ? 'Copied' : 'Share URL'}</span>
       </Button>
-    </Card>
+    </div>
   );
 };
 
@@ -462,11 +464,11 @@ export default function AdminDashboard() {
             <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-3 shadow-inner">
               <KeyRound className="w-8 h-8 text-accent-brand" />
             </div>
-            <h1 className="text-h1 font-black text-primary tracking-tight">ORGANIZER ACCESS</h1>
-            <p className="text-caption text-muted mt-1 uppercase tracking-widest font-semibold">Enter Password to Unlock Dashboard</p>
+            <h1 className="text-h1 font-semibold text-primary tracking-tight">Organizer access</h1>
+            <p className="text-caption text-muted mt-1 uppercase tracking-wide font-medium">Enter password to unlock dashboard</p>
           </div>
 
-          <Card variant="elevated" padding="lg" className="space-y-5">
+          <div className="bg-surface-2/40 border border-border-subtle/50 backdrop-blur-md rounded-2xl p-6 space-y-5 shadow-xl">
             <form onSubmit={handlePasswordSubmit} className="space-y-5">
               <div>
                 <Input
@@ -484,16 +486,15 @@ export default function AdminDashboard() {
 
               <Button
                 type="submit"
-                variant="accent"
+                variant="primary"
                 size="lg"
                 fullWidth
                 className="touch-target"
-                style={{ backgroundColor: 'hsl(var(--accent-brand))' }}
               >
                 Unlock Dashboard
               </Button>
             </form>
-          </Card>
+          </div>
         </div>
       </div>
     );
@@ -501,7 +502,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-surface-0 flex flex-col">
-      <header className="md:hidden sticky top-0 z-40 h-[56px] flex items-center justify-between px-4 bg-surface-0/80 backdrop-blur-md border-b border-border-subtle">
+      <header className="md:hidden sticky top-0 z-40 h-[56px] flex items-center justify-between px-4 bg-surface-0/80 backdrop-blur-md border-b border-b-border-subtle">
         <Button
           variant="ghost"
           size="sm"
@@ -511,18 +512,18 @@ export default function AdminDashboard() {
         >
           <Menu className="w-6 h-6" />
         </Button>
-        <span className="text-h2 font-black text-primary tracking-tight">Admin</span>
+        <span className="text-h2 font-semibold text-primary tracking-tight">Admin</span>
         <div className="w-10" />
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         <aside
-          className={`admin-sidebar flex flex-col ${sidebarOpen ? 'open' : ''}`}
+          className={`admin-sidebar flex flex-col w-full md:w-64 md:shrink-0 bg-surface-1 md:border-r md:border-border-subtle/50 z-50 md:z-0 ${sidebarOpen ? 'open' : ''}`}
           aria-label="Admin navigation"
         >
           <div className="p-4 border-b border-border-subtle">
-            <h2 className="text-h2 font-black text-primary">KRITHOHUNT</h2>
-            <p className="text-caption text-muted mt-1 uppercase tracking-wider">Organizer Panel</p>
+            <h2 className="text-h2 font-semibold text-primary tracking-tight">KRITHOHUNT</h2>
+            <p className="text-caption text-muted mt-1 uppercase tracking-wide">Organizer Panel</p>
           </div>
 
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Main navigation">
@@ -549,23 +550,23 @@ export default function AdminDashboard() {
           </nav>
 
           <div className="p-4 border-t border-border-subtle space-y-3">
-            <h3 className="text-caption font-bold text-muted uppercase tracking-wider px-2">Stats Overview</h3>
+            <h3 className="text-caption font-semibold text-muted uppercase tracking-wide px-2">Stats overview</h3>
             <div className="grid grid-cols-2 gap-2">
               <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
-                <span className="text-micro text-muted uppercase tracking-wider block">Total</span>
-                <span className="text-h2 font-black text-primary">{totalCount}</span>
+                <span className="text-micro text-muted uppercase tracking-wide block">Total</span>
+                <span className="text-body-sm font-semibold text-primary">{totalCount}</span>
               </div>
               <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
-                <span className="text-micro text-muted uppercase tracking-wider block">Active</span>
-                <span className="text-h2 font-black text-accent-cyan">{activeCount}</span>
+                <span className="text-micro text-muted uppercase tracking-wide block">Active</span>
+                <span className="text-body-sm font-semibold text-accent-cyan">{activeCount}</span>
               </div>
               <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
-                <span className="text-micro text-muted uppercase tracking-wider block">Ready</span>
-                <span className="text-h2 font-black text-accent-amber">{readyCount}</span>
+                <span className="text-micro text-muted uppercase tracking-wide block">Ready</span>
+                <span className="text-body-sm font-semibold text-accent-amber">{readyCount}</span>
               </div>
               <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl">
-                <span className="text-micro text-muted uppercase tracking-wider block">Finished</span>
-                <span className="text-h2 font-black text-accent-emerald">{completedCount}</span>
+                <span className="text-micro text-muted uppercase tracking-wide block">Finished</span>
+                <span className="text-body-sm font-semibold text-accent-emerald">{completedCount}</span>
               </div>
             </div>
           </div>
@@ -581,129 +582,97 @@ export default function AdminDashboard() {
 
         <main className="flex-1 flex flex-col overflow-y-auto md:overflow-y-auto">
           <div className="w-full max-w-[1400px] mx-auto flex-1 p-6 md:p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-              <div>
-                <h1 className="text-display font-extrabold text-primary tracking-tight flex items-center gap-2">
-                  Organizers Dashboard
-                </h1>
-                <p className="text-body-sm text-muted mt-1">Monitor teams, record completions, and manage the event live.</p>
-              </div>
+            <div className="flex justify-end gap-2 items-center w-full flex-wrap sm:flex-nowrap border-b border-border-subtle pb-4 mb-6">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handlePrintQRCodes}
+                className="flex items-center gap-2 shrink-0 md:w-auto"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print QR Codes</span>
+              </Button>
 
-              <div className="flex gap-2 w-full md:w-auto flex-wrap">
-                <Button
-                  variant="secondary"
-                  size="md"
-                  onClick={() => fetchTeams(true)}
-                  disabled={refreshing}
-                  className="flex items-center gap-2 justify-center w-full md:w-auto"
-                >
-                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                  <span>Refresh</span>
-                </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExportCSV}
+                disabled={teams.length === 0}
+                className="flex items-center gap-2 shrink-0 md:w-auto"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </Button>
 
-                <Button
-                  variant="secondary"
-                  size="md"
-                  onClick={handleExportCSV}
-                  disabled={teams.length === 0}
-                  className="flex items-center gap-2 justify-center w-full md:w-auto"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  size="md"
-                  onClick={handlePrintQRCodes}
-                  className="flex items-center gap-2 justify-center w-full md:w-auto"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Print QR</span>
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="md"
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 justify-center w-full md:w-auto"
-                >
-                  <Lock className="w-4 h-4" />
-                  <span>Lock</span>
-                </Button>
-
-                <Button
-                  variant="danger"
-                  size="md"
-                  onClick={handleResetAllTeams}
-                  disabled={actionLoading === 'reset-all'}
-                  loading={actionLoading === 'reset-all'}
-                  className="flex items-center gap-2 justify-center w-full md:w-auto"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Reset All</span>
-                </Button>
-              </div>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleResetAllTeams}
+                disabled={actionLoading === 'reset-all'}
+                loading={actionLoading === 'reset-all'}
+                className="flex items-center gap-2 shrink-0 md:w-auto"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Reset All</span>
+              </Button>
             </div>
 
             {error && (
-              <Card variant="panel" padding="md" className="mb-6 border-feedback-error/30 bg-feedback-error/5">
-                <div className="flex gap-3">
-                  <ShieldAlert className="w-5 h-5 shrink-0 text-feedback-error" />
-                  <span className="text-feedback-error text-body-sm">{error}</span>
-                </div>
-              </Card>
+              <div className="mb-6 p-4 rounded-xl border border-feedback-error/20 bg-feedback-error/5 flex gap-3 items-start">
+                <ShieldAlert className="w-5 h-5 shrink-0 text-feedback-error" />
+                <span className="text-feedback-error text-body-sm">{error}</span>
+              </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <Card variant="elevated" padding="lg" className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent-brand/10 text-accent-brand">
-                  <Users className="w-6 h-6" />
-                </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div className="p-3.5 rounded-xl bg-surface-2/30 border border-border-subtle/50 hover:bg-surface-2/40 transition-colors shadow-inner flex items-center justify-between">
                 <div>
-                  <span className="text-caption text-muted uppercase tracking-wider block">Total Teams</span>
-                  <span className="text-h2 font-black text-primary">{totalCount}</span>
+                  <span className="text-micro font-semibold text-muted uppercase tracking-wide block">Total teams</span>
+                  <span className="text-body font-semibold text-primary mt-1 block leading-none">{totalCount}</span>
                 </div>
-              </Card>
+                <div className="p-1.5 rounded-md bg-accent-brand/10 text-accent-brand shrink-0">
+                  <Users className="w-4 h-4" />
+                </div>
+              </div>
 
-              <Card variant="elevated" padding="lg" className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent-emerald/10 text-accent-emerald">
-                  <Award className="w-6 h-6" />
-                </div>
+              <div className="p-3.5 rounded-xl bg-surface-2/30 border border-border-subtle/50 hover:bg-surface-2/40 transition-colors shadow-inner flex items-center justify-between">
                 <div>
-                  <span className="text-caption text-muted uppercase tracking-wider block">Completed</span>
-                  <span className="text-h2 font-black text-primary">{completedCount}</span>
+                  <span className="text-micro font-semibold text-muted uppercase tracking-wide block">Completed</span>
+                  <span className="text-body font-semibold text-primary mt-1 block leading-none">{completedCount}</span>
                 </div>
-              </Card>
+                <div className="p-1.5 rounded-md bg-accent-emerald/10 text-accent-emerald shrink-0">
+                  <Award className="w-4 h-4" />
+                </div>
+              </div>
 
-              <Card variant="elevated" padding="lg" className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent-amber/10 text-accent-amber">
-                  <CheckCircle className="w-6 h-6" />
-                </div>
+              <div className="p-3.5 rounded-xl bg-surface-2/30 border border-border-subtle/50 hover:bg-surface-2/40 transition-colors shadow-inner flex items-center justify-between">
                 <div>
-                  <span className="text-caption text-muted uppercase tracking-wider block">Ready Jigsaw</span>
-                  <span className="text-h2 font-black text-primary">{readyCount}</span>
+                  <span className="text-micro font-semibold text-muted uppercase tracking-wide block">Ready jigsaw</span>
+                  <span className="text-body font-semibold text-primary mt-1 block leading-none">{readyCount}</span>
                 </div>
-              </Card>
+                <div className="p-1.5 rounded-md bg-accent-amber/10 text-accent-amber shrink-0">
+                  <CheckCircle className="w-4 h-4" />
+                </div>
+              </div>
 
-              <Card variant="elevated" padding="lg" className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent-cyan/10 text-accent-cyan">
-                  <Clock className="w-6 h-6" />
-                </div>
+              <div className="p-3.5 rounded-xl bg-surface-2/30 border border-border-subtle/50 hover:bg-surface-2/40 transition-colors shadow-inner flex items-center justify-between">
                 <div>
-                  <span className="text-caption text-muted uppercase tracking-wider block">Active Playing</span>
-                  <span className="text-h2 font-black text-primary">{activeCount}</span>
+                  <span className="text-micro font-semibold text-muted uppercase tracking-wide block">Active playing</span>
+                  <span className="text-body font-semibold text-primary mt-1 block leading-none">{activeCount}</span>
                 </div>
-              </Card>
+                <div className="p-1.5 rounded-md bg-accent-cyan/10 text-accent-cyan shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+              </div>
             </div>
 
-            <Card variant="panel" padding="md" className="mb-8">
+            <div className="bg-surface-2/40 border border-border-subtle/50 rounded-xl p-5 mb-8 shadow-inner">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
-                  <h2 className="text-h2 font-bold text-primary">Live Path Monitor</h2>
+                  <h2 className="text-h2 font-semibold text-primary">Live path monitor</h2>
                   <p className="text-caption text-muted">Playing now, waiting for a location QR, and finished teams.</p>
                 </div>
-                <span className="text-micro font-bold uppercase tracking-wider text-accent-cyan">{activeCount} playing now · {waitingCount} waiting</span>
+                <span className="text-micro font-semibold uppercase tracking-wide text-accent-cyan">{activeCount} playing now · {waitingCount} waiting</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {pathMetrics.map(({ color, total, playing, waiting, finished }) => (
@@ -711,19 +680,19 @@ export default function AdminDashboard() {
                     key={color}
                     type="button"
                     onClick={() => setColorFilter(color)}
-                    className="text-left rounded-xl border border-border-subtle bg-surface-1 p-3 hover:bg-surface-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+                    className="text-left rounded-xl border border-border-strong/40 bg-surface-1/60 p-3 hover:bg-surface-2/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
                   >
-                    <span className={`path-badge ${PATH_BADGES[color]} px-2 py-0.5 rounded text-micro font-bold uppercase`}>{color}</span>
-                    <span className="block text-h2 font-black text-primary mt-2">{total}</span>
+                    <span className={`path-badge ${PATH_BADGES[color]} px-2 py-0.5 rounded text-micro font-semibold uppercase`}>{color}</span>
+                    <span className="block text-body font-semibold text-primary mt-2">{total}</span>
                     <span className="block text-micro text-accent-cyan">{playing} playing</span>
                     <span className="block text-micro text-accent-amber">{waiting} waiting</span>
                     <span className="block text-micro text-accent-emerald">{finished} finished</span>
                   </button>
                 ))}
               </div>
-            </Card>
+            </div>
 
-            <Card variant="panel" padding="md" className="mb-6">
+            <div className="p-4 rounded-xl bg-surface-2/30 border border-border-subtle/50 mb-6 shadow-inner">
               <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="relative w-full md:max-w-xs">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
@@ -753,25 +722,25 @@ export default function AdminDashboard() {
                   </select>
                 </div>
               </div>
-            </Card>
+            </div>
 
             {loading ? (
-              <Card variant="elevated" padding="xl" className="text-center">
+              <div className="p-8 rounded-2xl border border-border-subtle bg-surface-2/30 text-center shadow-inner">
                 <RefreshCw className="w-8 h-8 animate-spin text-accent-brand mx-auto mb-3" />
-                <span className="text-body-sm text-muted">Loading database data...</span>
-              </Card>
+                <span className="text-body-sm text-muted font-semibold">Loading database data...</span>
+              </div>
             ) : filteredTeams.length === 0 ? (
-              <Card variant="elevated" padding="xl" className="text-center">
-                <span className="text-body-sm text-muted">No teams found matching the filters.</span>
-              </Card>
+              <div className="p-8 rounded-2xl border border-border-subtle bg-surface-2/30 text-center shadow-inner">
+                <span className="text-body-sm text-muted font-semibold">No teams found matching the filters.</span>
+              </div>
             ) : (
               <>
                 <div className="hidden lg:block">
-                  <Card variant="elevated" padding="none" className="overflow-hidden">
+                  <div className="rounded-2xl border border-border-subtle bg-surface-1 shadow-lg overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-surface-1 border-b border-border-subtle text-caption font-bold uppercase tracking-wider text-muted">
+                          <tr className="bg-surface-1 border-b border-border-subtle text-caption font-semibold uppercase tracking-wide text-muted">
                             <th className="py-4 px-5">Rank & Team</th>
                             <th className="py-4 px-4">Team ID</th>
                             <th className="py-4 px-4">Path</th>
@@ -797,15 +766,15 @@ export default function AdminDashboard() {
                                 className={`hover:bg-surface-2/50 transition-colors ${isReady ? 'bg-accent-brand/5' : isCompleted ? 'bg-accent-emerald/5' : isWaitingQr ? 'bg-accent-amber/5' : ''
                                   }`}
                               >
-                                <td className="py-4 px-5 font-bold text-primary flex items-center gap-3">
+                                <td className="py-4 px-5 font-semibold text-primary flex items-center gap-3">
                                   <span className="w-5 text-muted text-right">{idx + 1}.</span>
                                   <span className="uppercase tracking-wide">{team.name}</span>
                                 </td>
 
-                                <td className="py-4 px-4 font-mono font-bold tracking-widest text-accent-brand">{team.team_code || '-----'}</td>
+                                <td className="py-4 px-4 font-mono font-semibold tracking-widest text-accent-brand">{team.team_code || '-----'}</td>
 
                                 <td className="py-4 px-4">
-                                  <span className={`inline-block px-2.5 py-0.5 rounded border text-caption font-bold uppercase tracking-wider ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
+                                  <span className={`inline-block px-2.5 py-0.5 rounded border text-caption font-semibold uppercase tracking-wider ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
                                     {PATH_DISPLAY[team.color.toLowerCase()] || team.color.toUpperCase()}
                                   </span>
                                 </td>
@@ -816,14 +785,14 @@ export default function AdminDashboard() {
 
                                 <td className="py-4 px-4">
                                   <div className="flex flex-col gap-0.5">
-                                    <span className="font-extrabold text-primary">
+                                    <span className="font-semibold text-primary">
                                       {team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`}
                                     </span>
                                     <span className="text-micro text-muted font-semibold uppercase">{team.clues_solved} / 5 Solved</span>
                                   </div>
                                 </td>
 
-                                <td className="py-4 px-4 text-center font-bold text-feedback-warning">
+                                <td className="py-4 px-4 text-center font-semibold text-feedback-warning">
                                   {team.penalty_count}
                                 </td>
 
@@ -833,19 +802,19 @@ export default function AdminDashboard() {
 
                                 <td className="py-4 px-4">
                                   {isCompleted ? (
-                                    <span className="text-accent-emerald font-bold flex items-center gap-1.5">
+                                    <span className="text-accent-emerald font-semibold flex items-center gap-1.5">
                                       <span className="w-1.5 h-1.5 rounded-full bg-accent-emerald" />
                                       <span>Finished</span>
                                     </span>
                                   ) : isClosed ? (
-                                    <span className="text-feedback-warning font-bold">{status}</span>
+                                    <span className="text-feedback-warning font-semibold">{status}</span>
                                   ) : isReady ? (
-                                    <span className="text-accent-brand font-bold animate-pulse flex items-center gap-1.5">
+                                    <span className="text-accent-brand font-semibold animate-pulse flex items-center gap-1.5">
                                       <span className="w-1.5 h-1.5 rounded-full bg-accent-brand" />
                                       <span>Ready Jigsaw</span>
                                     </span>
                                   ) : isWaitingQr ? (
-                                    <span className="text-accent-amber font-bold flex items-center gap-1.5">
+                                    <span className="text-accent-amber font-semibold flex items-center gap-1.5">
                                       <span className="w-1.5 h-1.5 rounded-full bg-accent-amber animate-pulse" />
                                       <span>Waiting for QR</span>
                                     </span>
@@ -901,7 +870,7 @@ export default function AdminDashboard() {
                         </tbody>
                       </table>
                     </div>
-                  </Card>
+                  </div>
                 </div>
 
                 <div className="lg:hidden space-y-4">
@@ -913,19 +882,25 @@ export default function AdminDashboard() {
                     const isClosed = status === 'Time Expired' || status === 'Closed by Organizer';
 
                     return (
-                      <Card
+                      <div
                         key={team.id}
-                        variant={isReady ? 'elevated' : isCompleted ? 'elevated' : 'default'}
-                        className={`relative overflow-hidden ${isReady ? 'border-accent-brand/30' : isCompleted ? 'border-accent-emerald/30' : isWaitingQr ? 'border-accent-amber/30' : ''
+                        className={`relative overflow-hidden rounded-2xl border bg-surface-1 shadow-md transition-all
+                          ${isReady
+                            ? 'border-accent-brand/40 bg-accent-brand/5'
+                            : isCompleted
+                              ? 'border-accent-emerald/40 bg-accent-emerald/5'
+                              : isWaitingQr
+                                ? 'border-accent-amber/40 bg-accent-amber/5'
+                                : 'border-border-subtle'
                           }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
                           <div className="flex items-center gap-3">
-                            <span className="w-8 text-muted text-right text-h2 font-black">{idx + 1}.</span>
+                            <span className="w-8 text-muted text-right text-body font-semibold">{idx + 1}.</span>
                             <div>
-                              <span className="text-body font-bold text-primary uppercase tracking-wide block">{team.name}</span>
-                              <span className="text-micro font-mono font-bold tracking-widest text-accent-brand">ID {team.team_code || '-----'}</span>
-                              <span className={`inline-block px-2 py-0.5 rounded border text-micro font-bold uppercase tracking-wider mt-1 ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
+                              <span className="text-body font-semibold text-primary uppercase tracking-wide block">{team.name}</span>
+                              <span className="text-micro font-mono font-semibold tracking-widest text-accent-brand">ID {team.team_code || '-----'}</span>
+                              <span className={`inline-block px-2 py-0.5 rounded border text-micro font-semibold uppercase tracking-wide mt-1 ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
                                 {PATH_DISPLAY[team.color.toLowerCase()] || team.color.toUpperCase()}
                               </span>
                             </div>
@@ -933,16 +908,16 @@ export default function AdminDashboard() {
 
                           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto text-center sm:text-left">
                             <div className="flex flex-col items-center gap-1">
-                              <span className="text-micro text-muted uppercase tracking-wider">Progress</span>
-                              <span className="text-body font-extrabold text-primary">{Math.min(team.clues_solved + 1, 5)} / 5</span>
+                              <span className="text-micro text-muted uppercase tracking-wide">Progress</span>
+                              <span className="text-body font-semibold text-primary">{Math.min(team.clues_solved + 1, 5)} / 5</span>
                             </div>
                             <div className="flex flex-col items-center gap-1">
-                              <span className="text-micro text-muted uppercase tracking-wider">Penalties</span>
-                              <span className="text-body font-extrabold text-feedback-warning">{team.penalty_count}</span>
+                              <span className="text-micro text-muted uppercase tracking-wide">Penalties</span>
+                              <span className="text-body font-semibold text-feedback-warning">{team.penalty_count}</span>
                             </div>
                             <div className="flex flex-col items-center gap-1">
-                              <span className="text-micro text-muted uppercase tracking-wider">Status</span>
-                              <span className={`text-caption font-bold ${isCompleted ? 'text-accent-emerald' : isReady ? 'text-accent-brand' : isWaitingQr ? 'text-accent-amber' : 'text-accent-cyan'
+                              <span className="text-micro text-muted uppercase tracking-wide">Status</span>
+                              <span className={`text-caption font-semibold ${isCompleted ? 'text-accent-emerald' : isReady ? 'text-accent-brand' : isWaitingQr ? 'text-accent-amber' : 'text-accent-cyan'
                                 }`}>
                                 {isCompleted ? 'Finished' : isClosed ? status : isReady ? 'Ready Jigsaw' : isWaitingQr ? 'Waiting for QR' : 'Playing'}
                               </span>
@@ -951,7 +926,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        <div className="border-t border-border-subtle px-4 py-3 bg-surface-2/50 flex justify-end gap-2">
+                        <div className="border-t border-border-subtle/50 px-4 py-3 bg-surface-2/30 flex justify-end gap-2">
                           {isReady && (
                             <Button
                               variant="accent"
@@ -980,7 +955,7 @@ export default function AdminDashboard() {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                      </Card>
+                      </div>
                     );
                   })}
                 </div>

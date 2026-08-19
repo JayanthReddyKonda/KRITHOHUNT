@@ -10,12 +10,12 @@ export default function GameCell({
   ...props
 }) {
   const variantClasses = {
-    default: 'bg-surface-2 border-border-subtle text-primary',
-    fixed: 'bg-surface-1 border-border-subtle text-primary cursor-not-allowed',
-    selected: 'bg-surface-2 border-2 border-accent-brand shadow-[0_0_0_3px_hsl(var(--accent-brand)_/_0.2)] text-primary transform scale-105',
-    filled: 'bg-surface-3 border-border-strong text-accent-brand',
-    correct: 'bg-feedback-success/20 border-feedback-success text-feedback-success',
-    error: 'bg-feedback-error/20 border-feedback-error text-feedback-error animate-shake',
+    default: 'bg-surface-2 border border-border-subtle text-primary shadow-sm hover:brightness-105 active:brightness-95',
+    fixed: 'bg-surface-1 border border-border-subtle/50 text-muted cursor-not-allowed',
+    selected: 'bg-surface-2 border-2 border-accent-brand text-primary transform scale-105',
+    filled: 'bg-surface-3 border border-border-strong text-accent-brand font-semibold',
+    correct: 'bg-feedback-success/10 border border-feedback-success/50 text-feedback-success',
+    error: 'bg-feedback-error/10 border border-feedback-error/50 text-feedback-error animate-shake',
   };
 
   return (
@@ -28,9 +28,9 @@ export default function GameCell({
       className={`
         game-cell
         touch-target
-        rounded-lg
-        font-bold
-        transition-all duration-fast ease-standard
+        rounded-xl
+        font-semibold
+        transition-all duration-fast cubic-bezier(0.16, 1, 0.3, 1)
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface-0
         ${variantClasses[variant]}
         ${disabled && variant !== 'fixed' ? 'opacity-50 cursor-not-allowed' : ''}
@@ -83,7 +83,7 @@ export function SafeDigitDisplay({ digit, state, ...props }) {
     <GameCell
       variant={variantMap[state] || 'default'}
       disabled
-      className="text-2xl font-black"
+      className="text-2xl font-semibold"
       {...props}
     >
       {digit ?? '?'}
