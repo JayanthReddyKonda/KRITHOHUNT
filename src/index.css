@@ -46,29 +46,27 @@
   --duration-slow: 350ms;
   --min-height-touch: 44px;
   --min-width-touch: 44px;
-}
 
-:root {
-  --surface-0: 220 22% 6%;
-  --surface-1: 220 20% 9%;
-  --surface-2: 220 18% 13%;
-  --surface-3: 220 16% 18%;
-  --border-subtle: 220 14% 25%;
-  --border-strong: 220 12% 36%;
-  --text-primary: 210 25% 97%;
-  --text-secondary: 210 14% 78%;
-  --text-muted: 210 10% 60%;
-  --text-inverse: 220 22% 6%;
-  --accent-violet: 265 85% 62%;
-  --accent-amber: 38 92% 52%;
-  --accent-emerald: 152 72% 42%;
-  --accent-rose: 345 82% 56%;
-  --accent-cyan: 188 85% 48%;
-  --accent-orange: 24 95% 53%;
-  --accent-brand: 172 66% 45%;
-  --feedback-success: 152 72% 42%;
-  --feedback-warning: 38 92% 52%;
-  --feedback-error: 355 84% 58%;
+  --surface-0: var(--color-surface-0);
+  --surface-1: var(--color-surface-1);
+  --surface-2: var(--color-surface-2);
+  --surface-3: var(--color-surface-3);
+  --border-subtle: var(--color-border-subtle);
+  --border-strong: var(--color-border-strong);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --text-inverse: var(--color-text-inverse);
+  --accent-violet: var(--color-accent-violet);
+  --accent-amber: var(--color-accent-amber);
+  --accent-emerald: var(--color-accent-emerald);
+  --accent-rose: var(--color-accent-rose);
+  --accent-cyan: var(--color-accent-cyan);
+  --accent-orange: var(--color-accent-orange);
+  --accent-brand: var(--color-accent-brand);
+  --feedback-success: var(--color-feedback-success);
+  --feedback-warning: var(--color-feedback-warning);
+  --feedback-error: var(--color-feedback-error);
 }
 
 * {
