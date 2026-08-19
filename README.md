@@ -8,6 +8,7 @@ KRITHOHUNT is a mobile-first React treasure hunt for campus events. Teams choose
 - Thirty seeded clues: five stages per path.
 - Server-generated five-digit team IDs allow duplicate team names and resume on another device.
 - Random 36-character location QR tokens are checked server-side.
+- Every team receives a server-authoritative 45-minute deadline from registration. Expired sessions close with their current progress preserved.
 - Sudoku, Connect Dots, Campus GeoGuessr, Tower of Hanoi, and Safe Cracker.
 - Organizer dashboard with polling, search, filtering, CSV export, team actions, and printable QR sheets.
 - Local persistence for the active team and unfinished Sudoku/Connect Dots input.
@@ -74,7 +75,7 @@ After running it, print a fresh QR sheet. Older `/scan?color=...&stage=...` code
 
 The admin dashboard generates six start QR codes and thirty issued-token location QR codes locally in the browser. Each card can share its URL through the native share sheet or copy it to the clipboard. Printing waits for all 36 tokens and QR images and refuses to print if a code failed.
 
-The camera scanner accepts only same-origin `/scan?token=...` URLs with a 36-character issued token. Camera permission denial or startup failure never unlocks a challenge. The final authority remains the `scan_location_qr` Supabase RPC.
+The camera scanner requests permission directly from the Scan button before starting `html5-qrcode`. It requires HTTPS on real phones; if permission was previously blocked, participants must allow Camera in the browser site settings and tap Try Again. It accepts only same-origin `/scan?token=...` URLs with a 36-character issued token. Camera permission denial or startup failure never unlocks a challenge.
 
 ## Verification
 

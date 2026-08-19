@@ -31,14 +31,23 @@ CREATE TABLE IF NOT EXISTS teams (
     team_code TEXT,
     color TEXT NOT NULL,
     start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deadline_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '45 minutes'),
     clues_solved INTEGER NOT NULL DEFAULT 0,
     penalty_count INTEGER NOT NULL DEFAULT 0,
     finish_time TIMESTAMPTZ,
+    closed_at TIMESTAMPTZ,
+    close_reason TEXT,
     waiting_for_qr BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT valid_clues_solved CHECK (clues_solved BETWEEN 0 AND 5)
 );
 
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS team_code TEXT;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS deadline_at TIMESTAMPTZ;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS close_reason TEXT;
+UPDATE public.teams SET deadline_at = start_time + INTERVAL '45 minutes' WHERE deadline_at IS NULL;
+ALTER TABLE public.teams ALTER COLUMN deadline_at SET DEFAULT (NOW() + INTERVAL '45 minutes');
+ALTER TABLE public.teams ALTER COLUMN deadline_at SET NOT NULL;
 ALTER TABLE public.teams DROP CONSTRAINT IF EXISTS teams_name_key;
 CREATE UNIQUE INDEX IF NOT EXISTS teams_team_code_key ON public.teams (team_code);
 CREATE INDEX IF NOT EXISTS teams_finish_time_idx ON public.teams (finish_time);
@@ -109,8 +118,8 @@ BEGIN
   LOOP
     v_team_code := LPAD((10000 + FLOOR(random() * 90000))::INT::TEXT, 5, '0');
     BEGIN
-      INSERT INTO public.teams (name, team_code, color, waiting_for_qr)
-      VALUES (TRIM(p_name), v_team_code, LOWER(TRIM(p_color)), TRUE)
+      INSERT INTO public.teams (name, team_code, color, deadline_at, waiting_for_qr)
+      VALUES (TRIM(p_name), v_team_code, LOWER(TRIM(p_color)), NOW() + INTERVAL '45 minutes', TRUE)
       RETURNING id INTO v_team_id;
       EXIT;
     EXCEPTION WHEN unique_violation THEN
@@ -156,6 +165,9 @@ RETURNS TABLE(
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_color TEXT; v_clues_solved INTEGER;
 BEGIN
+  UPDATE public.teams AS t
+  SET closed_at = NOW(), close_reason = 'time_limit'
+  WHERE t.id = p_team_id AND t.closed_at IS NULL AND t.finish_time IS NULL AND NOW() >= t.deadline_at;
   SELECT LOWER(t.color), t.clues_solved INTO v_color, v_clues_solved
   FROM public.teams AS t WHERE t.id = p_team_id;
   IF FOUND AND v_clues_solved < 5 THEN
@@ -165,18 +177,38 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION expire_overdue_teams()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_count INTEGER;
+BEGIN
+  UPDATE public.teams
+  SET closed_at = NOW(), close_reason = 'time_limit'
+  WHERE closed_at IS NULL AND finish_time IS NULL AND NOW() >= deadline_at;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
 -- Scan location QR
 DROP FUNCTION IF EXISTS public.scan_location_qr(UUID, TEXT, INTEGER);
 CREATE OR REPLACE FUNCTION scan_location_qr(p_team_id UUID, p_token TEXT)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_team_color TEXT; v_clues_solved INT; v_waiting_for_qr BOOL;
-  v_finish_time TIMESTAMPTZ; v_expected_stage INT; v_qr_color TEXT; v_qr_stage INT;
+  v_finish_time TIMESTAMPTZ; v_deadline_at TIMESTAMPTZ; v_expected_stage INT; v_qr_color TEXT; v_qr_stage INT;
 BEGIN
-  SELECT color, clues_solved, waiting_for_qr, finish_time
-  INTO v_team_color, v_clues_solved, v_waiting_for_qr, v_finish_time
+  SELECT color, clues_solved, waiting_for_qr, finish_time, deadline_at
+  INTO v_team_color, v_clues_solved, v_waiting_for_qr, v_finish_time, v_deadline_at
   FROM teams WHERE id = p_team_id;
   IF NOT FOUND THEN RETURN jsonb_build_object('success', false, 'error', 'Team not found'); END IF;
+  IF NOW() >= v_deadline_at AND v_finish_time IS NULL THEN
+    UPDATE public.teams SET closed_at = NOW(), close_reason = 'time_limit' WHERE id = p_team_id AND closed_at IS NULL;
+  END IF;
+  IF v_finish_time IS NOT NULL OR EXISTS (SELECT 1 FROM public.teams WHERE id = p_team_id AND closed_at IS NOT NULL) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'This team session is closed');
+  END IF;
   IF v_finish_time IS NOT NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Team already finished'); END IF;
   IF v_clues_solved >= 5 THEN RETURN jsonb_build_object('success', false, 'error', 'All challenges complete'); END IF;
   v_expected_stage := v_clues_solved + 1;
@@ -294,7 +326,12 @@ BEGIN
   INTO v_team_color, v_clues_solved, v_waiting_for_qr, v_finish_time
   FROM teams WHERE id = p_team_id FOR UPDATE;
   IF NOT FOUND THEN RETURN jsonb_build_object('success', false, 'error', 'Team not found'); END IF;
-  IF v_finish_time IS NOT NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Already finished'); END IF;
+  IF v_finish_time IS NOT NULL OR EXISTS (SELECT 1 FROM public.teams WHERE id = p_team_id AND closed_at IS NOT NULL) THEN RETURN jsonb_build_object('success', false, 'error', 'This team session is closed'); END IF;
+  UPDATE public.teams SET closed_at = NOW(), close_reason = 'time_limit'
+  WHERE id = p_team_id AND NOW() >= deadline_at AND closed_at IS NULL;
+  IF EXISTS (SELECT 1 FROM public.teams WHERE id = p_team_id AND closed_at IS NOT NULL) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'The 45-minute time limit has ended');
+  END IF;
   IF v_clues_solved >= 5 THEN RETURN jsonb_build_object('success', false, 'error', 'All challenges done'); END IF;
   IF v_waiting_for_qr THEN RETURN jsonb_build_object('success', false, 'error', 'Scan QR first'); END IF;
   SELECT answer, game_type, game_data INTO v_correct_answer, v_game_type, v_game_data
@@ -383,6 +420,18 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION admin_close_team(p_team_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  UPDATE public.teams SET closed_at = NOW(), close_reason = 'organizer'
+  WHERE id = p_team_id AND finish_time IS NULL;
+  IF NOT FOUND THEN RETURN jsonb_build_object('success', false, 'error', 'Team not found or already finished'); END IF;
+  RETURN jsonb_build_object('success', true, 'message', 'Team session closed');
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION submit_connect_dots(p_team_id UUID, p_paths JSONB)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -395,6 +444,7 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_current_clue(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.expire_overdue_teams() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.scan_location_qr(UUID, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.register_team(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.resume_team(TEXT, TEXT) TO anon, authenticated;
@@ -404,6 +454,7 @@ GRANT EXECUTE ON FUNCTION public.submit_connect_dots(UUID, JSONB) TO anon, authe
 GRANT EXECUTE ON FUNCTION public.mark_team_finished(UUID) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_team(UUID) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_reset_teams() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_close_team(UUID) TO anon, authenticated;
 
 -- ====================================================================
 -- SEED DATA (6 paths × 5 clues = 30 clues)

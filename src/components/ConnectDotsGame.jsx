@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, RotateCcw, MousePointer2 } from 'lucide-react';
 import { GameCell, Card, Button } from '@/components/primitives';
 
 export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved, onIncorrect }) {
@@ -220,14 +220,16 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
 
   return (
     <div className="space-y-5">
-      <Card variant="panel" padding="md" className="space-y-2">
-        <h4 className="text-caption font-bold text-muted uppercase tracking-wider">
-          Connect the Dots
-        </h4>
-        <p className="text-body-sm text-secondary leading-relaxed">
-          Connect each matching pair without crossing another path. Drag from any colored dot to draw. Moves must be orthogonal. Drag backward to backtrack.
-        </p>
-      </Card>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-micro font-bold uppercase tracking-[0.16em] text-accent-brand">Puzzle 2</p>
+          <h4 className="text-h2 font-black text-primary tracking-tight">Connect the Dots</h4>
+          <p className="mt-1 text-body-sm text-secondary leading-relaxed">Join matching points without crossing. Drag orthogonally; backtrack to edit.</p>
+        </div>
+        <div className="shrink-0 rounded-xl border border-border-subtle bg-surface-2 p-2.5 text-accent-brand" aria-hidden="true">
+          <MousePointer2 className="h-5 w-5" />
+        </div>
+      </div>
 
       <div className="flex flex-col items-center select-none">
         <div
@@ -242,10 +244,10 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
             gap: '2px'
           }}
-          className="relative w-full max-w-[340px] aspect-square"
+          className="connect-board relative w-full max-w-[340px] aspect-square rounded-2xl border border-border-strong bg-surface-1 p-2 shadow-[0_16px_40px_hsl(var(--surface-0)_/_0.35)]"
         >
           <svg
-            className="absolute inset-0 w-full h-full pointer-events-none p-2.5"
+            className="pointer-events-none absolute inset-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)]"
             viewBox={`0 0 ${cols * 100} ${rows * 100}`}
             role="img"
             aria-label="Connection paths"
@@ -281,42 +283,44 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
             })}
           </svg>
 
-          {Array(rows).fill(null).map((_, r) =>
-            Array(cols).fill(null).map((_, c) => {
-              const dot = getDotAtCell(r, c);
-              const isDot = !!dot;
-              const colorId = isDot ? dot[2] : 0;
-              const accentKey = COLOR_MAP[colorId]?.accent || 'violet';
-              const isYellowOrOrange = accentKey === 'yellow' || accentKey === 'orange';
-              const bgColor = `hsl(var(--accent-${accentKey}))`;
-              const textColor = isYellowOrOrange ? 'hsl(var(--text-inverse))' : 'hsl(var(--text-primary))';
+          <div className="relative grid h-full w-full gap-1" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+            {Array(rows).fill(null).map((_, r) =>
+              Array(cols).fill(null).map((_, c) => {
+                const dot = getDotAtCell(r, c);
+                const isDot = !!dot;
+                const colorId = isDot ? dot[2] : 0;
+                const accentKey = COLOR_MAP[colorId]?.accent || 'violet';
+                const isYellowOrOrange = accentKey === 'yellow' || accentKey === 'orange';
+                const bgColor = `hsl(var(--accent-${accentKey}))`;
+                const textColor = isYellowOrOrange ? 'hsl(var(--text-inverse))' : 'hsl(var(--text-primary))';
 
-              return (
-                <GameCell
-                  key={`${r}-${c}`}
-                  variant={isDot ? 'filled' : 'default'}
-                  onPointerDown={(e) => handlePointerDown(e, r, c)}
-                  disabled={!isDot}
-                  className="touch-target aspect-square"
-                  style={{
-                    backgroundColor: isDot ? bgColor : undefined,
-                    color: isDot ? textColor : undefined
-                  }}
-                  aria-label={isDot ? `${COLOR_MAP[colorId].name} endpoint, row ${r + 1}, column ${c + 1}` : `Empty cell, row ${r + 1}, column ${c + 1}`}
-                >
-                  {isDot && (
-                    <span className="w-5 h-5 rounded-full bg-current/20 ring-2 ring-current/30 animate-pulse" aria-hidden="true" />
-                  )}
-                </GameCell>
-              );
-            })
-          )}
+                return (
+                  <GameCell
+                    key={`${r}-${c}`}
+                    variant={isDot ? 'filled' : 'default'}
+                    onPointerDown={(e) => handlePointerDown(e, r, c)}
+                    disabled={!isDot}
+                    className="aspect-square min-h-0 min-w-0 rounded-xl"
+                    style={{
+                      backgroundColor: isDot ? bgColor : undefined,
+                      color: isDot ? textColor : undefined
+                    }}
+                    aria-label={isDot ? `${COLOR_MAP[colorId].name} endpoint, row ${r + 1}, column ${c + 1}` : `Empty cell, row ${r + 1}, column ${c + 1}`}
+                  >
+                    {isDot && (
+                      <span className="w-5 h-5 rounded-full bg-current/20 ring-2 ring-current/30 animate-pulse" aria-hidden="true" />
+                    )}
+                  </GameCell>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
 
-      <Card variant="panel" padding="md" className="space-y-4 max-w-[340px] w-full mx-auto">
-        <div className="flex justify-between items-center text-micro font-bold text-muted px-1">
-          <span>Connection Status</span>
+      <Card variant="panel" padding="md" className="mx-auto w-full max-w-[340px] space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-caption font-bold uppercase tracking-wider text-secondary">Path status</span>
           <Button variant="ghost" size="sm" onClick={handleResetBoard} aria-label="Reset grid">
             <RotateCcw className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Reset Grid</span>
@@ -336,7 +340,7 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
               <div
                 key={colorId}
                 className={`
-                  py-3 rounded-xl border text-micro font-bold uppercase transition-all flex flex-col items-center justify-center gap-1.5
+                  min-h-[70px] rounded-xl border text-micro font-bold uppercase transition-all flex flex-col items-center justify-center gap-1.5
                   ${connected
                     ? 'bg-surface-1 border-border-strong text-primary shadow-lg'
                     : 'bg-surface-2 border-border-subtle text-secondary'

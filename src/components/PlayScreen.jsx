@@ -16,6 +16,11 @@ const PATH_THEMES = {
 
 const PUBLIC_QR_ORIGIN = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
 
+const withTimeout = (promise, message) => Promise.race([
+  promise,
+  new Promise((_, reject) => window.setTimeout(() => reject(new Error(message)), 10000)),
+]);
+
 export default function PlayScreen({ teamId, onReset }) {
   const [team, setTeam] = useState(null);
   const [clue, setClue] = useState(null);
@@ -24,6 +29,7 @@ export default function PlayScreen({ teamId, onReset }) {
   const [refreshing, setRefreshing] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scannerError, setScannerError] = useState('');
+  const [cameraPermission, setCameraPermission] = useState('idle');
   const [scannerSuccess, setScannerSuccess] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verificationFeedback, setVerificationFeedback] = useState(null);
@@ -35,11 +41,12 @@ export default function PlayScreen({ teamId, onReset }) {
     if (isRefresh) setRefreshing(true);
     try {
       setError('');
-      const { data: teamData, error: teamError } = await supabase
+      await withTimeout(supabase.rpc('expire_overdue_teams'), 'The game server did not respond. Run the latest Supabase migration and try again.').catch(() => null);
+      const { data: teamData, error: teamError } = await withTimeout(supabase
         .from('teams')
         .select('*')
         .eq('id', teamId)
-        .maybeSingle();
+        .maybeSingle(), 'The game server did not respond. Check Supabase configuration and try again.');
 
       if (teamError) throw teamError;
 
@@ -53,8 +60,10 @@ export default function PlayScreen({ teamId, onReset }) {
       setTeam(teamData);
 
       if (teamData.clues_solved < 5) {
-        const { data: clueData, error: clueError } = await supabase
-          .rpc('get_current_clue', { p_team_id: teamId });
+        const { data: clueData, error: clueError } = await withTimeout(
+          supabase.rpc('get_current_clue', { p_team_id: teamId }),
+          'The current clue RPC is unavailable. Run the latest Supabase migration.'
+        );
 
         if (clueError) throw clueError;
         if (requestId === scanRequestRef.current) setClue(clueData && clueData.length > 0 ? clueData[0] : null);
@@ -63,7 +72,7 @@ export default function PlayScreen({ teamId, onReset }) {
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to fetch game state. Please check your network connection.');
+      setError(err.message || 'Failed to fetch game state. Please check your network connection.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -88,7 +97,7 @@ export default function PlayScreen({ teamId, onReset }) {
   // QR Scanner effect using BottomSheet
   useEffect(() => {
     let html5QrCode;
-    if (showScanner && !scannerSuccess && !verifying && !verificationFeedback) {
+    if (showScanner && cameraPermission === 'granted' && !scannerSuccess && !verifying && !verificationFeedback) {
       setScannerError('');
       const timer = setTimeout(async () => {
         try {
@@ -162,7 +171,7 @@ export default function PlayScreen({ teamId, onReset }) {
           await html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback);
         } catch (e) {
           console.error(e);
-          setScannerError('Camera access denied or could not find environment camera. Please allow camera permissions.');
+          setScannerPermissionError(e);
         }
       }, 300);
 
@@ -173,7 +182,7 @@ export default function PlayScreen({ teamId, onReset }) {
         }
       };
     }
-  }, [showScanner, scannerSuccess, verifying, verificationFeedback, teamId, team?.color, team?.clues_solved]);
+  }, [showScanner, cameraPermission, scannerSuccess, verifying, verificationFeedback, teamId, team?.color, team?.clues_solved]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -200,6 +209,48 @@ export default function PlayScreen({ teamId, onReset }) {
     return `${minutes}m ${seconds}s`;
   };
 
+  const setScannerPermissionError = (error) => {
+    const reason = error?.name;
+    if (!window.isSecureContext && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+      setScannerError('Camera access requires HTTPS. Open the deployed HTTPS address on this phone.');
+    } else if (reason === 'NotAllowedError' || reason === 'SecurityError') {
+      setScannerError('Camera permission is blocked. Allow camera access in your browser site settings, then tap Try Again.');
+    } else if (reason === 'NotFoundError') {
+      setScannerError('No camera was found on this device.');
+    } else {
+      setScannerError('Camera could not start. Check that another app is not using it, then try again.');
+    }
+    setCameraPermission('denied');
+  };
+
+  const requestCameraPermission = async () => {
+    if (!window.isSecureContext && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+      setScannerError('Camera access requires HTTPS. Open the deployed HTTPS address on this phone.');
+      setCameraPermission('denied');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScannerError('This browser does not support camera access. Use current Chrome or Safari.');
+      setCameraPermission('denied');
+      return;
+    }
+
+    setCameraPermission('requesting');
+    setScannerError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+      stream.getTracks().forEach((track) => track.stop());
+      setCameraPermission('granted');
+    } catch (error) {
+      setScannerPermissionError(error);
+    }
+  };
+
+  const handleOpenScanner = () => {
+    setShowScanner(true);
+    requestCameraPermission();
+  };
+
   const handleCloseScanner = () => {
     if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
       html5QrCodeRef.current.stop().catch(() => { });
@@ -208,6 +259,7 @@ export default function PlayScreen({ teamId, onReset }) {
     setScannerSuccess(false);
     setVerificationFeedback(null);
     setScannerError('');
+    setCameraPermission('idle');
   };
 
   const handleStartChallenge = async () => {
@@ -224,6 +276,7 @@ export default function PlayScreen({ teamId, onReset }) {
     setVerificationFeedback(null);
     setScannerSuccess(false);
     setScannerError('');
+    if (cameraPermission !== 'granted') requestCameraPermission();
   };
 
   if (loading) {
@@ -243,6 +296,20 @@ export default function PlayScreen({ teamId, onReset }) {
           <Button variant="secondary" size="md" onClick={() => fetchGameState()}>
             Retry
           </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (team?.closed_at && !team.finish_time) {
+    return (
+      <div className="flex min-h-[85vh] items-center justify-center px-4 py-8 text-center">
+        <Card variant="elevated" className="w-full max-w-sm p-6 space-y-5">
+          <Clock className="w-12 h-12 text-feedback-warning mx-auto" />
+          <h1 className="text-h1 font-black text-primary">Game Closed</h1>
+          <p className="text-body-sm text-secondary">This team session is closed{team.close_reason === 'time_limit' ? ' because the 45-minute limit ended.' : ' by the organiser.'}</p>
+          <p className="text-caption text-muted">Your progress is saved and remains visible to the organiser.</p>
+          <Button variant="secondary" size="lg" fullWidth onClick={onReset}>Return to Start</Button>
         </Card>
       </div>
     );
@@ -433,7 +500,7 @@ export default function PlayScreen({ teamId, onReset }) {
                       variant="accent"
                       size="lg"
                       fullWidth
-                      onClick={() => setShowScanner(true)}
+                      onClick={handleOpenScanner}
                       className="touch-target"
                       style={{ backgroundColor: `hsl(var(--accent-${theme.accent}) / 0.95)` }}
                     >
@@ -511,7 +578,7 @@ export default function PlayScreen({ teamId, onReset }) {
           {/* Camera Viewport - Full-width, aspect-video (16:9) */}
           <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-border-subtle">
             {/* Camera feed */}
-            {!scannerError && !verifying && !verificationFeedback && (
+            {cameraPermission === 'granted' && !scannerError && !verifying && !verificationFeedback && (
               <>
                 <div id="qr-reader" className="w-full h-full" />
                 {/* CSS-only corner brackets overlay with animated pulse */}
@@ -527,6 +594,14 @@ export default function PlayScreen({ teamId, onReset }) {
               </>
             )}
 
+            {cameraPermission === 'requesting' && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-0/95 p-6 text-center">
+                <Loader2 className="h-10 w-10 animate-spin text-accent-brand" />
+                <h4 className="text-body font-bold text-primary">Allow camera access</h4>
+                <p className="text-caption text-secondary">Your browser should show a permission prompt. Choose Allow to scan the location QR.</p>
+              </div>
+            )}
+
             {/* Verifying state */}
             {verifying && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-0/90 backdrop-blur-sm">
@@ -536,16 +611,17 @@ export default function PlayScreen({ teamId, onReset }) {
             )}
 
             {/* Error initializing state */}
-            {scannerError && !verificationFeedback && (
+            {scannerError && cameraPermission === 'denied' && !verificationFeedback && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 bg-surface-0/95 backdrop-blur-sm text-center">
                 <AlertTriangle className="w-12 h-12 text-feedback-error animate-bounce" />
                 <div className="space-y-2 max-w-xs">
                   <h4 className="text-caption font-bold text-feedback-error uppercase tracking-wider">Scanner Locked</h4>
                   <p className="text-caption text-muted leading-relaxed">{scannerError}</p>
                 </div>
-                <Button variant="secondary" size="md" onClick={handleCloseScanner}>
-                  Close and try again
-                </Button>
+                <div className="flex w-full max-w-xs gap-2">
+                  <Button variant="secondary" size="md" fullWidth onClick={handleCloseScanner}>Close</Button>
+                  <Button variant="accent" size="md" fullWidth onClick={requestCameraPermission}>Try Again</Button>
+                </div>
               </div>
             )}
 

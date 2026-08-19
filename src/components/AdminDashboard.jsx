@@ -134,6 +134,7 @@ export default function AdminDashboard() {
     if (showRefreshIndicator) setRefreshing(true);
     try {
       setError('');
+      await supabase.rpc('expire_overdue_teams');
       const { data, error: fetchError } = await supabase
         .from('teams')
         .select('*');
@@ -197,7 +198,7 @@ export default function AdminDashboard() {
 
     const headers = ['Rank', 'Team Name', 'Team ID', 'Path', 'Start Time', 'Progress', 'Penalties', 'Duration', 'Status'];
     const rows = sortedTeams.map((team, idx) => {
-      const status = getStatusText(team.clues_solved, team.finish_time, team.waiting_for_qr);
+      const status = getStatusText(team);
       const progress = team.clues_solved === 5 ? 'Finished' : `Game ${team.clues_solved + 1}`;
       const duration = team.finish_time ? getDurationText(team.start_time, team.finish_time) : 'Playing...';
       return [
@@ -359,6 +360,21 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCloseTeam = async (teamId, teamName) => {
+    if (!confirm(`Close ${teamName}'s game now? Current progress will be preserved.`)) return;
+    setActionLoading(`close-${teamId}`);
+    try {
+      const { data, error: closeError } = await supabase.rpc('admin_close_team', { p_team_id: teamId });
+      if (closeError) throw closeError;
+      if (!data?.success) throw new Error(data?.error || 'Unable to close team.');
+      await fetchTeams(false);
+    } catch (err) {
+      alert(err.message || 'Unable to close team.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const getDurationText = (start, finish) => {
     if (!start || !finish) return '';
     const diff = new Date(finish) - new Date(start);
@@ -368,33 +384,40 @@ export default function AdminDashboard() {
     return `${minutes}m ${seconds}s`;
   };
 
-  const getStatusText = (cluesSolved, finishTime, waitingForQr) => {
-    if (finishTime) return 'Finished';
-    if (cluesSolved === 5) return 'Ready for Final Challenge';
-    if (waitingForQr) return 'Waiting for QR';
+  const getStatusText = (team) => {
+    if (team.finish_time) return 'Finished';
+    if (team.closed_at) return team.close_reason === 'time_limit' ? 'Time Expired' : 'Closed by Organizer';
+    if (team.clues_solved === 5) return 'Ready for Final Challenge';
+    if (team.waiting_for_qr) return 'Waiting for QR';
     return 'Playing';
   };
 
+  const getTimeLimitText = (team) => {
+    if (team.closed_at || team.finish_time) return 'Closed';
+    const remaining = Math.max(0, new Date(team.deadline_at) - Date.now());
+    return `${Math.floor(remaining / 60000)}m ${Math.floor((remaining % 60000) / 1000)}s left`;
+  };
+
   const sortedTeams = [...teams].sort((a, b) => {
-    const aFinished = !!a.finish_time;
-    const bFinished = !!b.finish_time;
+    const getRankBucket = (team) => {
+      if (team.finish_time) return 0;
+      if (team.closed_at) return 4;
+      if (team.clues_solved === 5) return 1;
+      if (!team.waiting_for_qr) return 2;
+      return 3;
+    };
+    const aBucket = getRankBucket(a);
+    const bBucket = getRankBucket(b);
 
-    if (aFinished && !bFinished) return -1;
-    if (!aFinished && bFinished) return 1;
+    if (aBucket !== bBucket) return aBucket - bBucket;
 
-    if (aFinished && bFinished) {
+    if (aBucket === 0) {
       const durationA = new Date(a.finish_time) - new Date(a.start_time);
       const durationB = new Date(b.finish_time) - new Date(b.start_time);
       return durationA - durationB;
     }
 
-    const aReady = a.clues_solved === 5;
-    const bReady = b.clues_solved === 5;
-
-    if (aReady && !bReady) return -1;
-    if (!aReady && bReady) return 1;
-
-    if (aReady && bReady) {
+    if (aBucket === 1) {
       return new Date(a.start_time) - new Date(b.start_time);
     }
 
@@ -755,17 +778,18 @@ export default function AdminDashboard() {
                             <th className="py-4 px-4">Start Time</th>
                             <th className="py-4 px-4">Progress</th>
                             <th className="py-4 px-4 text-center">Penalties</th>
-                            <th className="py-4 px-4">Duration</th>
+                            <th className="py-4 px-4">Time Limit</th>
                             <th className="py-4 px-4">Status</th>
                             <th className="py-4 px-5 text-right">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border-subtle text-body-sm">
                           {filteredTeams.map((team, idx) => {
-                            const status = getStatusText(team.clues_solved, team.finish_time, team.waiting_for_qr);
+                            const status = getStatusText(team);
                             const isCompleted = status === 'Finished';
                             const isReady = status === 'Ready for Final Challenge';
                             const isWaitingQr = status === 'Waiting for QR';
+                            const isClosed = status === 'Time Expired' || status === 'Closed by Organizer';
 
                             return (
                               <tr
@@ -775,7 +799,6 @@ export default function AdminDashboard() {
                               >
                                 <td className="py-4 px-5 font-bold text-primary flex items-center gap-3">
                                   <span className="w-5 text-muted text-right">{idx + 1}.</span>
-                                  <span className="uppercase tracking-wide">{team.name}</span>
                                   <span className="uppercase tracking-wide">{team.name}</span>
                                 </td>
 
@@ -805,11 +828,7 @@ export default function AdminDashboard() {
                                 </td>
 
                                 <td className="py-4 px-4 font-mono text-secondary">
-                                  {team.finish_time ? (
-                                    getDurationText(team.start_time, team.finish_time)
-                                  ) : (
-                                    <span className="text-micro text-muted">Playing...</span>
-                                  )}
+                                  {team.finish_time ? getDurationText(team.start_time, team.finish_time) : getTimeLimitText(team)}
                                 </td>
 
                                 <td className="py-4 px-4">
@@ -818,6 +837,8 @@ export default function AdminDashboard() {
                                       <span className="w-1.5 h-1.5 rounded-full bg-accent-emerald" />
                                       <span>Finished</span>
                                     </span>
+                                  ) : isClosed ? (
+                                    <span className="text-feedback-warning font-bold">{status}</span>
                                   ) : isReady ? (
                                     <span className="text-accent-brand font-bold animate-pulse flex items-center gap-1.5">
                                       <span className="w-1.5 h-1.5 rounded-full bg-accent-brand" />
@@ -851,6 +872,17 @@ export default function AdminDashboard() {
                                       </Button>
                                     )}
 
+                                    {!isCompleted && !isClosed && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleCloseTeam(team.id, team.name)}
+                                        disabled={actionLoading === `close-${team.id}`}
+                                      >
+                                        Close Game
+                                      </Button>
+                                    )}
+
                                     <Button
                                       variant="ghost"
                                       size="sm"
@@ -874,10 +906,11 @@ export default function AdminDashboard() {
 
                 <div className="lg:hidden space-y-4">
                   {filteredTeams.map((team, idx) => {
-                    const status = getStatusText(team.clues_solved, team.finish_time, team.waiting_for_qr);
+                    const status = getStatusText(team);
                     const isCompleted = status === 'Finished';
                     const isReady = status === 'Ready for Final Challenge';
                     const isWaitingQr = status === 'Waiting for QR';
+                    const isClosed = status === 'Time Expired' || status === 'Closed by Organizer';
 
                     return (
                       <Card
@@ -891,8 +924,6 @@ export default function AdminDashboard() {
                             <span className="w-8 text-muted text-right text-h2 font-black">{idx + 1}.</span>
                             <div>
                               <span className="text-body font-bold text-primary uppercase tracking-wide block">{team.name}</span>
-                              <span className="text-body font-bold text-primary uppercase tracking-wide block">{team.name}</span>
-                              aria-label={`Delete team ${team.name}`}
                               <span className="text-micro font-mono font-bold tracking-widest text-accent-brand">ID {team.team_code || '-----'}</span>
                               <span className={`inline-block px-2 py-0.5 rounded border text-micro font-bold uppercase tracking-wider mt-1 ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
                                 {PATH_DISPLAY[team.color.toLowerCase()] || team.color.toUpperCase()}
@@ -913,8 +944,9 @@ export default function AdminDashboard() {
                               <span className="text-micro text-muted uppercase tracking-wider">Status</span>
                               <span className={`text-caption font-bold ${isCompleted ? 'text-accent-emerald' : isReady ? 'text-accent-brand' : isWaitingQr ? 'text-accent-amber' : 'text-accent-cyan'
                                 }`}>
-                                {isCompleted ? 'Finished' : isReady ? 'Ready Jigsaw' : isWaitingQr ? 'Waiting for QR' : 'Playing'}
+                                {isCompleted ? 'Finished' : isClosed ? status : isReady ? 'Ready Jigsaw' : isWaitingQr ? 'Waiting for QR' : 'Playing'}
                               </span>
+                              <span className="text-micro text-muted">{getTimeLimitText(team)}</span>
                             </div>
                           </div>
                         </div>
@@ -930,6 +962,11 @@ export default function AdminDashboard() {
                               className="flex items-center gap-1"
                             >
                               <span className="hidden sm:inline">Mark Finished</span>
+                            </Button>
+                          )}
+                          {!isCompleted && !isClosed && (
+                            <Button variant="ghost" size="sm" onClick={() => handleCloseTeam(team.id, team.name)} disabled={actionLoading === `close-${team.id}`}>
+                              Close Game
                             </Button>
                           )}
                           <Button

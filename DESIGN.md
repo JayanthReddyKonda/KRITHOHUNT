@@ -43,6 +43,7 @@ All tokens are defined in `src/index.css` and exposed through Tailwind in `tailw
 - QR codes are generated locally, can be shared through the native share sheet or clipboard, and printing is handled by global `@media print` rules in `src/index.css`.
 - Printed QR URLs use `VITE_PUBLIC_APP_URL` when configured so a phone never receives an unreachable development origin such as `127.0.0.1`.
 - The camera scanner rejects non-origin URLs, non-`/scan` paths, malformed tokens, and all camera permission failures.
+- Camera permission is requested from the user gesture; denied, insecure, unsupported, and missing-camera states have explicit recovery messages.
 
 ### Games
 

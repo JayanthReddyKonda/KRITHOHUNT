@@ -197,6 +197,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
         } else {
           setSuccessMsg(`Correct location! Advancing to Round ${currentRoundIdx + 2}/${totalRounds}...`);
           setTimeout(() => {
+            submittingRef.current = false;
             setCurrentRoundIdx(prev => prev + 1);
             setPin(null);
             setSuccessMsg('');

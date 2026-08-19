@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
-import { AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
-import { Card, Button, GameCell } from '@/components/primitives';
+import { AlertTriangle, CheckCircle2, RotateCcw, MoveRight } from 'lucide-react';
+import { Card, Button } from '@/components/primitives';
 
 export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncorrect }) {
   const storageKey = `krithohunt_hanoi_${teamId}`;
@@ -133,16 +133,19 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
 
   return (
     <div className="space-y-5">
-      <Card variant="panel" padding="md" className="space-y-2">
-        <h4 className="text-caption font-bold text-muted uppercase tracking-wider">
-          Game 4: Tower of Hanoi
-        </h4>
-        <p className="text-body-sm text-secondary leading-relaxed">
-          Move all 3 disks from <strong className="text-primary">Tower A</strong> to <strong className="text-primary">Tower C</strong> using Tower B as intermediate.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-micro font-bold uppercase tracking-[0.16em] text-accent-brand">Puzzle 4</p>
+          <h4 className="text-h2 font-black text-primary tracking-tight">Tower of Hanoi</h4>
+          <p className="mt-1 text-body-sm text-secondary leading-relaxed">Move every disk from A to C. Never place a larger disk on a smaller one.</p>
+        </div>
+        <div className="shrink-0 rounded-xl border border-border-subtle bg-surface-2 p-2.5 text-accent-brand" aria-hidden="true">
+          <MoveRight className="h-5 w-5" />
+        </div>
+      </div>
+      <Card variant="panel" padding="md" className="space-y-1.5">
         <ul className="text-body-sm text-secondary space-y-1 list-disc list-inside">
-          <li>Move only one disk at a time.</li>
-          <li>Only move the top disk from a tower.</li>
+          <li>Move one top disk at a time.</li>
           <li className="font-bold text-accent-amber text-inverse bg-accent-amber/20 px-1.5 py-0.5 rounded inline-block">
             A larger disk cannot be placed on top of a smaller disk.
           </li>
@@ -171,24 +174,22 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
             </Button>
           </div>
 
-          <div className="flex justify-around items-end h-[280px] relative px-2 pt-6 pb-2">
+          <div className="flex justify-around items-end h-[260px] relative px-1 pt-5 pb-2">
             {[0, 1, 2].map((pegIdx) => {
               const diskList = pegs[pegIdx];
               const isSelected = selectedPeg === pegIdx;
               const towerName = pegIdx === 0 ? 'A' : pegIdx === 1 ? 'B' : 'C';
 
               return (
-                <div
+                <button
                   key={pegIdx}
+                  type="button"
                   onClick={() => handlePegClick(pegIdx)}
-                  className="relative flex flex-col items-center justify-end h-full w-24 cursor-pointer group"
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePegClick(pegIdx); }}
+                  className="group relative flex h-full w-[31%] cursor-pointer flex-col items-center justify-end rounded-xl border border-transparent bg-transparent px-0 pb-1 text-primary transition-colors hover:border-border-subtle focus-visible:border-accent-brand"
                   aria-label={isSelected ? `Tower ${towerName} selected, tap to move disk` : `Tower ${towerName}, ${diskList.length} disks, tap to select`}
                 >
                   <div
-                    className={`absolute bottom-2 w-2 h-[200px] rounded-full transition-all duration-base ${isSelected ? 'shadow-[0_0_12px_hsl(var(--accent-brand)_/_0.5)]' : 'bg-border-subtle group-hover:bg-border-strong'}`}
+                    className={`absolute bottom-2 w-2 h-[185px] rounded-full transition-all duration-base ${isSelected ? 'shadow-[0_0_12px_hsl(var(--accent-brand)_/_0.5)]' : 'bg-border-subtle group-hover:bg-border-strong'}`}
                     style={isSelected ? { backgroundColor: accentColor } : undefined}
                   />
 
@@ -202,11 +203,9 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
                       const minHeight = 'min-h-[44px]';
 
                       return (
-                        <GameCell
+                        <div
                           key={diskValue}
-                          variant={isDiskSelected ? 'selected' : 'filled'}
-                          disabled={!isTop || successMsg || loading}
-                          className={`${widthMap[diskValue]} ${minHeight} text-body font-black transition-all select-none ${diskColor} text-inverse`}
+                          className={`${widthMap[diskValue]} ${minHeight} flex items-center justify-center rounded-lg text-body font-black transition-all select-none ${diskColor} text-inverse`}
                           style={
                             isDiskSelected
                               ? {
@@ -216,18 +215,17 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
                               }
                               : {}
                           }
-                          aria-label={isDiskSelected ? `Disk ${diskValue} selected from Tower ${towerName}` : `Disk ${diskValue} on Tower ${towerName}`}
                         >
                           {diskValue}
-                        </GameCell>
+                        </div>
                       );
                     })}
                   </div>
 
                   <div className="absolute -bottom-6 text-micro font-bold text-secondary group-hover:text-primary transition-colors uppercase">
-                    Tower {towerName}
+                    {towerName}
                   </div>
-                </div>
+                </button>
               );
             })}
 
