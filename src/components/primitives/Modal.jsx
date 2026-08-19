@@ -105,7 +105,7 @@ export default function Modal({
         aria-labelledby={title ? titleId : undefined}
       >
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-5 border-b border-border-subtle">
+          <div className="flex items-center justify-between p-3.5 sm:p-5 border-b border-border-subtle">
             {title && (
               <h2 id={titleId} className="text-h2 text-primary">
                 {title}
@@ -124,7 +124,7 @@ export default function Modal({
             )}
           </div>
         )}
-        <div className="p-5 max-h-[calc(90vh-120px)] overflow-y-auto">
+        <div className="p-3.5 sm:p-5 max-h-[calc(95vh-100px)] overflow-y-auto">
           {children}
         </div>
       </div>

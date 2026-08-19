@@ -141,7 +141,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
         return (
           <div className={commonBox}>
             <p className="text-body-sm text-secondary leading-relaxed whitespace-pre-line">
-              <span className="font-black tracking-wider" style={{ color: accentColor }}>{q}</span>
+              <span className="font-semibold tracking-wide" style={{ color: accentColor }}>{q}</span>
             </p>
           </div>
         );
@@ -250,18 +250,18 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
 
   return (
     <div className="w-full max-w-md mx-auto space-y-5 px-1 pb-6">
-      <Card variant="panel" padding="md" className="space-y-1">
-        <h4 className="text-caption font-bold text-muted uppercase tracking-wider">Game 5: 4-Digit Safe Cracker</h4>
+      <div className="bg-surface-2/40 border border-border-subtle/50 rounded-xl p-4 space-y-1">
+        <h4 className="text-caption font-semibold text-muted uppercase tracking-wide">Game 5: 4-Digit Safe Cracker</h4>
         <p className="text-body-sm text-secondary leading-relaxed">{instructions}</p>
-      </Card>
+      </div>
 
-      <Card variant="elevated" padding="none" className="rounded-2xl border border-border-subtle bg-surface-1/90 overflow-hidden">
+      <div className="rounded-2xl border border-border-subtle bg-surface-2/20 overflow-hidden shadow-inner">
         <div className="px-4 py-3 border-b border-border-subtle flex items-center gap-2">
           <ScrollText className="w-4 h-4 text-muted" />
-          <span className="text-caption font-bold uppercase tracking-widest text-muted">Safe Clue Sheet</span>
+          <span className="text-caption font-semibold uppercase tracking-wide text-muted">Safe Clue Sheet</span>
         </div>
 
-        <div className="divide-y divide-border-subtle/70">
+        <div className="divide-y divide-border-subtle/70 bg-surface-1/40">
           {clueCards.map((clue, idx) => {
             const solved = combination[idx] !== null;
             const unlocked = solved || idx === activeIndex;
@@ -272,12 +272,12 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-caption font-black shrink-0"
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-caption font-semibold shrink-0"
                       style={{ backgroundColor: `hsl(var(--accent-${colorTheme?.accent || 'brand'}) / 0.1)`, color: accentColor }}
                     >
                       {idx + 1}
                     </span>
-                    <span className="text-caption font-bold uppercase tracking-wider text-muted">{LABELS[idx] || 'Clue'}</span>
+                    <span className="text-caption font-semibold uppercase tracking-wide text-muted">{LABELS[idx] || 'Clue'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {solved ? (
@@ -297,9 +297,9 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
             );
           })}
         </div>
-      </Card>
+      </div>
 
-      <Card variant="panel" padding="lg" className="space-y-5">
+      <div className="bg-surface-2/40 border border-border-subtle/50 rounded-xl p-5 space-y-5 shadow-inner">
         <div className="flex justify-center">
           <div className="p-3 rounded-full bg-surface-2 border border-border-subtle shadow-inner">
             {successMsg ? (
@@ -313,7 +313,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
         <div className="w-full">
           <div className="grid grid-cols-4 gap-2 mb-1.5">
             {['Digit 1', 'Digit 2', 'Digit 3', 'Digit 4'].map((label, idx) => (
-              <span key={idx} className="text-center text-micro uppercase tracking-wider font-bold text-muted">{label}</span>
+              <span key={idx} className="text-center text-micro uppercase tracking-wide font-semibold text-muted">{label}</span>
             ))}
           </div>
 
@@ -328,7 +328,8 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
                   key={idx}
                   digit={shown}
                   state={solved ? 'correct' : isActive ? 'active' : 'empty'}
-                  className={isActive ? 'ring-2 ring-accent-brand ring-offset-2 ring-offset-surface-0 scale-105' : ''}
+                  className={isActive ? 'ring-2 ring-offset-2 ring-offset-surface-0 scale-105' : ''}
+                  style={isActive ? { borderColor: accentColor, '--tw-ring-color': accentColor } : solved ? { color: 'hsl(var(--feedback-success))', borderColor: 'hsl(var(--feedback-success) / 0.5)' } : {}}
                 />
               );
             })}
@@ -343,8 +344,8 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
           )}
         </div>
 
-        <div className="w-full space-y-2 pt-3 border-t border-border-subtle">
-          <span className="text-caption font-bold text-muted uppercase tracking-wider block text-left">Keypad</span>
+        <div className="w-full space-y-2 pt-3 border-t border-border-subtle/40">
+          <span className="text-caption font-semibold text-muted uppercase tracking-wide block text-left">Keypad</span>
           <div className="grid grid-cols-5 gap-2" role="group" aria-label="Safe keypad">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
               <KeypadButton
@@ -354,6 +355,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
                 disabled={comboReady || submittingRef.current || loading || !!successMsg}
                 className="min-h-[48px] min-w-[48px] text-body"
                 aria-label={`Enter digit ${num}`}
+                style={!comboReady && activeIndex >= 0 ? { borderColor: accentColor } : {}}
               />
             ))}
           </div>
@@ -369,44 +371,51 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
             Check Clue {activeIndex + 1}
           </Button>
         </div>
-      </Card>
+      </div>
 
-      <div className="space-y-3 pb-2">
+      <div className="space-y-3 pb-2 animate-in">
         {errorMsg && (
           <div className="p-4 rounded-2xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-body-sm flex gap-2.5 items-start animate-shake" role="alert">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">Access Denied: </span>
+              <span className="font-semibold">Access denied: </span>
               <span>{errorMsg}</span>
             </div>
           </div>
         )}
 
         {successMsg && (
-          <div className="p-4 rounded-2xl bg-feedback-success/10 border border-feedback-success/20 text-feedback-success text-body-sm flex gap-2.5 items-start" role="status">
+          <div className="p-4 rounded-2xl bg-feedback-success/15 border border-feedback-success/20 text-feedback-success text-body-sm flex gap-2.5 items-start" role="status">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">Access Granted: </span>
+              <span className="font-semibold">Access granted: </span>
               <span>{successMsg}</span>
             </div>
           </div>
         )}
 
         {showFinalClue && (
-          <Card variant="panel" padding="md" className="bg-accent-brand/10 border-accent-brand/20 text-accent-brand space-y-1">
-            <div className="font-bold uppercase tracking-wider text-caption">{completionTitle}</div>
+          <div
+            className="p-4 rounded-xl space-y-1 border"
+            style={{
+              backgroundColor: `hsl(var(--accent-${colorTheme?.accent || 'brand'}) / 0.15)`,
+              borderColor: `hsl(var(--accent-${colorTheme?.accent || 'brand'}) / 0.3)`,
+              color: accentColor
+            }}
+          >
+            <div className="font-semibold uppercase tracking-wide text-caption">{completionTitle}</div>
             <div className="text-body-sm">{completionMessage}</div>
-          </Card>
+          </div>
         )}
 
         <Button
-          variant="accent"
+          variant="primary"
           size="lg"
           fullWidth
           onClick={checkPuzzleSolved}
           disabled={loading || !!successMsg || !comboReady}
           loading={loading}
-          className="min-h-[56px] text-body shadow-xl"
+          className="touch-target"
         >
           {loading ? (
             <>

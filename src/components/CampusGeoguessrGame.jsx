@@ -173,13 +173,15 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
     );
 
     const isCorrect = distance <= radius;
+    const roundNumber = currentRoundIdx + 1;
 
     try {
       if (isCorrect) {
-        if (currentRoundIdx + 1 >= totalRounds) {
+        if (roundNumber >= totalRounds) {
+          // FINAL ROUND - submit to server, this completes the GeoGuessr game (clue #3)
           const { data, error } = await supabase.rpc('submit_team_answer', {
             p_team_id: teamId,
-            p_answer: `${pin.x},${pin.y},${currentRoundIdx + 1}`
+            p_answer: `${pin.x},${pin.y},${roundNumber}`
           });
 
           if (error) throw error;
@@ -191,11 +193,12 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
               onSolved();
             }, 1800);
           } else {
-            setErrorMsg(data.error || 'Failed to submit final answer to server.');
+            setErrorMsg(data.error || 'Failed to submit answer to server.');
             submittingRef.current = false;
           }
         } else {
-          setSuccessMsg(`Correct location! Advancing to Round ${currentRoundIdx + 2}/${totalRounds}...`);
+          // Intermediate round - advance locally, NO server call yet
+          setSuccessMsg(`Correct location! Advancing to Round ${roundNumber + 1}/${totalRounds}...`);
           setTimeout(() => {
             submittingRef.current = false;
             setCurrentRoundIdx(prev => prev + 1);
@@ -208,6 +211,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
           }, 1500);
         }
       } else {
+        // Wrong guess - submit 'wrong' to record penalty immediately
         const { error } = await supabase.rpc('submit_team_answer', {
           p_team_id: teamId,
           p_answer: 'wrong'
@@ -231,124 +235,95 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
   const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'brand'}))`;
 
   return (
-    <div className="space-y-5">
-      <Card variant="elevated" padding="md" className="flex justify-between items-center">
+    <div className="space-y-3">
+      {/* Compact header */}
+      <div className="flex items-center justify-between">
         <div>
-          <span className="text-micro font-bold text-muted uppercase tracking-widest">
-            Campus Geo Guess
-          </span>
-          <h3 className="text-h2 text-primary uppercase tracking-wider">
-            {currentRound?.label || `Location ${currentRoundIdx + 1}`}
-          </h3>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-accent-brand">Puzzle 3 · Round {currentRoundIdx + 1}/{totalRounds}</p>
+          <h3 className="text-[1.05rem] font-semibold text-primary">{currentRound?.label || `Location ${currentRoundIdx + 1}`}</h3>
         </div>
-
-        <span className="px-3 py-1 bg-accent-brand/10 border border-accent-brand/30 rounded-lg text-accent-brand text-micro font-black uppercase tracking-wider">
-          Round {currentRoundIdx + 1} / {totalRounds}
+        <span
+          className="text-[11px] font-semibold px-2 py-1 rounded-md border"
+          style={{
+            background: `hsl(var(--accent-${colorTheme?.accent || 'brand'}) / 0.1)`,
+            borderColor: `hsl(var(--accent-${colorTheme?.accent || 'brand'}) / 0.3)`,
+            color: `hsl(var(--accent-${colorTheme?.accent || 'brand'}))`,
+          }}
+        >
+          {currentRoundIdx + 1}&nbsp;/&nbsp;{totalRounds}
         </span>
-      </Card>
+      </div>
 
-      <Card variant="panel" padding="md" className="space-y-3">
-        <div className="flex justify-between items-center text-micro font-bold text-muted px-1">
-          <span>Target Photograph</span>
-          <span className="text-secondary">Where was this taken?</span>
+      {/* Location photo */}
+      <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-border-subtle bg-surface-1">
+        <img
+          src={currentRound?.photo}
+          alt={currentRound?.label}
+          className="w-full h-full object-contain"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = '/geo/campus-satellite.png';
+          }}
+        />
+        <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-surface-0/80 backdrop-blur-md rounded-md text-[11px] font-medium text-secondary border border-border-subtle">
+          <MapPin className="w-3 h-3 inline-block mr-0.5" style={{ color: accentColor }} />
+          Where was this taken?
         </div>
+      </div>
 
-        <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-border-subtle bg-surface-1 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
-          <img
-            src={currentRound?.photo}
-            alt={currentRound?.label}
-            className="w-full h-full object-contain transition-opacity duration-300"
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = '/geo/campus-satellite.png';
-            }}
-          />
-          <div className="absolute bottom-3 left-3 px-2.5 py-1 bg-surface-0/80 backdrop-blur-md rounded-lg text-micro font-bold text-secondary border border-border-subtle">
-            <MapPin className="w-3.5 h-3.5 inline-block mr-1 text-accent-brand" aria-hidden="true" />
-            {currentRound?.label}
+      {/* Map */}
+      <div className="relative w-full rounded-xl overflow-hidden border border-border-subtle bg-surface-1 shadow-sm" style={{ height: 'min(55vw, 240px)' }}>
+        <div ref={mapContainerRef} className="w-full h-full z-10 geo-map-container" />
+        <div className="absolute top-2 right-2 z-20 flex flex-col gap-1">
+          <Button
+            variant="ghost" size="sm"
+            onClick={() => mapInstanceRef.current?.zoomIn()}
+            aria-label="Zoom in"
+            className="min-h-[36px] min-w-[36px] p-1.5 bg-surface-1/90 border border-border-subtle rounded-lg text-primary shadow-sm"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost" size="sm"
+            onClick={() => mapInstanceRef.current?.zoomOut()}
+            aria-label="Zoom out"
+            className="min-h-[36px] min-w-[36px] p-1.5 bg-surface-1/90 border border-border-subtle rounded-lg text-primary shadow-sm"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+        {!pin && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1 bg-surface-0/85 backdrop-blur-md border border-border-subtle rounded-full text-[11px] font-medium text-secondary pointer-events-none shadow-sm">
+            Tap the map to place a pin
           </div>
-        </div>
-      </Card>
+        )}
+      </div>
 
-      <Card variant="panel" padding="md" className="space-y-3">
-        <div className="flex justify-between items-center text-micro font-bold text-muted px-1">
-          <span>Satellite Campus Map</span>
-          <span className="text-secondary">{pin ? `Guess: (${pin.x}, ${pin.y})` : 'Tap to place pin'}</span>
-        </div>
-
-        <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-border-subtle bg-surface-1 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
-          <div ref={mapContainerRef} className="w-full h-full z-10 geo-map-container" />
-
-          <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => mapInstanceRef.current?.zoomIn()}
-              aria-label="Zoom in"
-              className="min-h-[40px] min-w-[40px] p-2 bg-surface-1/90 hover:bg-surface-2 border border-border-subtle rounded-xl text-primary shadow-lg active:scale-95 transition-all"
-            >
-              <ZoomIn className="w-4 h-4" aria-hidden="true" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => mapInstanceRef.current?.zoomOut()}
-              aria-label="Zoom out"
-              className="min-h-[40px] min-w-[40px] p-2 bg-surface-1/90 hover:bg-surface-2 border border-border-subtle rounded-xl text-primary shadow-lg active:scale-95 transition-all"
-            >
-              <ZoomOut className="w-4 h-4" aria-hidden="true" />
-            </Button>
-          </div>
-
-          {!pin && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-surface-0/85 backdrop-blur-md border border-border-subtle rounded-full text-micro font-semibold text-secondary pointer-events-none shadow-lg animate-pulse flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-accent-brand" aria-hidden="true" />
-              <span>Tap the satellite map to select location</span>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-body-sm flex gap-2.5 items-start animate-shake" role="alert">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <span className="font-bold">Wrong Location: </span>
-              <span>{errorMsg}</span>
-            </div>
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-[0.8125rem] animate-shake" role="alert">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{errorMsg}</span>
           </div>
         )}
-
         {successMsg && (
-          <div className="p-3.5 rounded-xl bg-feedback-success/10 border border-feedback-success/20 text-feedback-success text-body-sm flex gap-2.5 items-start" role="status">
-            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <span className="font-bold">Location Found: </span>
-              <span>{successMsg}</span>
-            </div>
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-feedback-success/15 border border-feedback-success/25 text-feedback-success text-[0.8125rem]" role="status">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{successMsg}</span>
           </div>
         )}
-
         <Button
-          variant="accent"
+          variant="primary"
           size="lg"
           fullWidth
           onClick={handleSubmitGuess}
           disabled={loading || !pin || !!successMsg}
           loading={loading}
-          style={pin && !successMsg ? { backgroundColor: accentColor } : {}}
         >
           {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-              <span>Submitting...</span>
-            </>
+            <><Loader2 className="w-4 h-4 animate-spin" /><span>Submitting...</span></>
           ) : (
-            <>
-              <span>Submit Guess</span>
-              <ChevronRight className="w-4 h-4" aria-hidden="true" />
-            </>
+            <><span>Submit Guess</span><ChevronRight className="w-4 h-4" /></>
           )}
         </Button>
       </div>
