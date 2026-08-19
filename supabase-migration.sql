@@ -256,6 +256,7 @@ BEGIN
   END IF;
 
   FOR v_color IN 1..4 LOOP
+    v_visited := ARRAY[]::TEXT[];
     SELECT value INTO v_endpoint_one
     FROM jsonb_array_elements(p_game_data->'dots')
     WHERE (value->>2)::INT = v_color
@@ -414,7 +415,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_deleted INTEGER;
 BEGIN
-  DELETE FROM public.teams;
+  DELETE FROM public.teams WHERE 1=1;
   GET DIAGNOSTICS v_deleted = ROW_COUNT;
   RETURN jsonb_build_object('success', true, 'deleted', v_deleted);
 END;

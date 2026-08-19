@@ -277,7 +277,7 @@ export default function AdminDashboard() {
           width: 320,
           color: { dark: `#${qrColors[colorKey]}`, light: '#ffffff' },
         });
-        return `<article class="qr-card"><div class="qr-label">${entry.title}</div><img src="${dataUrl}" alt="${entry.color} ${entry.subtitle} QR"><strong>${entry.color} ${entry.subtitle}</strong><code>${entry.url}</code></article>`;
+        return `<article class="qr-card"><div class="qr-label">${entry.title}</div><img src="${dataUrl}" alt="${entry.color} ${entry.subtitle} QR"><strong>${entry.color} ${entry.subtitle}</strong></article>`;
       }));
 
       printWindow.document.open();

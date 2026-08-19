@@ -119,10 +119,21 @@ export default function PlayScreen({ teamId, onReset }) {
             let isValidUrl = false;
             try {
               const url = new URL(decodedText);
-              if ([window.location.origin, PUBLIC_QR_ORIGIN].includes(url.origin) && url.pathname === '/scan') {
+              const normalizedPath = url.pathname.replace(/\/$/, '');
+
+              if ([window.location.origin, PUBLIC_QR_ORIGIN].includes(url.origin) && normalizedPath === '/scan') {
                 isValidUrl = true;
               }
               token = url.searchParams.get('token') || '';
+
+              // Fallback: some mobile QR scanners may put query params in the pathname
+              if (!token && decodedText.includes('token=')) {
+                const match = decodedText.match(/token=([a-f0-9]{36})/i);
+                if (match) {
+                  token = match[1];
+                  isValidUrl = true;
+                }
+              }
             } catch {
               isValidUrl = false;
             }
