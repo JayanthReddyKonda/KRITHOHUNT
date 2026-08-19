@@ -72,60 +72,68 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
   // Case A: No team session registered yet
   if (!teamId) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 text-center">
-        <Card variant="elevated" className="w-full max-w-sm p-8 space-y-6">
-          <AlertCircle className="w-16 h-16 text-feedback-warning mx-auto animate-bounce" />
-          <h2 className="text-h2 font-black text-primary">No Active Session</h2>
-          <p className="text-body-sm text-secondary leading-relaxed">
+      <div className="min-h-[82vh] flex flex-col items-center justify-center px-4 py-8 text-center relative overflow-hidden">
+        <Card variant="elevated" padding="lg" className="w-full max-w-sm space-y-6">
+          <div className="inline-flex p-4 rounded-full bg-feedback-warning/10 border border-feedback-warning/20 mx-auto">
+            <AlertCircle className="w-10 h-10 text-feedback-warning" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-h2 font-semibold text-primary">No active session</h2>
+            <p className="text-caption text-muted uppercase tracking-wide font-medium">Registration required</p>
+          </div>
+          <p className="text-body-sm text-secondary leading-relaxed px-1">
             You have not registered your team yet. Please meet the organizers at the start desk, select your path, and scan the starting QR code.
           </p>
-          <Button variant="secondary" size="lg" fullWidth onClick={onGoToStart} className="touch-target">
+          <Button variant="secondary" size="md" fullWidth onClick={onGoToStart} className="touch-target">
             Go to Homepage
           </Button>
         </Card>
       </div>
     );
   }
-
+ 
   // Case B: Verifying token (Loading)
   if (loading) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 text-center">
-        <Card variant="elevated" className="w-full max-w-sm p-8 space-y-4">
-          <Loader2 className="w-10 h-10 animate-spin mx-auto" style={{ color: accentColor }} />
-          <h3 className="text-body font-semibold text-primary">Verifying Location QR...</h3>
-          <p className="text-caption text-muted">Checking path parameters database-side</p>
+      <div className="min-h-[82vh] flex flex-col items-center justify-center px-4 py-8 text-center relative overflow-hidden">
+        <Card variant="elevated" padding="lg" className="w-full max-w-sm space-y-4">
+          <div className="py-6">
+            <Loader2 className="w-10 h-10 animate-spin mx-auto text-accent-brand" style={{ color: accentColor }} />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-body font-semibold text-primary">Verifying location...</h3>
+            <p className="text-caption text-muted">Checking path checkpoints database-side</p>
+          </div>
         </Card>
       </div>
     );
   }
-
+ 
   // Case C: Verification Success
   if (successMsg) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 text-center relative">
+      <div className="min-h-[82vh] flex flex-col items-center justify-center px-4 py-8 text-center relative overflow-hidden">
         <div
-          className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] pointer-events-none opacity-20"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[120px] pointer-events-none opacity-[0.06]"
           style={{ backgroundColor: accentColor }}
         />
-
-        <Card variant="elevated" className="w-full max-w-sm p-8 space-y-6" style={{ borderColor: accentColor }}>
-          <div className="inline-flex p-4 rounded-full bg-feedback-success/10 border border-feedback-success/25 mb-1 animate-pulse">
+ 
+        <Card variant="elevated" padding="lg" className="w-full max-w-sm space-y-6 relative z-10" style={{ borderColor: accentColor }}>
+          <div className="inline-flex p-4 rounded-full bg-feedback-success/15 border border-feedback-success/30 mx-auto">
             <CheckCircle2 className="w-12 h-12 text-feedback-success" />
           </div>
-
-          <div className="space-y-2">
-            <h1 className="text-h2 font-black text-primary uppercase tracking-wider">LOCATION VERIFIED</h1>
-            <p className="text-caption font-semibold text-feedback-success uppercase tracking-widest">Challenge unlocked!</p>
+ 
+          <div className="space-y-1.5">
+            <h1 className="text-h2 font-semibold text-primary tracking-tight">Location verified</h1>
+            <p className="text-caption font-semibold text-feedback-success uppercase tracking-wide">Challenge unlocked!</p>
           </div>
-
+ 
           <Button
-            variant="accent"
+            variant="primary"
             size="lg"
             fullWidth
             onClick={onVerified}
             className="touch-target"
-            style={{ backgroundColor: accentColor }}
           >
             Start Game
           </Button>
@@ -133,26 +141,26 @@ export default function ScanScreen({ teamId, onVerified, onGoToStart }) {
       </div>
     );
   }
-
+ 
   // Case D: Verification Failed (Error)
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 text-center relative">
-      <Card variant="elevated" className="w-full max-w-sm p-8 space-y-6" style={{ borderColor: 'hsl(var(--feedback-error) / 0.2)' }}>
-        <div className="inline-flex p-4 rounded-full bg-feedback-error/10 border border-feedback-error/25 mb-1">
+    <div className="min-h-[82vh] flex flex-col items-center justify-center px-4 py-8 text-center relative overflow-hidden">
+      <Card variant="elevated" padding="lg" className="w-full max-w-sm space-y-6" style={{ borderColor: 'hsl(var(--feedback-error) / 0.3)' }}>
+        <div className="inline-flex p-4 rounded-full bg-feedback-error/15 border border-feedback-error/30 mx-auto">
           <XCircle className="w-12 h-12 text-feedback-error" />
         </div>
-
-        <div className="space-y-2">
-          <h1 className="text-h2 font-black text-primary uppercase tracking-wider">WRONG QR</h1>
-          <p className="text-caption font-bold text-feedback-error uppercase tracking-widest">
-            {errorMsg.includes('path') ? 'Wrong Path' : 'Wrong Location'}
+ 
+        <div className="space-y-1.5">
+          <h1 className="text-h2 font-semibold text-primary tracking-tight">Wrong QR</h1>
+          <p className="text-caption font-semibold text-feedback-error uppercase tracking-wide">
+            {errorMsg.includes('path') ? 'Wrong Path Color' : 'Wrong Location'}
           </p>
         </div>
-
-        <p className="text-caption text-secondary leading-relaxed px-2">
+ 
+        <p className="text-body-sm text-secondary leading-relaxed px-2">
           This is not the correct location. Check your clue and try again.
         </p>
-
+ 
         <Button
           variant="secondary"
           size="lg"

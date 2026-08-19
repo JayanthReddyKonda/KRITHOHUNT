@@ -15,26 +15,26 @@ export default function Button({
 }) {
   const baseClasses = `
     inline-flex items-center justify-center gap-2
-    font-bold tracking-wider uppercase
-    rounded-lg transition-all duration-fast ease-standard
+    font-medium tracking-wide uppercase
+    rounded-xl transition-all duration-fast cubic-bezier(0.16, 1, 0.3, 1)
     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface-0
-    disabled:opacity-50 disabled:cursor-not-allowed
-    active:scale-[0.98]
+    disabled:opacity-40 disabled:cursor-not-allowed
+    active:scale-[0.97] active:brightness-95
   `;
 
   const variantClasses = {
-    primary: 'bg-accent-brand text-inverse hover:brightness-110',
-    secondary: 'bg-surface-2 text-primary border border-border-subtle hover:bg-surface-3',
-    ghost: 'bg-transparent text-secondary hover:bg-surface-2 hover:text-primary',
-    danger: 'bg-feedback-error text-primary hover:brightness-110',
-    success: 'bg-feedback-success text-primary hover:brightness-110',
-    accent: 'bg-accent-brand text-inverse hover:brightness-110',
+    primary: 'bg-accent-brand text-inverse shadow-sm hover:brightness-105 active:shadow-inner',
+    secondary: 'bg-surface-2 text-primary border border-border-subtle hover:bg-surface-3 hover:border-border-strong active:bg-surface-3',
+    ghost: 'bg-transparent text-secondary hover:bg-surface-2 hover:text-primary active:bg-surface-3',
+    danger: 'bg-feedback-error text-inverse shadow-sm hover:brightness-105 active:shadow-inner',
+    success: 'bg-feedback-success text-inverse shadow-sm hover:brightness-105 active:shadow-inner',
+    accent: 'bg-accent-brand text-inverse shadow-sm hover:brightness-105 active:shadow-inner',
   };
 
   const sizeClasses = {
-    sm: 'min-h-[40px] min-w-[40px] px-3 text-caption',
-    md: 'min-h-[48px] min-w-[48px] px-5 text-button',
-    lg: 'min-h-[56px] min-w-[56px] px-6 text-body',
+    sm: 'min-h-[40px] px-3 text-[0.75rem]',
+    md: 'min-h-[44px] px-4 text-button',
+    lg: 'min-h-[44px] px-5 text-button font-semibold',
   };
 
   const widthClass = fullWidth ? 'w-full' : '';

@@ -102,19 +102,19 @@ export default function StartScreen({ onRegistered }) {
         <Card variant="elevated" className="w-full max-w-md p-6 text-center space-y-5">
           <CheckCircle2 className="w-14 h-14 text-feedback-success mx-auto" />
           <div>
-            <p className="text-micro font-bold uppercase tracking-widest text-feedback-success">Team Registered</p>
-            <h1 className="text-h1 font-black text-primary mt-2">Write down your Team ID</h1>
+            <p className="text-micro font-medium uppercase tracking-wide text-feedback-success">Team registered</p>
+            <h1 className="text-h1 font-semibold text-primary mt-2">Write down your Team ID</h1>
           </div>
           <div className="rounded-xl border border-accent-brand/40 bg-accent-brand/10 p-5">
-            <p className="text-caption text-secondary uppercase tracking-widest">{issuedTeam.name}</p>
-            <p className="font-mono text-display font-black tracking-[0.25em] text-accent-brand">{issuedTeam.code}</p>
+            <p className="text-caption text-secondary uppercase tracking-wide font-medium">{issuedTeam.name}</p>
+            <p className="font-mono text-display font-bold tracking-[0.1em] text-accent-brand">{issuedTeam.code}</p>
           </div>
           <p className="text-body-sm text-secondary">Use this five-digit ID to resume your team on another device. The organiser can also see it in the dashboard.</p>
           <div className="grid grid-cols-2 gap-3">
             <Button variant="secondary" size="lg" onClick={copyTeamCode}>
               <Copy className="w-4 h-4" /> Copy ID
             </Button>
-            <Button variant="accent" size="lg" onClick={() => onRegistered(issuedTeam.id)}>
+            <Button variant="primary" size="lg" onClick={() => onRegistered(issuedTeam.id)}>
               Continue
             </Button>
           </div>
@@ -150,98 +150,108 @@ export default function StartScreen({ onRegistered }) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8 relative">
-      {/* Full-screen radial glow using path accent (20% opacity) */}
+    <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8 relative overflow-hidden">
+      {/* Soft background aura aligning with path accent */}
       <div
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none transition-all duration-500"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] rounded-full blur-[140px] pointer-events-none transition-all duration-700 opacity-[0.06]"
         style={{
-          backgroundColor: `hsl(var(--accent-${theme.accent}) / 0.2)`,
+          backgroundColor: `hsl(var(--accent-${theme.accent}))`,
         }}
       />
-
-      <div className="w-full max-w-[360px] md:max-w-[420px] relative z-10">
-        {/* Logo / Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-4 shadow-inner">
+ 
+      <div className="w-full max-w-md relative z-10 space-y-6">
+        {/* Header */}
+        <div className="text-center">
+          <div className="inline-flex p-3 rounded-full bg-surface-2 border border-border-subtle mb-3.5 shadow-inner">
             <Compass
-              className="w-10 h-10 transition-transform duration-700 hover:rotate-180"
+              className="w-8 h-8 transition-transform duration-700 hover:rotate-180"
               style={{ color: `hsl(var(--accent-${theme.accent}))` }}
             />
           </div>
-          <h1 className="text-display font-black tracking-tight text-primary">KRITHOHUNT</h1>
-          <p className="text-micro text-muted mt-1 uppercase tracking-widest font-semibold">Start Desk QR Scanner</p>
+          <h1 className="text-h1 font-semibold tracking-tight text-primary uppercase">KRITHOHUNT</h1>
+          <p className="text-caption text-muted mt-1 uppercase tracking-wide font-medium">College Treasure Hunt</p>
         </div>
-
-        {/* Card Container - surface-1/90, backdrop-blur, border-border-subtle, rounded-xl */}
-        <Card variant="elevated" padding="lg" className="glow-active">
+ 
+        <Card variant="elevated" padding="lg" className="border-border-subtle/50 relative overflow-hidden">
           {/* Path Header Indicator */}
-          <div className="flex items-center justify-between mb-6 pb-4 border-b border-border-subtle">
-            <span className="text-caption text-muted uppercase tracking-wider">Assigned Path</span>
-            <span className={`path-badge ${theme.badgeClass} px-3 py-1 rounded-full text-micro font-bold uppercase tracking-widest`}>
-              {theme.name} PATH
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-border-subtle/60">
+            <span className="text-caption font-bold text-muted uppercase tracking-wide">Assigned Path</span>
+            <span className={`path-badge ${theme.badgeClass} px-3 py-1 rounded-lg text-micro font-semibold uppercase tracking-wide`}>
+              {theme.name} Path
             </span>
           </div>
-
-          <form onSubmit={handleStart} className="space-y-5">
-            {!returning ? <div>
-              <Input
-                id="teamName"
-                label="Team Name"
-                type="text"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Enter team name..."
-                maxLength={30}
-                required
-                className="min-h-[56px] text-body"
-              />
-            </div> : <div>
-              <Input
-                id="teamCode"
-                label="Five-Digit Team ID"
-                type="text"
-                inputMode="numeric"
-                value={teamCode}
-                onChange={(e) => setTeamCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                placeholder="e.g. 48217"
-                maxLength={5}
-                required
-                className="min-h-[56px] text-body tracking-[0.3em]"
-              />
-            </div>}
-
+ 
+          <form onSubmit={handleStart} className="space-y-4">
+            {!returning ? (
+              <div>
+                <Input
+                  id="teamName"
+                  label="Team Name"
+                  type="text"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="Enter team name..."
+                  maxLength={30}
+                  required
+                  className="min-h-[50px] text-body"
+                />
+              </div>
+            ) : (
+              <div>
+                <Input
+                  id="teamCode"
+                  label="Five-Digit Team ID"
+                  type="text"
+                  inputMode="numeric"
+                  value={teamCode}
+                  onChange={(e) => setTeamCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  placeholder="e.g. 48217"
+                  maxLength={5}
+                  required
+                  className="min-h-[50px] text-body font-mono text-center tracking-[0.1em]"
+                />
+              </div>
+            )}
+ 
             {error && (
-              <div className="p-3 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-caption flex gap-2 items-start" role="alert">
+              <div className="p-3.5 rounded-xl bg-feedback-error/10 border border-feedback-error/25 text-feedback-error text-caption flex gap-2.5 items-start animate-shake" role="alert">
                 <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
             )}
-
+ 
             <Button
               type="submit"
-              variant="accent"
+              variant="primary"
               size="lg"
               fullWidth
               disabled={loading}
               loading={loading}
-              className="touch-target"
-              style={{ backgroundColor: `hsl(var(--accent-${theme.accent}))` }}
+              className="touch-target mt-2"
             >
               {loading ? (returning ? 'Resuming...' : 'Registering...') : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Start Hunt</span>
+                  <span>{returning ? 'Resume Path' : 'Register Team'}</span>
                 </>
               )}
             </Button>
           </form>
-          <Button variant="ghost" size="sm" fullWidth onClick={() => { setReturning(!returning); setError(''); }}>
-            {returning ? 'Register a new team' : 'Already registered? Use team ID'}
-          </Button>
+ 
+          <div className="mt-4 pt-1 flex justify-center">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => { setReturning(!returning); setError(''); }}
+              className="text-caption text-secondary hover:text-primary font-medium transition-all"
+            >
+              {returning ? 'Register a new team' : 'Already registered? Enter code'}
+            </Button>
+          </div>
         </Card>
-
-        <p className="text-center text-caption text-muted mt-6 px-4">
-          By starting, your team progress will be linked to this device. Please use the same phone throughout the hunt.
+ 
+        <p className="text-center text-caption text-muted px-4 leading-relaxed">
+          Your progress will be verified at location checkpoints. Ensure you stay on your assigned path!
         </p>
       </div>
     </div>

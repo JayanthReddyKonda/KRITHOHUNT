@@ -35,6 +35,9 @@ export default function PlayScreen({ teamId, onReset }) {
   const [verificationFeedback, setVerificationFeedback] = useState(null);
   const html5QrCodeRef = useRef(null);
   const scanRequestRef = useRef(0);
+  
+  const [timeLeft, setTimeLeft] = useState('');
+  const [timerAlert, setTimerAlert] = useState('normal'); // 'normal', 'warning', 'critical'
 
   const fetchGameState = useCallback(async (isRefresh = false) => {
     const requestId = ++scanRequestRef.current;
@@ -93,6 +96,45 @@ export default function PlayScreen({ teamId, onReset }) {
       if (intervalId) clearInterval(intervalId);
     };
   }, [fetchGameState, isAwaitingFinish]);
+
+  useEffect(() => {
+    if (!team?.start_time || team?.finish_time || team?.closed_at) {
+      setTimeLeft('');
+      return;
+    }
+
+    const updateTimer = () => {
+      const startTime = new Date(team.start_time).getTime();
+      const limitMs = 45 * 60 * 1000;
+      const elapsedMs = Date.now() - startTime;
+      const remainingMs = Math.max(0, limitMs - elapsedMs);
+
+      if (remainingMs <= 0) {
+        setTimeLeft('00:00');
+        setTimerAlert('critical');
+        return;
+      }
+
+      const totalSecs = Math.floor(remainingMs / 1000);
+      const minutes = Math.floor(totalSecs / 60);
+      const seconds = totalSecs % 60;
+
+      const formatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      setTimeLeft(formatted);
+
+      if (minutes < 5) {
+        setTimerAlert('critical');
+      } else if (minutes < 10) {
+        setTimerAlert('warning');
+      } else {
+        setTimerAlert('normal');
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [team?.start_time, team?.finish_time, team?.closed_at]);
 
   // QR Scanner effect using BottomSheet
   useEffect(() => {
@@ -317,7 +359,7 @@ export default function PlayScreen({ teamId, onReset }) {
       <div className="flex min-h-[85vh] items-center justify-center px-4 py-8 text-center">
         <Card variant="elevated" className="w-full max-w-sm p-6 space-y-5">
           <Clock className="w-12 h-12 text-feedback-warning mx-auto" />
-          <h1 className="text-h1 font-black text-primary">Game Closed</h1>
+          <h1 className="text-h1 font-semibold text-primary">Game closed</h1>
           <p className="text-body-sm text-secondary">This team session is closed{team.close_reason === 'time_limit' ? ' because the 45-minute limit ended.' : ' by the organiser.'}</p>
           <p className="text-caption text-muted">Your progress is saved and remains visible to the organiser.</p>
           <Button variant="secondary" size="lg" fullWidth onClick={onReset}>Return to Start</Button>
@@ -340,18 +382,18 @@ export default function PlayScreen({ teamId, onReset }) {
             <Trophy className="w-12 h-12 text-feedback-success" />
           </div>
 
-          <h1 className="text-h1 font-black text-primary tracking-tight leading-none mb-1">CONGRATULATIONS!</h1>
-          <p className="text-caption font-semibold text-feedback-success uppercase tracking-widest mb-6">Treasure Hunt Complete</p>
+          <h1 className="text-h1 font-semibold text-primary tracking-tight leading-none mb-1">Congratulations!</h1>
+          <p className="text-caption font-medium text-feedback-success uppercase tracking-wide mb-6">Treasure hunt complete</p>
 
           <div className="space-y-4 text-left">
             <div className="flex justify-between items-center pb-3 border-b border-border-subtle">
               <span className="text-body-sm text-secondary">Team Name</span>
-              <span className="text-body-sm font-bold text-primary uppercase">{team.name}</span>
+              <span className="text-body-sm font-semibold text-primary">{team.name}</span>
             </div>
 
             <div className="flex justify-between items-center pb-3 border-b border-border-subtle">
               <span className="text-body-sm text-secondary">Path Color</span>
-              <span className={`path-badge ${theme.badgeClass} px-2 py-0.5 rounded text-micro font-bold uppercase`}>
+              <span className={`path-badge ${theme.badgeClass} px-2 py-0.5 rounded text-micro font-semibold uppercase`}>
                 {theme.name}
               </span>
             </div>
@@ -359,14 +401,14 @@ export default function PlayScreen({ teamId, onReset }) {
             <div className="grid grid-cols-2 gap-4 pt-2">
               <div className="bg-surface-2 border border-border-subtle p-4 rounded-2xl flex flex-col items-center justify-center">
                 <Clock className="w-5 h-5 text-accent-brand mb-1" />
-                <span className="text-micro uppercase font-semibold text-muted">Time Taken</span>
-                <span className="text-body font-extrabold text-primary mt-0.5">{getDurationText(team.start_time, team.finish_time)}</span>
+                <span className="text-micro uppercase font-medium tracking-wide text-muted">Time Taken</span>
+                <span className="text-body font-semibold text-primary mt-0.5">{getDurationText(team.start_time, team.finish_time)}</span>
               </div>
 
               <div className="bg-surface-2 border border-border-subtle p-4 rounded-2xl flex flex-col items-center justify-center">
                 <Skull className="w-5 h-5 text-feedback-warning mb-1" />
-                <span className="text-micro uppercase font-semibold text-muted">Penalties</span>
-                <span className="text-body font-extrabold text-primary mt-0.5">{team.penalty_count}</span>
+                <span className="text-micro uppercase font-medium tracking-wide text-muted">Penalties</span>
+                <span className="text-body font-semibold text-primary mt-0.5">{team.penalty_count}</span>
               </div>
             </div>
           </div>
@@ -389,21 +431,21 @@ export default function PlayScreen({ teamId, onReset }) {
           <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-3 shadow-inner">
             <CheckCircle className="w-8 h-8 text-accent-brand" />
           </div>
-          <h1 className="text-h2 font-black text-primary">ALL DIGITAL CHALLENGES COMPLETE!</h1>
+          <h1 className="text-h2 font-semibold text-primary">All digital challenges complete!</h1>
 
           <p className="text-body-sm text-secondary leading-relaxed">
             Your final challenge is physical and awaits you at the <strong className="text-primary">START DESK</strong>.
           </p>
 
           <div className="p-4 bg-surface-2 rounded-2xl border border-border-subtle text-left">
-            <h4 className="text-caption font-bold uppercase tracking-wider text-muted mb-1.5">Your Instruction:</h4>
+            <h4 className="text-caption font-semibold uppercase tracking-wide text-muted mb-1.5">Your Instruction:</h4>
             <p className="text-caption text-muted leading-relaxed">
               Organizers will hand you a <strong className="text-accent-brand">9-piece club logo jigsaw puzzle</strong>. Assemble it correctly, and the organizer will verify your finish to record your final score.
             </p>
           </div>
 
           <div className="pt-2 border-t border-border-subtle flex flex-col gap-3">
-            <Button variant="accent" size="lg" fullWidth onClick={() => fetchGameState(true)} disabled={refreshing} loading={refreshing} style={{ backgroundColor: `hsl(var(--accent-brand))` }}>
+            <Button variant="primary" size="lg" fullWidth onClick={() => fetchGameState(true)} disabled={refreshing} loading={refreshing}>
               {refreshing ? 'Checking...' : (
                 <>
                   <RefreshCw className="w-4 h-4" />
@@ -424,111 +466,125 @@ export default function PlayScreen({ teamId, onReset }) {
       {/* Background radial glow */}
       <div
         className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none transition-all duration-500 -z-10"
-        style={{ backgroundColor: `hsl(var(--accent-${theme.accent}) / 0.15)` }}
+        style={{ backgroundColor: `hsl(var(--accent-${theme.accent}) / 0.05)` }}
       />
 
-      {/* Sticky Header - 56px height, surface-0/80 + blur */}
-      <header className="sticky top-0 z-40 h-[56px] flex items-center justify-between px-4 bg-surface-0/80 backdrop-blur-md border-b border-border-subtle">
+      {/* Sticky Header - 48px height, surface-0/80 + blur */}
+      <header className="sticky top-0 z-40 h-[48px] flex items-center justify-between px-4 bg-surface-0/80 backdrop-blur-md border-b border-border-subtle">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" aria-label="Back to start" onClick={handleLogout}>
             <ChevronLeft className="w-5 h-5" />
           </Button>
           <div className="flex flex-col">
-            <span className="text-micro text-muted uppercase tracking-widest font-semibold">{team.name} · ID {team.team_code || '-----'}</span>
-            <span className={`path-badge ${theme.badgeClass} px-2 py-0.5 rounded text-micro font-bold uppercase`}>
+            <span className="text-micro text-muted uppercase tracking-wide font-medium truncate max-w-[120px] xs:max-w-[160px]">{team.name} · ID {team.team_code || '-----'}</span>
+            <span className={`path-badge ${theme.badgeClass} px-2 py-0.5 rounded text-micro font-medium uppercase inline-block w-fit`}>
               {theme.name} Path
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-caption font-semibold text-secondary uppercase tracking-wider">
-            Clue {team.clues_solved + 1} / 5
-          </span>
+          {timeLeft && (
+            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded font-mono text-micro font-medium uppercase tracking-wide ${
+              timerAlert === 'critical'
+                ? 'bg-feedback-error/15 border border-feedback-error text-feedback-error animate-pulse'
+                : timerAlert === 'warning'
+                  ? 'bg-feedback-warning/15 border border-feedback-warning text-feedback-warning'
+                  : 'bg-surface-2 border border-border-subtle text-secondary'
+            }`}>
+              <Clock className="w-3 h-3" />
+              <span>{timeLeft}</span>
+            </div>
+          )}
+
+          <div className="hidden sm:flex flex-col text-right">
+            <span className="text-micro font-medium text-muted uppercase tracking-wide">STAGE</span>
+            <span className="text-caption font-semibold text-primary">0{team.clues_solved + 1} / 05</span>
+          </div>
+
           <Button variant="ghost" size="sm" aria-label="Sync game state" onClick={() => fetchGameState(true)} disabled={refreshing} loading={refreshing}>
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </header>
 
-      {/* Main Game Container - full viewport height minus header */}
-      <main className="flex-1 overflow-y-auto px-4 py-6 pb-24">
-        <div className="w-full max-w-[360px] mx-auto">
-          {/* Game Card with Progress Bar at top */}
+      {/* Main Game Container */}
+      <main className="flex-1 overflow-y-auto px-3 py-3 pb-6">
+        <div className="w-full max-w-md mx-auto">
+          {/* Game Card */}
           <Card variant="elevated" padding="none" className="relative overflow-hidden">
-            {/* Progress Bar - 4px height, accent fill */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-surface-2" aria-hidden="true">
-              <div
-                className="h-full rounded-none"
-                style={{
-                  width: `${progressPercent}%`,
-                  backgroundColor: `hsl(var(--accent-${theme.accent}))`,
-                  transition: 'width 300ms ease-out'
-                }}
-              />
+            {/* Compact Step Progress Bar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-surface-1/50">
+              {[1, 2, 3, 4, 5].map((step) => {
+                const isCompleted = step <= team.clues_solved;
+                const isActive = step === team.clues_solved + 1;
+                return (
+                  <React.Fragment key={step}>
+                    <div className="flex items-center justify-center">
+                      <div
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold border transition-all duration-300 ${
+                          isCompleted
+                            ? 'bg-feedback-success/15 border-feedback-success text-feedback-success'
+                            : isActive
+                              ? 'text-primary'
+                              : 'border-border-strong bg-surface-3 text-muted'
+                        }`}
+                        style={isActive ? { borderColor: `hsl(var(--accent-${theme.accent}))`, color: `hsl(var(--accent-${theme.accent}))` } : {}}
+                      >
+                        {isCompleted ? '✓' : step}
+                      </div>
+                    </div>
+                    {step < 5 && (
+                      <div className={`flex-1 h-px mx-1.5 rounded-full transition-all duration-500 ${
+                        step <= team.clues_solved
+                          ? 'bg-feedback-success/45'
+                          : 'bg-border-strong'
+                      }`} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* Card Header progress tracker */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-caption text-muted uppercase tracking-wider">Active Location</span>
-                  <span className="text-body font-extrabold uppercase tracking-tight" style={{ color: `hsl(var(--accent-${theme.accent}))` }}>
-                    {theme.name} Path
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-caption text-muted uppercase tracking-wider block">Progress</span>
-                  <span className="text-body-sm font-black text-primary">
-                    {team.clues_solved + 1} / 5
-                  </span>
-                </div>
-              </div>
-
+            <div className="p-3 sm:p-4 space-y-4">
               {/* Current Location Clue or Game Challenge */}
               {team.waiting_for_qr ? (
-                <div className="space-y-6 py-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  {/* Clue Card */}
-                  <Card variant="panel" padding="lg" className="text-left space-y-4">
-                    <div>
-                      <span className="text-micro font-black tracking-widest uppercase" style={{ color: `hsl(var(--accent-${theme.accent}))` }}>
-                        CLUE {team.clues_solved + 1}
-                      </span>
-                      <p className="text-body text-primary leading-relaxed font-semibold mt-2">
-                        {clue ? clue.clue_text : 'Find the next physical location.'}
-                      </p>
-                    </div>
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: `hsl(var(--accent-${theme.accent}))` }}>
+                      Stage {team.clues_solved + 1} of 5
+                    </span>
+                    <h2 className="text-[1.1rem] font-semibold text-primary tracking-tight leading-tight">Next Location</h2>
+                  </div>
 
-                    <div className="flex items-center gap-2 text-caption text-muted font-semibold uppercase">
-                      <MapPin className="w-4 h-4 animate-pulse" style={{ color: `hsl(var(--accent-${theme.accent}))` }} />
-                      <span>Find the location described above.</span>
+                  <div className="bg-surface-2/40 border border-border-subtle rounded-xl p-3.5 text-left space-y-2">
+                    <p className="text-[0.875rem] text-primary leading-relaxed">
+                      {clue ? clue.clue_text : 'Find the next physical location.'}
+                    </p>
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted font-medium uppercase tracking-wide pt-2 border-t border-border-subtle/50">
+                      <MapPin className="w-3.5 h-3.5 text-muted shrink-0" />
+                      <span>Find and scan the QR at this location.</span>
                     </div>
-                  </Card>
+                  </div>
 
-                  {/* Lock card and Scanner trigger - centered Scan QR button 56px h */}
-                  <Card variant="panel" padding="lg" className="text-center space-y-4" style={{ backgroundColor: `hsl(var(--surface-2) / 0.6)` }}>
+                  <div className="space-y-2">
                     <Button
-                      variant="accent"
+                      variant="primary"
                       size="lg"
                       fullWidth
                       onClick={handleOpenScanner}
                       className="touch-target"
-                      style={{ backgroundColor: `hsl(var(--accent-${theme.accent}) / 0.95)` }}
                     >
-                      <Camera className="w-5 h-5" style={{ color: `hsl(var(--text-inverse))` }} />
-                      <span>SCAN QR</span>
+                      <Camera className="w-4 h-4 text-inverse" />
+                      <span>Scan Location QR</span>
                     </Button>
-
-                    <p className="text-caption text-muted leading-relaxed max-w-xs mx-auto">
-                      Game {team.clues_solved + 1} is locked until you scan the QR at the correct location.
-                    </p>
-                  </Card>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="p-3 bg-surface-2/60 rounded-xl border border-border-subtle text-caption font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <div className="p-3 bg-surface-2/65 rounded-xl border border-border-subtle text-caption font-medium uppercase tracking-wide flex items-center gap-1.5 w-fit">
                     <MapPin className="w-3.5 h-3.5" style={{ color: `hsl(var(--accent-${theme.accent}))` }} />
-                    <span>Active Location Verified</span>
+                    <span>Location Verified</span>
                   </div>
 
                   {clue && (
@@ -544,10 +600,10 @@ export default function PlayScreen({ teamId, onReset }) {
                 </div>
               )}
 
-              {/* Stats Bar - Bottom of card, fixed position handled by layout */}
-              <div className="pt-4 border-t border-border-subtle flex justify-between text-caption font-semibold uppercase">
-                <span className="flex items-center gap-1.5 text-muted">
-                  <Skull className="w-3.5 h-3.5 text-feedback-warning" />
+              {/* Stats Bar */}
+              <div className="pt-3 border-t border-border-subtle flex justify-between text-[11px] font-medium uppercase tracking-wide">
+                <span className="flex items-center gap-1 text-muted">
+                  <Skull className="w-3 h-3 text-feedback-warning" />
                   <span>Penalties: {team.penalty_count}</span>
                 </span>
                 <Button
@@ -558,8 +614,8 @@ export default function PlayScreen({ teamId, onReset }) {
                   loading={refreshing}
                   className="text-secondary hover:text-primary"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Sync</span>
+                  <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
+                  <span>Sync</span>
                 </Button>
               </div>
             </div>
@@ -567,128 +623,99 @@ export default function PlayScreen({ teamId, onReset }) {
         </div>
       </main>
 
-      {/* QR Scanner BottomSheet */}
+      {/* QR Scanner BottomSheet — compact mobile layout */}
       <BottomSheet
         isOpen={showScanner}
         onClose={handleCloseScanner}
-        title="QR Code Scanner"
+        title={null}
+        showCloseButton={false}
         size="full"
-        className="max-h-[90vh] md:max-w-[500px] md:max-h-[500px] md:rounded-xl md:top-1/2 md:left-1/2 md:transform md:-translate-x-1/2 md:-translate-y-1/2"
+        className=""
       >
-        <div className="space-y-4">
-          <div className="text-center space-y-1 pb-2 border-b border-border-subtle">
-            <h3 className="text-h2 text-primary flex items-center justify-center gap-2">
-              <Camera className="w-6 h-6" style={{ color: `hsl(var(--accent-${theme.accent}))` }} />
-              <span>QR Code Scanner</span>
-            </h3>
-            <p className="text-micro text-muted uppercase tracking-widest font-bold">
-              Point at the physical location poster
-            </p>
+        <div className="space-y-3">
+          {/* Compact scanner header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Camera className="w-4 h-4" style={{ color: `hsl(var(--accent-${theme.accent}))` }} />
+              <span className="text-[0.875rem] font-semibold text-primary">Scan Location QR</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleCloseScanner} aria-label="Close scanner">
+              <span className="text-[0.75rem] text-muted">Cancel</span>
+            </Button>
           </div>
 
-          {/* Camera Viewport - Full-width, aspect-video (16:9) */}
-          <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-border-subtle">
+          {/* Camera Viewport — square aspect for portrait mobile */}
+          <div className="relative w-full aspect-square bg-black rounded-xl overflow-hidden border border-border-subtle max-h-[55vh]">
             {/* Camera feed */}
             {cameraPermission === 'granted' && !scannerError && !verifying && !verificationFeedback && (
               <>
                 <div id="qr-reader" className="w-full h-full" />
-                {/* CSS-only corner brackets overlay with animated pulse */}
+                {/* Corner bracket overlay */}
                 <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-                  <div className="absolute top-4 left-4 w-12 h-12 border-2 border-transparent border-t-2 border-l-2 animate-pulse" style={{ borderTopColor: `hsl(var(--accent-${theme.accent}))`, borderLeftColor: `hsl(var(--accent-${theme.accent}))`, animationDuration: '2s' }} />
-                  <div className="absolute top-4 right-4 w-12 h-12 border-2 border-transparent border-t-2 border-r-2 animate-pulse" style={{ borderTopColor: `hsl(var(--accent-${theme.accent}))`, borderRightColor: `hsl(var(--accent-${theme.accent}))`, animationDuration: '2s', animationDelay: '0.5s' }} />
-                  <div className="absolute bottom-4 left-4 w-12 h-12 border-2 border-transparent border-b-2 border-l-2 animate-pulse" style={{ borderBottomColor: `hsl(var(--accent-${theme.accent}))`, borderLeftColor: `hsl(var(--accent-${theme.accent}))`, animationDuration: '2s', animationDelay: '1s' }} />
-                  <div className="absolute bottom-4 right-4 w-12 h-12 border-2 border-transparent border-b-2 border-r-2 animate-pulse" style={{ borderBottomColor: `hsl(var(--accent-${theme.accent}))`, borderRightColor: `hsl(var(--accent-${theme.accent}))`, animationDuration: '2s', animationDelay: '1.5s' }} />
+                  <div className="absolute top-5 left-5 w-10 h-10 border-t-2 border-l-2" style={{ borderColor: `hsl(var(--accent-${theme.accent}))` }} />
+                  <div className="absolute top-5 right-5 w-10 h-10 border-t-2 border-r-2" style={{ borderColor: `hsl(var(--accent-${theme.accent}))` }} />
+                  <div className="absolute bottom-5 left-5 w-10 h-10 border-b-2 border-l-2" style={{ borderColor: `hsl(var(--accent-${theme.accent}))` }} />
+                  <div className="absolute bottom-5 right-5 w-10 h-10 border-b-2 border-r-2" style={{ borderColor: `hsl(var(--accent-${theme.accent}))` }} />
                 </div>
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-caption text-secondary/60 uppercase tracking-wider font-semibold">
-                  Align QR code within frame
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] text-white/60 font-medium">
+                  Align QR inside the frame
                 </div>
               </>
             )}
 
             {cameraPermission === 'requesting' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-0/95 p-6 text-center">
-                <Loader2 className="h-10 w-10 animate-spin text-accent-brand" />
-                <h4 className="text-body font-bold text-primary">Allow camera access</h4>
-                <p className="text-caption text-secondary">Your browser should show a permission prompt. Choose Allow to scan the location QR.</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-0/95 p-4 text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-accent-brand" />
+                <p className="text-[0.875rem] font-semibold text-primary">Requesting camera access…</p>
+                <p className="text-[0.75rem] text-secondary">Tap Allow in the browser prompt.</p>
               </div>
             )}
 
-            {/* Verifying state */}
             {verifying && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-0/90 backdrop-blur-sm">
-                <Loader2 className="w-10 h-10 animate-spin" style={{ color: `hsl(var(--accent-brand))` }} />
-                <span className="text-caption text-secondary">Verifying scanned token...</span>
+                <Loader2 className="w-8 h-8 animate-spin" style={{ color: `hsl(var(--accent-brand))` }} />
+                <span className="text-[0.75rem] text-secondary">Verifying…</span>
               </div>
             )}
 
-            {/* Error initializing state */}
             {scannerError && cameraPermission === 'denied' && !verificationFeedback && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 bg-surface-0/95 backdrop-blur-sm text-center">
-                <AlertTriangle className="w-12 h-12 text-feedback-error animate-bounce" />
-                <div className="space-y-2 max-w-xs">
-                  <h4 className="text-caption font-bold text-feedback-error uppercase tracking-wider">Scanner Locked</h4>
-                  <p className="text-caption text-muted leading-relaxed">{scannerError}</p>
-                </div>
-                <div className="flex w-full max-w-xs gap-2">
-                  <Button variant="secondary" size="md" fullWidth onClick={handleCloseScanner}>Close</Button>
-                  <Button variant="accent" size="md" fullWidth onClick={requestCameraPermission}>Try Again</Button>
-                </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-5 bg-surface-0/95 text-center">
+                <AlertTriangle className="w-9 h-9 text-feedback-error" />
+                <p className="text-[0.75rem] font-semibold text-feedback-error">Camera blocked</p>
+                <p className="text-[0.7rem] text-muted">{scannerError}</p>
+                <Button variant="primary" size="md" onClick={requestCameraPermission}>Try Again</Button>
               </div>
             )}
 
-            {/* Scan feedback (Success / Fail) */}
             {verificationFeedback && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 bg-surface-0/95 backdrop-blur-sm text-center">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-5 bg-surface-0/95 backdrop-blur-sm text-center">
                 {verificationFeedback.success ? (
                   <>
-                    <div className="inline-flex p-3 rounded-full bg-feedback-success/10 border border-feedback-success/20">
-                      <CheckCircle2 className="w-10 h-10 text-feedback-success" />
+                    <CheckCircle2 className="w-10 h-10 text-feedback-success" />
+                    <div>
+                      <p className="text-[0.875rem] font-semibold text-feedback-success">Location verified!</p>
+                      <p className="text-[0.75rem] text-secondary mt-0.5">Challenge unlocked</p>
                     </div>
-                    <div className="space-y-1 max-w-xs">
-                      <h4 className="text-caption font-bold text-feedback-success uppercase tracking-wider">Location Verified</h4>
-                      <p className="text-caption text-secondary font-medium">Challenge unlocked!</p>
-                    </div>
-                    <Button
-                      variant="accent"
-                      size="lg"
-                      fullWidth
-                      onClick={handleStartChallenge}
-                      className="max-w-xs"
-                      style={{ backgroundColor: `hsl(var(--accent-${theme.accent}) / 0.95)` }}
-                    >
-                      Start Challenge
-                    </Button>
+                    <Button variant="primary" size="lg" fullWidth onClick={handleStartChallenge}>Start Challenge</Button>
                   </>
                 ) : (
                   <>
-                    <div className="inline-flex p-3 rounded-full bg-feedback-error/10 border border-feedback-error/20">
-                      <XCircle className="w-10 h-10 text-feedback-error animate-pulse" />
+                    <XCircle className="w-10 h-10 text-feedback-error" />
+                    <div>
+                      <p className="text-[0.875rem] font-semibold text-feedback-error">Wrong location</p>
+                      <p className="text-[0.75rem] text-muted mt-0.5">This QR doesn't match your clue.</p>
                     </div>
-                    <div className="space-y-1 max-w-xs">
-                      <h4 className="text-caption font-bold text-feedback-error uppercase tracking-wider">Wrong Location</h4>
-                      <p className="text-caption text-muted leading-relaxed">
-                        This QR code does not match your current clue.
-                      </p>
-                    </div>
-                    <Button variant="secondary" size="lg" fullWidth onClick={handleScanAgain} className="max-w-xs">
-                      Scan Again
-                    </Button>
+                    <Button variant="secondary" size="md" fullWidth onClick={handleScanAgain}>Scan Again</Button>
                   </>
                 )}
               </div>
             )}
           </div>
 
-          {/* Cancel Button - bottom-fixed in sheet */}
+          {/* Cancel — only when not in success state */}
           {(!verificationFeedback || !verificationFeedback.success) && (
-            <Button
-              variant="secondary"
-              size="lg"
-              fullWidth
-              onClick={handleCloseScanner}
-              className="mt-2 touch-target"
-            >
-              Cancel Scanner
+            <Button variant="secondary" size="md" fullWidth onClick={handleCloseScanner}>
+              Cancel
             </Button>
           )}
         </div>

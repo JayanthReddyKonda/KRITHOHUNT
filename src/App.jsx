@@ -143,40 +143,52 @@ export default function App() {
     }
 
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
-        <Card variant="elevated" className="w-full max-w-md p-8 space-y-6">
-          <div className="inline-flex p-3 rounded-full bg-surface-1 border border-border-subtle mb-4 shadow-inner">
-            <Compass className="w-8 h-8 text-accent-brand animate-pulse" />
+      <div className="flex flex-col items-center justify-center min-h-[82vh] px-4 py-8 text-center relative overflow-hidden">
+        {/* Subtle background glow aligning with poster colors */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full blur-[120px] pointer-events-none opacity-20 bg-accent-brand" />
+        
+        <Card variant="elevated" padding="lg" className="w-full max-w-md space-y-6 relative z-10">
+          <div className="flex flex-col items-center">
+            <div className="inline-flex p-3 rounded-full bg-surface-2 border border-border-subtle mb-4 shadow-inner">
+              <Compass className="w-7 h-7 text-accent-brand animate-pulse" />
+            </div>
+            <h1 className="text-display font-semibold text-primary tracking-tight uppercase">
+              KRITHOHUNT
+            </h1>
+            <p className="text-accent-brand text-micro font-semibold uppercase tracking-wide mt-1.5">
+              Seek, Solve, Succeed!
+            </p>
           </div>
 
-          <h1 className="text-display font-black text-primary tracking-tight">
-            KRITHOHUNT
-          </h1>
-          <p className="text-accent-brand text-micro font-bold uppercase tracking-widest mt-1 mb-6">
-            College Treasure Hunt
-          </p>
+          <div className="space-y-3.5 text-left pt-2">
+            <h3 className="text-caption font-semibold text-secondary uppercase tracking-wide px-1">How to participate</h3>
+            <div className="space-y-2.5">
+              {[
+                { step: '01', html: <>Meet organizers at the <span className="font-semibold text-primary">Start Desk</span> to assign your team color.</> },
+                { step: '02', html: <>Scan the <span className="font-semibold text-accent-brand">assigned starting QR</span> to begin.</> },
+                { step: '03', html: <>Enter your team name and details to register.</> },
+                { step: '04', html: <>Solve all <span className="font-semibold text-primary">5 clue checkpoints</span> and coordinates.</> },
+                { step: '05', html: <>Scan each physical QR code at locations to verify.</> },
+              ].map(({ step, html }) => (
+                <div key={step} className="flex gap-3 items-start bg-surface-2/40 border border-border-subtle/50 rounded-xl p-3 shadow-sm">
+                  <span className="text-micro font-semibold tracking-wide text-accent-brand bg-accent-brand/10 border border-accent-brand/20 rounded-md px-1.5 py-0.5 mt-0.5 shrink-0">
+                    {step}
+                  </span>
+                  <p className="text-body-sm text-secondary leading-relaxed">{html}</p>
+                </div>
+              ))}
+            </div>
+          </div>
 
-          <Card variant="panel" padding="lg" className="text-left space-y-4">
-            <h3 className="text-caption font-bold text-secondary uppercase tracking-wider">How to Play:</h3>
-            <ol className="list-decimal list-inside text-body-sm text-secondary space-y-2.5 leading-relaxed">
-              <li>Meet organizers at the <strong className="text-primary">Start Desk</strong> to assign your team color.</li>
-              <li>Scan the <strong className="text-accent-brand">Starting QR Code</strong> for your assigned color path.</li>
-              <li>Enter your unique Team Name to register.</li>
-              <li>Solve the 5 campus clue locations and their corresponding digital challenges.</li>
-              <li>Submit answers securely to unlock the next destination.</li>
-            </ol>
-          </Card>
-
-          <div className="mt-8 pt-4 border-t border-border-subtle flex justify-center gap-4 text-micro font-semibold text-muted uppercase">
-            <span>KRITHOHUNT Edition</span>
-            <span aria-hidden="true">•</span>
+          <div className="pt-4 border-t border-border-subtle flex justify-between items-center text-micro font-semibold text-muted uppercase">
+            <span>TREASURE HUNT</span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/admin')}
-              className="hover:text-secondary underline underline-offset-4"
+              className="text-muted hover:text-accent-brand underline underline-offset-4 font-semibold tracking-wide"
             >
-              Organizers Panel
+              Organizer Panel
             </Button>
           </div>
         </Card>
@@ -193,7 +205,7 @@ export default function App() {
             className="flex items-center gap-2 cursor-pointer select-none"
           >
             <Compass className="w-5 h-5 text-accent-brand" />
-            <span className="font-extrabold text-sm tracking-widest uppercase bg-gradient-to-r from-text-primary to-text-secondary bg-clip-text text-transparent">
+            <span className="font-semibold text-sm tracking-wide uppercase bg-gradient-to-r from-text-primary to-text-secondary bg-clip-text text-transparent">
               KRITHOHUNT
             </span>
           </div>

@@ -219,16 +219,11 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
   const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'brand'}))`;
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-micro font-bold uppercase tracking-[0.16em] text-accent-brand">Puzzle 2</p>
-          <h4 className="text-h2 font-black text-primary tracking-tight">Connect the Dots</h4>
-          <p className="mt-1 text-body-sm text-secondary leading-relaxed">Join matching points without crossing. Drag orthogonally; backtrack to edit.</p>
-        </div>
-        <div className="shrink-0 rounded-xl border border-border-subtle bg-surface-2 p-2.5 text-accent-brand" aria-hidden="true">
-          <MousePointer2 className="h-5 w-5" />
-        </div>
+    <div className="space-y-3">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-accent-brand">Puzzle 2</p>
+        <h4 className="text-[1.05rem] font-semibold text-primary">Connect the Dots</h4>
+        <p className="text-[0.8125rem] text-secondary mt-0.5">Connect matching colours without crossing paths.</p>
       </div>
 
       <div className="flex flex-col items-center select-none">
@@ -242,9 +237,10 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
             touchAction: 'none',
             display: 'grid',
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-            gap: '2px'
+            gap: '2px',
+            width: 'min(calc(100vw - 48px), 320px)',
           }}
-          className="connect-board relative w-full max-w-[340px] aspect-square rounded-2xl border border-border-strong bg-surface-1 p-2 shadow-[0_16px_40px_hsl(var(--surface-0)_/_0.35)]"
+          className="connect-board relative aspect-square rounded-xl border border-border-strong bg-surface-1 p-1.5 shadow-sm"
         >
           <svg
             className="pointer-events-none absolute inset-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)]"
@@ -318,83 +314,61 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
         </div>
       </div>
 
-      <Card variant="panel" padding="md" className="mx-auto w-full max-w-[340px] space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <span className="text-caption font-bold uppercase tracking-wider text-secondary">Path status</span>
-          <Button variant="ghost" size="sm" onClick={handleResetBoard} aria-label="Reset grid">
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reset Grid</span>
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-4 gap-2" role="group" aria-label="Path status">
+      {/* Compact path status row */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex gap-2">
           {[1, 2, 3, 4].map((colorId) => {
             const cTheme = COLOR_MAP[colorId];
             const connected = isColorConnected(colorId);
             const accentKey = cTheme.accent;
-            const isYellowOrOrange = accentKey === 'yellow' || accentKey === 'orange';
-            const bgColor = `hsl(var(--accent-${accentKey}))`;
-            const textColor = isYellowOrOrange ? 'hsl(var(--text-inverse))' : 'hsl(var(--text-primary))';
-
             return (
               <div
                 key={colorId}
-                className={`
-                  min-h-[70px] rounded-xl border text-micro font-bold uppercase transition-all flex flex-col items-center justify-center gap-1.5
-                  ${connected
-                    ? 'bg-surface-1 border-border-strong text-primary shadow-lg'
-                    : 'bg-surface-2 border-border-subtle text-secondary'
-                  }
-                `}
-                style={{ backgroundColor: connected ? `hsl(var(--surface-1))` : `hsl(var(--surface-2))` }}
-                role="status"
-                aria-label={`${cTheme.name} path ${connected ? 'connected' : 'not connected'}`}
+                className="flex items-center gap-1"
+                title={`${cTheme.name}: ${connected ? 'connected' : 'not connected'}`}
               >
                 <span
-                  className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-micro font-black ${connected ? 'ring-2 ring-current' : ''}`}
+                  className={`w-3 h-3 rounded-full transition-all ${connected ? 'ring-2 ring-offset-1 ring-offset-surface-1' : 'opacity-50'}`}
                   style={{
-                    backgroundColor: bgColor,
-                    color: textColor
+                    backgroundColor: `hsl(var(--accent-${accentKey}))`,
+                    ringColor: `hsl(var(--accent-${accentKey}))`,
                   }}
-                >
-                  {connected && '✓'}
-                </span>
-                <span className="text-caption">{cTheme.name}</span>
+                />
+                {connected && <span className="text-[10px] text-feedback-success">✓</span>}
               </div>
             );
           })}
         </div>
-      </Card>
+        <button
+          type="button"
+          onClick={handleResetBoard}
+          className="flex items-center gap-1 text-[11px] text-muted hover:text-secondary transition-colors"
+        >
+          <RotateCcw className="w-3 h-3" />
+          Reset
+        </button>
+      </div>
 
-      <div className="space-y-3 max-w-[340px] w-full mx-auto">
+      <div className="space-y-2.5">
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-body-sm flex gap-2.5 items-start animate-shake" role="alert">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <span className="font-bold">Check Failed: </span>
-              <span>{errorMsg}</span>
-            </div>
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-[0.8125rem] animate-shake" role="alert">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{errorMsg}</span>
           </div>
         )}
-
         {successMsg && (
-          <div className="p-3.5 rounded-xl bg-feedback-success/10 border border-feedback-success/20 text-feedback-success text-body-sm flex gap-2.5 items-start" role="status">
-            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <span className="font-bold">Success: </span>
-              <span>{successMsg}</span>
-            </div>
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-feedback-success/15 border border-feedback-success/25 text-feedback-success text-[0.8125rem]" role="status">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{successMsg}</span>
           </div>
         )}
-
         <Button
-          variant="accent"
+          variant="primary"
           size="lg"
           fullWidth
           onClick={checkPuzzleSolved}
           disabled={loading || !!successMsg}
           loading={loading}
-          style={!successMsg ? { backgroundColor: accentColor } : {}}
         >
           Check Puzzle
         </Button>

@@ -1,32 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
 @theme {
-  --color-surface-0: hsl(220 22% 6%);
-  --color-surface-1: hsl(220 20% 9%);
-  --color-surface-2: hsl(220 18% 13%);
-  --color-surface-3: hsl(220 16% 18%);
-  --color-border-subtle: hsl(220 14% 25%);
-  --color-border-strong: hsl(220 12% 36%);
+  --color-surface-0: hsl(222 28% 4%);
+  --color-surface-1: hsl(222 24% 7%);
+  --color-surface-2: hsl(222 20% 9.5%);
+  --color-surface-3: hsl(222 18% 12.5%);
+  --color-border-subtle: hsl(222 14% 15%);
+  --color-border-strong: hsl(222 14% 22%);
   --color-text-primary: hsl(210 25% 97%);
   --color-text-secondary: hsl(210 14% 78%);
   --color-text-muted: hsl(210 10% 60%);
-  --color-text-inverse: hsl(220 22% 6%);
-  --color-accent-violet: hsl(265 85% 62%);
-  --color-accent-amber: hsl(38 92% 52%);
-  --color-accent-emerald: hsl(152 72% 42%);
-  --color-accent-rose: hsl(345 82% 56%);
-  --color-accent-cyan: hsl(188 85% 48%);
-  --color-accent-orange: hsl(24 95% 53%);
-  --color-accent-brand: hsl(172 66% 45%);
-  --color-feedback-success: hsl(152 72% 42%);
-  --color-feedback-warning: hsl(38 92% 52%);
-  --color-feedback-error: hsl(355 84% 58%);
-  --font-size-display: clamp(2.25rem, 6vw, 3rem);
-  --font-size-h1: clamp(1.5rem, 4vw, 2rem);
-  --font-size-h2: clamp(1.125rem, 3vw, 1.375rem);
-  --font-size-body: 0.9375rem;
+  --color-text-inverse: hsl(222 28% 4%);
+  --color-accent-violet: hsl(265 65% 55%);
+  --color-accent-amber: hsl(42 65% 52%);
+  --color-accent-emerald: hsl(152 60% 42%);
+  --color-accent-rose: hsl(350 68% 38%);
+  --color-accent-cyan: hsl(205 52% 48%);
+  --color-accent-orange: hsl(18 80% 50%);
+  --color-accent-brand: hsl(217 91% 56%);
+  --color-feedback-success: hsl(152 60% 42%);
+  --color-feedback-warning: hsl(42 65% 52%);
+  --color-feedback-error: hsl(350 68% 38%);
+  --font-size-display: 1.375rem;
+  --font-size-h1: 1.2rem;
+  --font-size-h2: 1.05rem;
+  --font-size-body: 0.875rem;
   --font-size-body-sm: 0.8125rem;
   --font-size-caption: 0.75rem;
   --font-size-micro: 0.6875rem;
@@ -47,26 +47,26 @@
   --min-height-touch: 44px;
   --min-width-touch: 44px;
 
-  --surface-0: 220 22% 6%;
-  --surface-1: 220 20% 9%;
-  --surface-2: 220 18% 13%;
-  --surface-3: 220 16% 18%;
-  --border-subtle: 220 14% 25%;
-  --border-strong: 220 12% 36%;
+  --surface-0: 222 28% 4%;
+  --surface-1: 222 24% 7%;
+  --surface-2: 222 20% 9.5%;
+  --surface-3: 222 18% 12.5%;
+  --border-subtle: 222 14% 15%;
+  --border-strong: 222 14% 22%;
   --text-primary: 210 25% 97%;
   --text-secondary: 210 14% 78%;
   --text-muted: 210 10% 60%;
-  --text-inverse: 220 22% 6%;
-  --accent-violet: 265 85% 62%;
-  --accent-amber: 38 92% 52%;
-  --accent-emerald: 152 72% 42%;
-  --accent-rose: 345 82% 56%;
-  --accent-cyan: 188 85% 48%;
-  --accent-orange: 24 95% 53%;
-  --accent-brand: 172 66% 45%;
-  --feedback-success: 152 72% 42%;
-  --feedback-warning: 38 92% 52%;
-  --feedback-error: 355 84% 58%;
+  --text-inverse: 222 28% 4%;
+  --accent-violet: 265 65% 55%;
+  --accent-amber: 42 65% 52%;
+  --accent-emerald: 152 60% 42%;
+  --accent-rose: 350 68% 38%;
+  --accent-cyan: 205 52% 48%;
+  --accent-orange: 18 80% 50%;
+  --accent-brand: 217 91% 56%;
+  --feedback-success: 152 60% 42%;
+  --feedback-warning: 42 65% 52%;
+  --feedback-error: 350 68% 38%;
 }
 
 * {
@@ -78,15 +78,21 @@ html {
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: hsl(var(--surface-0));
   color: hsl(var(--text-primary));
   min-height: 100vh;
   min-height: 100dvh;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+}
+
+h1, h2, h3, h4, .text-display, .text-h1, .text-h2 {
+  line-height: 1.2;
+  font-weight: 600;
 }
 
 ::selection {
@@ -295,13 +301,13 @@ body {
   background: hsl(var(--surface-0));
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .admin-sidebar {
     display: block;
   }
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 767px) {
   .admin-sidebar {
     position: fixed;
     top: 0;

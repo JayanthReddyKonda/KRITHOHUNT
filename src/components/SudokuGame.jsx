@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
-import { GameCell, SudokuCell, KeypadButton, Card, Button } from '@/components/primitives';
+import { Button } from '@/components/primitives';
 
 export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onIncorrect }) {
   const initialPuzzle = React.useMemo(() => gameData?.puzzle || [
@@ -15,11 +15,7 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
   const [board, setBoard] = useState(() => {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved sudoku board', e);
-      }
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
     }
     return JSON.parse(JSON.stringify(initialPuzzle));
   });
@@ -46,14 +42,14 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
 
   const handleCellClick = (row, col) => {
     if (initialPuzzle[row][col] !== 0) return;
-    setSelectedCell({ row, col });
+    setSelectedCell(sel => sel?.row === row && sel?.col === col ? null : { row, col });
     setErrorMsg('');
   };
 
   const handleNumberInput = (num) => {
     if (!selectedCell) return;
     const { row, col } = selectedCell;
-    const newBoard = [...board.map(r => [...r])];
+    const newBoard = board.map(r => [...r]);
     newBoard[row][col] = num;
     setBoard(newBoard);
     setErrorMsg('');
@@ -62,14 +58,14 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
   const handleClearCell = () => {
     if (!selectedCell) return;
     const { row, col } = selectedCell;
-    const newBoard = [...board.map(r => [...r])];
+    const newBoard = board.map(r => [...r]);
     newBoard[row][col] = 0;
     setBoard(newBoard);
     setErrorMsg('');
   };
 
   const handleResetBoard = () => {
-    if (confirm('Are you sure you want to clear all your entries for this Sudoku?')) {
+    if (confirm('Clear all your entries?')) {
       setBoard(JSON.parse(JSON.stringify(initialPuzzle)));
       setSelectedCell(null);
       setErrorMsg('');
@@ -82,7 +78,7 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         if (board[r][c] === 0) {
-          setErrorMsg('Please fill all cells in the Sudoku grid before checking.');
+          setErrorMsg('Fill all cells before checking.');
           return;
         }
       }
@@ -94,11 +90,9 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
     setSuccessMsg('');
 
     try {
-      const serializedAnswer = JSON.stringify(board);
-
       const { data, error } = await supabase.rpc('submit_team_answer', {
         p_team_id: teamId,
-        p_answer: serializedAnswer
+        p_answer: JSON.stringify(board)
       });
 
       if (error) throw error;
@@ -106,133 +100,226 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
       if (data.success) {
         setSuccessMsg('Sudoku solved!');
         localStorage.removeItem(storageKey);
-        setTimeout(() => {
-          onSolved();
-        }, 1500);
+        setTimeout(() => { onSolved(); }, 1500);
       } else {
-        setErrorMsg(data.error || 'Incorrect answer. Penalty count increased (+1)!');
+        setErrorMsg(data.error || 'Incorrect — check your entries. Penalty +1.');
         onIncorrect();
         submittingRef.current = false;
       }
     } catch (err) {
-      console.error(err);
-      setErrorMsg(err.message || 'Connection error. Please try again.');
+      setErrorMsg(err.message || 'Connection error. Try again.');
       submittingRef.current = false;
     } finally {
       setLoading(false);
     }
   };
 
-  const accentColor = `hsl(var(--accent-${colorTheme?.accent || 'brand'}))`;
-  const accentBorder = `hsl(var(--accent-${colorTheme?.accent || 'brand'}) / 0.25)`;
+  const accentVar = colorTheme?.accent || 'brand';
+
+  // Cell border logic for Sudoku 2×2 box separators
+  // In a 4×4 grid with 2×2 boxes: rows 0-1 are box-top, rows 2-3 are box-bottom
+  // Similarly cols 0-1 left box, cols 2-3 right box
+  const getCellBorderStyle = (r, c) => {
+    const BOX_COLOR = 'hsl(210 25% 40%)';   // strong box border
+    const CELL_COLOR = 'hsl(222 14% 18%)';  // fine cell border
+
+    return {
+      borderTop:    r === 0 ? `2px solid ${BOX_COLOR}` : r === 2 ? `2px solid ${BOX_COLOR}` : `1px solid ${CELL_COLOR}`,
+      borderLeft:   c === 0 ? `2px solid ${BOX_COLOR}` : c === 2 ? `2px solid ${BOX_COLOR}` : `1px solid ${CELL_COLOR}`,
+      borderBottom: r === 3 ? `2px solid ${BOX_COLOR}` : `none`,
+      borderRight:  c === 3 ? `2px solid ${BOX_COLOR}` : `none`,
+    };
+  };
 
   return (
-    <div className="space-y-5">
-      <Card variant="panel" padding="md" className="space-y-2">
-        <h4 className="text-caption font-bold text-muted uppercase tracking-wider">
-          Game 1: 4×4 Mini Sudoku
-        </h4>
-        <p className="text-body-sm text-secondary leading-relaxed">
-          Fill the empty cells so that every row, column, and 2×2 sub-grid contains digits <strong className="text-primary">1 to 4</strong> exactly once.
-        </p>
-      </Card>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="space-y-0.5">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-accent-brand">Puzzle 1</p>
+        <h4 className="text-[1.05rem] font-semibold text-primary">4×4 Mini Sudoku</h4>
+        <p className="text-[0.8125rem] text-secondary">Fill so every row, column, and 2×2 box contains 1–4 exactly once.</p>
+      </div>
 
-      <div className="flex flex-col items-center">
-        <Card variant="elevated" padding="sm" className="w-full max-w-[280px]">
-          <div className="grid grid-cols-4 gap-1.5 aspect-square">
+      {/* Sudoku Board */}
+      <div className="flex justify-center">
+        <div
+          style={{
+            width: 'min(calc(100vw - 48px), 300px)',
+            aspectRatio: '1',
+            background: 'hsl(222 20% 9.5%)',
+            borderRadius: '10px',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gridTemplateRows: 'repeat(4, 1fr)',
+              width: '100%',
+              height: '100%',
+            }}
+          >
             {board.map((rowArr, rIdx) =>
               rowArr.map((cellValue, cIdx) => {
                 const isFixed = initialPuzzle[rIdx][cIdx] !== 0;
-                const isSelected = selectedCell && selectedCell.row === rIdx && selectedCell.col === cIdx;
+                const isSelected = selectedCell?.row === rIdx && selectedCell?.col === cIdx;
+                const isSameRow = selectedCell && selectedCell.row === rIdx && !isSelected;
+                const isSameCol = selectedCell && selectedCell.col === cIdx && !isSelected;
+                const isSameBox = selectedCell &&
+                  Math.floor(selectedCell.row / 2) === Math.floor(rIdx / 2) &&
+                  Math.floor(selectedCell.col / 2) === Math.floor(cIdx / 2) &&
+                  !isSelected;
+
+                let bg = 'hsl(222 20% 9.5%)';
+                let color = 'hsl(210 25% 97%)';
+                let fontWeight = '400';
+
+                if (isFixed) {
+                  bg = 'hsl(222 18% 13%)';
+                  color = 'hsl(210 25% 97%)';
+                  fontWeight = '600';
+                } else if (isSelected) {
+                  bg = `hsl(var(--accent-${accentVar}) / 0.2)`;
+                  color = `hsl(var(--accent-${accentVar}))`;
+                  fontWeight = '600';
+                } else if (isSameRow || isSameCol || isSameBox) {
+                  bg = 'hsl(222 18% 12%)';
+                } else if (cellValue !== 0) {
+                  color = `hsl(var(--accent-${accentVar}))`;
+                  fontWeight = '500';
+                }
 
                 return (
-                  <SudokuCell
+                  <button
                     key={`${rIdx}-${cIdx}`}
-                    value={cellValue}
-                    isFixed={isFixed}
-                    isSelected={isSelected}
+                    type="button"
                     onClick={() => handleCellClick(rIdx, cIdx)}
-                    style={
-                      isSelected && !isFixed
-                        ? { borderColor: `hsl(var(--accent-${colorTheme?.accent || 'brand'}) / 0.25)` }
-                        : {}
-                    }
-                    aria-label={isFixed ? `Fixed digit ${cellValue}, row ${rIdx + 1}, column ${cIdx + 1}` : `Empty cell, row ${rIdx + 1}, column ${cIdx + 1}`}
-                  />
+                    disabled={isFixed}
+                    aria-label={`Row ${rIdx + 1}, col ${cIdx + 1}${isFixed ? ' (fixed)' : ''}: ${cellValue || 'empty'}`}
+                    style={{
+                      ...getCellBorderStyle(rIdx, cIdx),
+                      background: bg,
+                      color,
+                      fontWeight,
+                      fontSize: 'clamp(1.1rem, 5vw, 1.5rem)',
+                      fontFamily: 'Inter, sans-serif',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: isFixed ? 'default' : 'pointer',
+                      transition: 'background 0.12s ease',
+                      outline: 'none',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    {cellValue !== 0 ? cellValue : ''}
+                  </button>
                 );
               })
             )}
           </div>
-        </Card>
+        </div>
       </div>
 
-      <Card variant="panel" padding="md" className="space-y-4 max-w-[280px] w-full mx-auto">
-        <div className="flex justify-between items-center text-micro font-bold text-muted px-1">
-          <span>{selectedCell ? 'Tap digit to insert' : 'Select a grid cell'}</span>
-          <Button variant="ghost" size="sm" onClick={handleResetBoard} aria-label="Reset grid">
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reset Grid</span>
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-5 gap-2">
-          {[1, 2, 3, 4].map((num) => (
-            <KeypadButton
-              key={num}
-              value={num}
-              onClick={() => handleNumberInput(num)}
+      {/* Number Pad */}
+      <div className="flex justify-center">
+        <div style={{ width: 'min(calc(100vw - 48px), 300px)' }}>
+          <div className="flex gap-2 mb-1.5">
+            <p className="text-[11px] text-muted uppercase tracking-wide flex-1">
+              {selectedCell ? 'Tap a number' : 'Select a cell first'}
+            </p>
+            <button
+              type="button"
+              onClick={handleResetBoard}
+              className="flex items-center gap-1 text-[11px] text-muted hover:text-secondary transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset
+            </button>
+          </div>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map((num) => (
+              <button
+                key={num}
+                type="button"
+                onClick={() => handleNumberInput(num)}
+                disabled={!selectedCell}
+                aria-label={`Enter ${num}`}
+                style={{
+                  flex: 1,
+                  aspectRatio: '1',
+                  maxHeight: '56px',
+                  background: !selectedCell ? 'hsl(222 18% 10%)' : 'hsl(222 18% 13%)',
+                  border: !selectedCell
+                    ? '1px solid hsl(222 14% 15%)'
+                    : `1px solid hsl(var(--accent-${accentVar}) / 0.3)`,
+                  borderRadius: '8px',
+                  color: !selectedCell ? 'hsl(210 10% 40%)' : `hsl(var(--accent-${accentVar}))`,
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: !selectedCell ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.12s ease',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                {num}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={handleClearCell}
               disabled={!selectedCell}
-              active={selectedCell}
-              style={selectedCell ? { borderColor: accentBorder } : {}}
-              aria-label={selectedCell ? `Enter digit ${num}` : 'Select a cell first'}
-            />
-          ))}
-
-          <GameCell
-            variant={selectedCell ? 'default' : 'fixed'}
-            onClick={handleClearCell}
-            disabled={!selectedCell}
-            className="text-caption font-bold"
-            style={selectedCell ? { borderColor: `hsl(var(--accent-${colorTheme?.accent || 'brand'}) / 0.25)` } : {}}
-            aria-label={selectedCell ? 'Clear selected cell' : 'Select a cell first'}
-          >
-            Clear
-          </GameCell>
+              aria-label="Clear cell"
+              style={{
+                flex: 1,
+                aspectRatio: '1',
+                maxHeight: '56px',
+                background: 'hsl(222 18% 10%)',
+                border: '1px solid hsl(222 14% 15%)',
+                borderRadius: '8px',
+                color: !selectedCell ? 'hsl(210 10% 30%)' : 'hsl(210 10% 60%)',
+                fontSize: '0.7rem',
+                fontWeight: '500',
+                fontFamily: 'Inter, sans-serif',
+                cursor: !selectedCell ? 'not-allowed' : 'pointer',
+                transition: 'all 0.12s ease',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              DEL
+            </button>
+          </div>
         </div>
-      </Card>
+      </div>
 
-      <div className="space-y-3 max-w-[280px] w-full mx-auto">
-        {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-body-sm flex gap-2.5 items-start animate-shake" role="alert">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <span className="font-bold">Check Failed: </span>
+      {/* Feedback + Submit */}
+      <div className="flex justify-center">
+        <div style={{ width: 'min(calc(100vw - 48px), 300px)' }} className="space-y-2.5">
+          {errorMsg && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-[0.8125rem] animate-shake" role="alert">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
             </div>
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="p-3.5 rounded-xl bg-feedback-success/10 border border-feedback-success/20 text-feedback-success text-body-sm flex gap-2.5 items-start" role="status">
-            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <span className="font-bold">Success: </span>
+          )}
+          {successMsg && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-feedback-success/15 border border-feedback-success/25 text-feedback-success text-[0.8125rem]" role="status">
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{successMsg}</span>
             </div>
-          </div>
-        )}
-
-        <Button
-          variant="accent"
-          size="lg"
-          fullWidth
-          onClick={checkPuzzleSolved}
-          disabled={loading || !!successMsg}
-          loading={loading}
-          style={!successMsg ? { backgroundColor: accentColor } : {}}
-        >
-          Check Puzzle
-        </Button>
+          )}
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            onClick={checkPuzzleSolved}
+            disabled={loading || !!successMsg}
+            loading={loading}
+          >
+            Check Puzzle
+          </Button>
+        </div>
       </div>
     </div>
   );
