@@ -409,15 +409,15 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
       {/* Palette Selector & Status Bar */}
       <div className="space-y-4">
         <div className="flex flex-col items-center">
-          <div className="w-full max-w-[320px] bg-slate-950/70 border border-slate-800 p-3 rounded-2xl flex flex-col gap-2.5">
-            <div className="flex justify-between items-center text-[10px] uppercase font-bold text-slate-400 px-1">
-              <span>Drawing Color Palette</span>
+          <div className="w-full max-w-[340px] bg-surface-2/80 border border-border-subtle p-3 rounded-2xl flex flex-col gap-2.5 shadow-inner">
+            <div className="flex justify-between items-center text-caption font-semibold text-secondary px-1">
+              <span>Drawing color palette</span>
               <button
                 onClick={handleResetBoard}
-                className="flex items-center gap-1 text-slate-400 hover:text-slate-200 transition-colors"
+                className="flex items-center gap-1 text-muted hover:text-primary transition-colors text-micro font-medium"
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>Reset All</span>
+                <span>Reset all</span>
               </button>
             </div>
 
@@ -436,17 +436,17 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
                       setErrorMsg('');
                     }}
                     className={`
-                      py-2.5 px-1 rounded-xl border text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 relative
+                      py-2 px-1 rounded-xl border text-[0.75rem] font-semibold transition-all flex flex-col items-center justify-center gap-1 relative
                       ${isSelected
-                        ? 'bg-slate-900 border-indigo-500/80 text-white shadow-lg ring-2 ring-indigo-500/30'
-                        : 'bg-slate-950/60 border-slate-800/80 text-slate-400 hover:bg-slate-900/60'
+                        ? 'bg-surface-3 border-accent-brand text-primary shadow-md ring-2 ring-accent-brand/30'
+                        : 'bg-surface-1/60 border-border-subtle text-secondary hover:bg-surface-2/60'
                       }
                     `}
                   >
                     <div className="flex items-center gap-1">
                       <span className={`w-3.5 h-3.5 rounded-full ${cTheme.fill}`} />
                       {connected && (
-                        <span className="text-[10px] text-emerald-400 font-extrabold">✓</span>
+                        <span className="text-[10px] text-feedback-success font-extrabold">✓</span>
                       )}
                     </div>
                     <span>{cTheme.name}</span>
@@ -458,22 +458,22 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
         </div>
 
         {/* Action Button & Feedback */}
-        <div className="space-y-3 max-w-[320px] mx-auto">
+        <div className="space-y-3 max-w-[340px] mx-auto">
           {errorMsg && (
-            <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex gap-2.5 items-start animate-shake">
+            <div className="p-3.5 rounded-2xl bg-feedback-error/10 border border-feedback-error/20 text-feedback-error text-caption flex gap-2.5 items-start animate-shake">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold">Check Failed: </span>
+                <span className="font-semibold">Check failed: </span>
                 <span>{errorMsg}</span>
               </div>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex gap-2.5 items-start">
+            <div className="p-3.5 rounded-2xl bg-feedback-success/10 border border-feedback-success/20 text-feedback-success text-caption flex gap-2.5 items-start">
               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold">Success: </span>
+                <span className="font-semibold">Success: </span>
                 <span>{successMsg}</span>
               </div>
             </div>
@@ -484,14 +484,14 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
             disabled={loading || !!successMsg}
             style={buttonBgStyle}
             className={`
-              w-full py-4 rounded-2xl text-slate-950 font-bold text-xs tracking-wider uppercase shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50
-              ${successMsg ? 'bg-emerald-500 text-slate-950' : 'hover:brightness-110'}
+              w-full py-3.5 rounded-2xl font-semibold text-caption shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50
+              ${successMsg ? 'bg-feedback-success text-inverse' : 'hover:brightness-110'}
             `}
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <span>Check Puzzle</span>
+              <span>Check puzzle</span>
             )}
           </button>
         </div>

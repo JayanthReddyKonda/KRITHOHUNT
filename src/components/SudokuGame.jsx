@@ -317,7 +317,7 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
             disabled={loading || !!successMsg}
             loading={loading}
           >
-            Check Puzzle
+            Check puzzle
           </Button>
         </div>
       </div>

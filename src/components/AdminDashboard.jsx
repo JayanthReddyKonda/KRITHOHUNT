@@ -677,16 +677,16 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {pathMetrics.map(({ color, total, playing, waiting, finished }) => (
                   <button
-                     key={color}
-                     type="button"
-                     onClick={() => setColorFilter(color)}
-                     className="text-left rounded-xl border border-border-strong/40 bg-surface-1/60 p-3 hover:bg-surface-2/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+                    key={color}
+                    type="button"
+                    onClick={() => setColorFilter(color)}
+                    className="text-left rounded-xl border border-border-strong/40 bg-surface-1/60 p-3 hover:bg-surface-2/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
                   >
-                     <span className={`path-badge ${PATH_BADGES[color]} px-2 py-0.5 rounded text-micro font-semibold uppercase`}>{color}</span>
-                     <span className="block text-body font-semibold text-primary mt-2">{total}</span>
-                     <span className="block text-micro text-accent-cyan">{playing} playing</span>
-                     <span className="block text-micro text-accent-amber">{waiting} waiting</span>
-                     <span className="block text-micro text-accent-emerald">{finished} finished</span>
+                    <span className={`path-badge ${PATH_BADGES[color]} px-2 py-0.5 rounded text-micro font-semibold uppercase`}>{color}</span>
+                    <span className="block text-body font-semibold text-primary mt-2">{total}</span>
+                    <span className="block text-micro text-accent-cyan">{playing} playing</span>
+                    <span className="block text-micro text-accent-amber">{waiting} waiting</span>
+                    <span className="block text-micro text-accent-emerald">{finished} finished</span>
                   </button>
                 ))}
               </div>
@@ -898,30 +898,30 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-3">
                             <span className="w-8 text-muted text-right text-body font-semibold">{idx + 1}.</span>
                             <div>
-                               <span className="text-body font-semibold text-primary uppercase tracking-wide block">{team.name}</span>
-                               <span className="text-micro font-mono font-semibold tracking-widest text-accent-brand">ID {team.team_code || '-----'}</span>
-                               <span className={`inline-block px-2 py-0.5 rounded border text-micro font-semibold uppercase tracking-wide mt-1 ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
-                                 {PATH_DISPLAY[team.color.toLowerCase()] || team.color.toUpperCase()}
-                               </span>
+                              <span className="text-body font-semibold text-primary uppercase tracking-wide block">{team.name}</span>
+                              <span className="text-micro font-mono font-semibold tracking-widest text-accent-brand">ID {team.team_code || '-----'}</span>
+                              <span className={`inline-block px-2 py-0.5 rounded border text-micro font-semibold uppercase tracking-wide mt-1 ${PATH_BADGES[team.color.toLowerCase()] || 'bg-surface-3'}`}>
+                                {PATH_DISPLAY[team.color.toLowerCase()] || team.color.toUpperCase()}
+                              </span>
                             </div>
                           </div>
 
                           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto text-center sm:text-left">
                             <div className="flex flex-col items-center gap-1">
-                               <span className="text-micro text-muted uppercase tracking-wide">Progress</span>
-                               <span className="text-body font-semibold text-primary">{Math.min(team.clues_solved + 1, 5)} / 5</span>
+                              <span className="text-micro text-muted uppercase tracking-wide">Progress</span>
+                              <span className="text-body font-semibold text-primary">{Math.min(team.clues_solved + 1, 5)} / 5</span>
                             </div>
                             <div className="flex flex-col items-center gap-1">
-                               <span className="text-micro text-muted uppercase tracking-wide">Penalties</span>
-                               <span className="text-body font-semibold text-feedback-warning">{team.penalty_count}</span>
+                              <span className="text-micro text-muted uppercase tracking-wide">Penalties</span>
+                              <span className="text-body font-semibold text-feedback-warning">{team.penalty_count}</span>
                             </div>
                             <div className="flex flex-col items-center gap-1">
-                               <span className="text-micro text-muted uppercase tracking-wide">Status</span>
-                               <span className={`text-caption font-semibold ${isCompleted ? 'text-accent-emerald' : isReady ? 'text-accent-brand' : isWaitingQr ? 'text-accent-amber' : 'text-accent-cyan'
-                                 }`}>
-                                 {isCompleted ? 'Finished' : isClosed ? status : isReady ? 'Ready Jigsaw' : isWaitingQr ? 'Waiting for QR' : 'Playing'}
-                               </span>
-                               <span className="text-micro text-muted">{getTimeLimitText(team)}</span>
+                              <span className="text-micro text-muted uppercase tracking-wide">Status</span>
+                              <span className={`text-caption font-semibold ${isCompleted ? 'text-accent-emerald' : isReady ? 'text-accent-brand' : isWaitingQr ? 'text-accent-amber' : 'text-accent-cyan'
+                                }`}>
+                                {isCompleted ? 'Finished' : isClosed ? status : isReady ? 'Ready Jigsaw' : isWaitingQr ? 'Waiting for QR' : 'Playing'}
+                              </span>
+                              <span className="text-micro text-muted">{getTimeLimitText(team)}</span>
                             </div>
                           </div>
                         </div>

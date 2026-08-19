@@ -14,8 +14,8 @@ export default function Button({
   ...props
 }) {
   const baseClasses = `
-    inline-flex items-center justify-center gap-2
-    font-medium tracking-wide uppercase
+    inline-flex items-center justify-center gap-1.5
+    font-semibold select-none
     rounded-xl transition-all duration-fast cubic-bezier(0.16, 1, 0.3, 1)
     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface-0
     disabled:opacity-40 disabled:cursor-not-allowed
@@ -32,9 +32,9 @@ export default function Button({
   };
 
   const sizeClasses = {
-    sm: 'min-h-[40px] px-3 text-[0.75rem]',
-    md: 'min-h-[44px] px-4 text-button',
-    lg: 'min-h-[44px] px-5 text-button font-semibold',
+    sm: 'min-h-[34px] px-2.5 text-[0.6875rem]',
+    md: 'min-h-[38px] px-3.5 text-[0.75rem]',
+    lg: 'min-h-[42px] px-4 text-[0.75rem] font-bold',
   };
 
   const widthClass = fullWidth ? 'w-full' : '';
@@ -51,7 +51,7 @@ export default function Button({
     >
       {loading ? (
         <svg
-          className="animate-spin h-4 w-4"
+          className="animate-spin h-3.5 w-3.5"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
