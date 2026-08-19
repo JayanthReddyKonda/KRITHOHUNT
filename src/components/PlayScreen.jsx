@@ -17,7 +17,7 @@ const PATH_THEMES = {
 const PUBLIC_QR_ORIGIN = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
 
 const withTimeout = (promise, message) => Promise.race([
-  promise,
+  Promise.resolve(promise),
   new Promise((_, reject) => window.setTimeout(() => reject(new Error(message)), 10000)),
 ]);
 
@@ -341,14 +341,20 @@ export default function PlayScreen({ teamId, onReset }) {
     );
   }
 
-  if (!team && error) {
+  if (!team) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
-        <Card variant="elevated" className="w-full max-w-sm p-6 text-center">
-          <p className="text-feedback-error text-body-sm mb-4">{error}</p>
-          <Button variant="secondary" size="md" onClick={() => fetchGameState()}>
-            Retry
-          </Button>
+        <Card variant="elevated" className="w-full max-w-sm p-6 text-center space-y-4">
+          <AlertTriangle className="w-10 h-10 text-feedback-error mx-auto" />
+          <p className="text-feedback-error text-body-sm">{error || 'Team session not found or invalid.'}</p>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button variant="primary" size="md" onClick={() => fetchGameState()}>
+              Retry Connection
+            </Button>
+            <Button variant="secondary" size="md" onClick={onReset}>
+              Return to Start
+            </Button>
+          </div>
         </Card>
       </div>
     );
@@ -587,7 +593,7 @@ export default function PlayScreen({ teamId, onReset }) {
                     <span>Location Verified</span>
                   </div>
 
-                  {clue && (
+                  {clue ? (
                     <GameRenderer
                       teamId={team.id}
                       colorTheme={theme}
@@ -596,6 +602,14 @@ export default function PlayScreen({ teamId, onReset }) {
                       onSolved={() => fetchGameState(false)}
                       onIncorrect={() => fetchGameState(false)}
                     />
+                  ) : (
+                    <div className="p-5 bg-surface-2 rounded-xl text-center space-y-3">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-accent-brand" />
+                      <p className="text-caption text-muted">Loading challenge data...</p>
+                      <Button variant="secondary" size="sm" onClick={() => fetchGameState(true)}>
+                        Reload Challenge
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
