@@ -223,11 +223,6 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     }
   };
 
-  const handleResetColor = (cid) => {
-    setPaths(prev => ({ ...prev, [cid]: [] }));
-    setErrorMsg('');
-    setSuccessMsg('');
-  };
 
   const checkPuzzleSolved = async () => {
     setLoading(true);
@@ -243,25 +238,26 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     }
 
     try {
-      // Try submit_connect_dots RPC first
+      // Try submit_connect_dots RPC first (which internally calls submit_team_answer)
       const { data, error } = await supabase.rpc('submit_connect_dots', {
         p_team_id: teamId,
         p_paths: paths
       });
 
       if (error) {
-        // Fallback to submit_team_answer if RPC parameter names differ
-        const { data: fallbackData, error: fallbackErr } = await supabase.rpc('submit_team_answer', {
+        // Network error - retry the same RPC once
+        console.warn('submit_connect_dots RPC failed, retrying:', error);
+        const { data: retryData, error: retryError } = await supabase.rpc('submit_connect_dots', {
           p_team_id: teamId,
-          p_answer: JSON.stringify(paths)
+          p_paths: paths
         });
-        if (fallbackErr) throw fallbackErr;
-        if (fallbackData?.success) {
+        if (retryError) throw retryError;
+        if (retryData?.success) {
           setSuccessMsg('🎉 Connect the Dots solved!');
           localStorage.removeItem(storageKey);
           setTimeout(() => onSolved(), 1500);
         } else {
-          setErrorMsg(fallbackData?.error || 'Incorrect connections. Penalty count increased (+1)!');
+          setErrorMsg(retryData?.error || 'Incorrect connections. Penalty count increased (+1)!');
           onIncorrect();
         }
         return;

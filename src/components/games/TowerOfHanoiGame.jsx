@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
-import { AlertTriangle, CheckCircle2, RotateCcw, MoveRight } from 'lucide-react';
-import { Card, Button } from '@/components/primitives';
+import { AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
+
 
 export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncorrect }) {
   const storageKey = `krithohunt_hanoi_${teamId}`;

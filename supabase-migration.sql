@@ -45,6 +45,9 @@ ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS team_code TEXT;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS deadline_at TIMESTAMPTZ;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS close_reason TEXT;
+-- Per-game completion timestamps (index 0-4 => clue 1-5), used for tie-breaking.
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS game_completion_times JSONB DEFAULT '[null,null,null,null,null]'::jsonb;
+UPDATE public.teams SET game_completion_times = '[null,null,null,null,null]'::jsonb WHERE game_completion_times IS NULL;
 UPDATE public.teams SET deadline_at = start_time + INTERVAL '45 minutes' WHERE deadline_at IS NULL;
 ALTER TABLE public.teams ALTER COLUMN deadline_at SET DEFAULT (NOW() + INTERVAL '45 minutes');
 ALTER TABLE public.teams ALTER COLUMN deadline_at SET NOT NULL;
@@ -371,10 +374,19 @@ BEGIN
   END IF;
 
   IF v_match THEN
-    UPDATE teams SET clues_solved = clues_solved + 1,
-      waiting_for_qr = CASE WHEN clues_solved + 1 < 5 THEN TRUE ELSE FALSE END
+    UPDATE teams SET
+      clues_solved = clues_solved + 1,
+      waiting_for_qr = CASE WHEN clues_solved + 1 < 5 THEN TRUE ELSE FALSE END,
+      -- Record this game's completion timestamp (index = clue_number just solved).
+      game_completion_times = jsonb_set(
+        COALESCE(game_completion_times, '[null,null,null,null,null]'::jsonb),
+        ARRAY[v_clues_solved::TEXT],
+        to_jsonb(NOW())
+      ),
+      -- Auto-complete once the 5th game is solved (no separate "mark finished" step).
+      finish_time = CASE WHEN clues_solved + 1 >= 5 THEN NOW() ELSE finish_time END
     WHERE id = p_team_id RETURNING clues_solved INTO v_new_clues;
-    RETURN jsonb_build_object('success', true, 'clues_solved', v_new_clues, 'message', 'Correct!');
+    RETURN jsonb_build_object('success', true, 'clues_solved', v_new_clues, 'message', 'Correct!', 'finished', v_new_clues >= 5);
   ELSE
     UPDATE teams SET penalty_count = penalty_count + 1 WHERE id = p_team_id
     RETURNING penalty_count INTO v_new_penalties;
@@ -383,19 +395,9 @@ BEGIN
 END;
 $$;
 
--- Mark team finished
-CREATE OR REPLACE FUNCTION mark_team_finished(p_team_id UUID)
-RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
-DECLARE v_clues INT; v_finish TIMESTAMPTZ;
-BEGIN
-  SELECT clues_solved, finish_time INTO v_clues, v_finish FROM teams WHERE id = p_team_id;
-  IF NOT FOUND THEN RETURN jsonb_build_object('success', false, 'error', 'Team not found'); END IF;
-  IF v_finish IS NOT NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Already finished'); END IF;
-  IF v_clues < 5 THEN RETURN jsonb_build_object('success', false, 'error', 'Not all challenges done'); END IF;
-  UPDATE teams SET finish_time = NOW() WHERE id = p_team_id;
-  RETURN jsonb_build_object('success', true, 'message', 'Team finished');
-END;
-$$;
+-- Completion is now automatic: finish_time is set inside submit_team_answer when the
+-- 5th game is solved. The old manual "mark team finished" function has been removed.
+DROP FUNCTION IF EXISTS public.mark_team_finished(UUID);
 
 -- Admin delete team
 CREATE OR REPLACE FUNCTION admin_delete_team(p_team_id UUID)
@@ -452,7 +454,6 @@ GRANT EXECUTE ON FUNCTION public.resume_team(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_location_qr_tokens() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_team_answer(UUID, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_connect_dots(UUID, JSONB) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.mark_team_finished(UUID) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_team(UUID) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_reset_teams() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_close_team(UUID) TO anon, authenticated;
@@ -483,60 +484,60 @@ $$;
 
 INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) VALUES
 -- RED PATH (rose)
-('red', 0, 'Head to Central Library Entrance. Scan QR to unlock Game 1.', 'sudoku',
+('red', 0, 'She holds a piece of the sun but never steps up to the mic. Seek the silent lady watching over the center of student action.', 'sudoku',
  '[[1,2,3,4],[3,4,1,2],[2,1,4,3],[4,3,2,1]]',
  '{"puzzle":[[1,0,3,0],[0,4,0,2],[2,0,4,0],[0,3,0,1]]}'),
-('red', 1, 'Proceed to Fountain Courtyard. Scan QR on brass plaque.', 'connect_dots',
+('red', 1, 'Just past the threshold facing the country''s hanging branches, a metal coil hums, waiting to trade a coin for a falling prize.', 'connect_dots',
  '7x7_valid', '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('red', 2, 'Go to Science Block Room 204. Scan QR on notice board.', 'campus_geoguessr',
+('red', 2, 'Search for the circle that speaks in many tongues, yet whispers one truth.', 'campus_geoguessr',
  'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
-('red', 3, 'Walk to Student Center Cafe. Scan QR near menu.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('red', 4, 'Search Auditorium lobby doors for QR.', 'safe_cracker', '4826', '{"instructions":"Combine: fountain year 2nd digit, library pillars, PO box 1st digit, library doors"}'),
+('red', 3, 'He bears a yoke of stone and a patient silence. Find the seated bull who guards the grounds.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('red', 4, 'Down the slope, before you pass, seek the gate that stands in your path.', 'safe_cracker', '4826', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the remainder when 1000 is divided by 9?","answer":"4"},{"type":"digit_sum","question":"What do the digits of 1024 sum to?","answer":"8"},{"type":"riddle","question":"What digit represents the number of planets in our solar system?","answer":"2"},{"type":"roman","question":"In Roman numerals, what does VI equal?","answer":"6"}]}'),
 
 -- BLUE PATH (cyan)
-('blue', 0, 'Go to Gym registration. Scan QR for Game 1.', 'sudoku',
+('blue', 0, 'With wisdom in silence and a trunk held high, a guardian of beginnings stands nearby.', 'sudoku',
  '[[2,3,4,1],[4,1,2,3],[3,2,1,4],[1,4,3,2]]', '{"puzzle":[[2,0,4,0],[0,1,0,3],[3,0,1,0],[0,4,0,2]]}'),
-('blue', 1, 'Proceed to Dean office reception. Scan QR on brochures.', 'connect_dots',
+('blue', 1, 'Where wagging tails might pause for a treat, your next clue waits near their feet.', 'connect_dots',
  '7x7_valid', '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('blue', 2, 'Go to IT Lab Block A. Scan QR on server room window.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
-('blue', 3, 'Walk to Football Field grandstand. Scan QR near Row C.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('blue', 4, 'Find QR near Art Gallery side entrance.', 'safe_cracker', '1773', '{"instructions":"College opening year: 177_"}'),
+('blue', 2, 'A cube that hums with talk and heat; where quiet leaves and boiling waters greet.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
+('blue', 3, 'A wall where things find new hands and hearts grow a little warmer—look there.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('blue', 4, 'Where liquid brews fuel late assignments and quick hangouts.', 'safe_cracker', '1773', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the product of 9 and 3 minus 26?","answer":"1"},{"type":"digit_sum","question":"What is the sum of the digits in 1111111?","answer":"7"},{"type":"riddle","question":"How many continents share their name with a cardinal direction?","answer":"7"},{"type":"roman","question":"What is the Roman numeral for the atomic number of lithium?","answer":"3"}]}'),
 
 -- GREEN PATH (emerald)
-('green', 0, 'Botanical Garden entrance. Scan QR on welcome sign.', 'sudoku',
+('green', 0, 'Not a bank, but still where you get your money back — find this room!', 'sudoku',
  '[[3,4,1,2],[1,2,3,4],[4,3,2,1],[2,1,4,3]]', '{"puzzle":[[0,4,0,2],[1,0,3,0],[0,3,0,1],[2,0,4,0]]}'),
-('green', 1, 'Chemistry Lab lobby. Scan QR on safety cabinet.', 'connect_dots', '7x7_valid',
+('green', 1, 'I don''t talk much, just three words I say; I helped forge what breaks the storm; now I rest where hunger takes flight.', 'connect_dots', '7x7_valid',
  '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('green', 2, 'Parking lot near Block B. QR on blue dumpster.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
-('green', 3, 'Open Air Theater center stage. QR on speaker.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('green', 4, 'Base of clock tower. Find QR.', 'safe_cracker', '3628', '{"instructions":"Workshop bays, chem labs, seminar rooms, main gates"}'),
+('green', 2, 'Where the path takes a rounding swerve, find the bold affection spelled out on the curve.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
+('green', 3, 'I''m not a plug for your phone or tab; but I give energy — that''s my fab. No fuel, no smoke, just silent might.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('green', 4, 'Where countless journeys pause to refuel, seventeen silent visions stand watch nearby.', 'safe_cracker', '3628', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the cube root of 27?","answer":"3"},{"type":"digit_sum","question":"How many faces does a cube have?","answer":"6"},{"type":"riddle","question":"What number is the base of binary?","answer":"2"},{"type":"roman","question":"In Roman numerals, what does VIII equal?","answer":"8"}]}'),
 
 -- YELLOW PATH (amber)
-('yellow', 0, 'Admin Block lobby. QR behind central pillar.', 'sudoku',
+('yellow', 0, 'Where wheels come to rest and footsteps begin, look for something that stands tall and straight.', 'sudoku',
  '[[4,1,2,3],[2,3,4,1],[1,2,3,4],[3,4,1,2]]', '{"puzzle":[[0,1,0,3],[2,0,4,0],[0,2,0,4],[3,0,1,0]]}'),
-('yellow', 1, 'Seminar Hall entrance. QR on frame.', 'connect_dots', '7x7_valid',
+('yellow', 1, 'I don''t move, yet control your pace, standing guard near a sloping place.', 'connect_dots', '7x7_valid',
  '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('yellow', 2, 'Tennis Court referee stand. QR on clipboard.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
-('yellow', 3, 'Hostel Block mess hall. QR on menu stand.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('yellow', 4, 'Campus Post Office drop box. QR on side.', 'safe_cracker', '7159', '{"instructions":"Campus zip code reversed"}'),
+('yellow', 2, 'Where dark strokes cover the wall, the workshop nearby holds your next call.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
+('yellow', 3, 'Where the ultimate human creation is forbidden and yet cold drinks flow, your next clue waits where you go.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('yellow', 4, 'At the start of the trio of blocks, where green touches stone, your answer rests.', 'safe_cracker', '7159', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the atomic number of nitrogen?","answer":"7"},{"type":"digit_sum","question":"What is the first digit of pi?","answer":"1"},{"type":"riddle","question":"How many senses do humans typically have?","answer":"5"},{"type":"roman","question":"What Roman numeral represents the atomic number of fluorine?","answer":"9"}]}'),
 
 -- PURPLE PATH (violet)
-('purple', 0, 'Mechanical Workshop bay. QR on toolbox.', 'sudoku',
+('purple', 0, 'Made of stone, with trunk held high; I rest in the shade of the national tree.', 'sudoku',
  '[[1,3,2,4],[2,4,1,3],[4,2,3,1],[3,1,4,2]]', '{"puzzle":[[1,0,2,0],[0,4,0,3],[4,0,3,0],[0,1,0,2]]}'),
-('purple', 1, 'Physics Lab wing. QR on emergency pull.', 'connect_dots', '7x7_valid',
+('purple', 1, 'Where journeys pause beneath a leafy crown, your next clue can be found.', 'connect_dots', '7x7_valid',
  '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('purple', 2, 'Cafeteria rooftop. QR under parasol.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
-('purple', 3, 'Campus Bank ATM. QR near receipts.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('purple', 4, 'Stationary Shop counter. Find QR.', 'safe_cracker', '8492', '{"instructions":"Letters H,D,I,B alphabet index"}'),
+('purple', 2, 'Where voices rise and crowds gather near, seek the fruit that ripens every season here.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
+('purple', 3, 'A place of sprays and scans, where safety meets identity—find where this once happened quietly.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('purple', 4, 'When the mind needs fuel, look for the silent keeper of little rewards.', 'safe_cracker', '8492', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is 2 to the power of 3?","answer":"8"},{"type":"digit_sum","question":"How many suits are in a standard deck of cards?","answer":"4"},{"type":"riddle","question":"What single digit is the sum of 3 and 6?","answer":"9"},{"type":"roman","question":"What Roman numeral represents the number of eyes on a typical face?","answer":"2"}]}'),
 
 -- ORANGE PATH (orange)
-('orange', 0, 'Main Parking entrance. QR on ticket box.', 'sudoku',
+('orange', 0, 'When the call is made and everyone must meet, find where scattered footsteps become one, beside a place that keeps the campus fed.', 'sudoku',
  '[[4,2,3,1],[3,1,4,2],[2,4,1,3],[1,3,2,4]]', '{"puzzle":[[0,2,0,1],[3,0,4,0],[0,4,0,3],[1,0,2,0]]}'),
-('orange', 1, 'Music Room lobby. QR on upright piano.', 'connect_dots', '7x7_valid',
+('orange', 1, 'Heisenberg says you can''t know it all—find the gateway where his name stands tall.', 'connect_dots', '7x7_valid',
  '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
-('orange', 2, 'Computer Lab lobby. QR beneath stairs.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
-('orange', 3, 'Conference Center reception. QR under mat.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('orange', 4, 'Student Council office mail slot. QR posted.', 'safe_cracker', '6205', '{"instructions":"Reverse of first digits of five campus blocks"}')
+('orange', 2, 'Among the scattered stones, where benches invite you to stay, seek the wall where greenery climbs its way.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
+('orange', 3, 'Where performers take the stage and smoke meets its end, find the silent warning waiting around the bend.', 'tower_hanoi', 'hanoi_solved', '{}'),
+('orange', 4, 'Where Shiva watches in stillness, look for the giant with a trunk.', 'safe_cracker', '6205', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the smallest perfect number?","answer":"6"},{"type":"digit_sum","question":"What is the smallest prime number?","answer":"2"},{"type":"riddle","question":"What digit represents nothing in our number system?","answer":"0"},{"type":"roman","question":"What is the Roman numeral for the number of days in a work week?","answer":"5"}]}')
 ON CONFLICT (color, clue_number) DO UPDATE SET
   clue_text = EXCLUDED.clue_text, game_type = EXCLUDED.game_type,
   answer = EXCLUDED.answer, game_data = EXCLUDED.game_data;

@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import { AlertTriangle, CheckCircle2, Loader2, MapPin, ZoomIn, ZoomOut, ChevronRight } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Card, Button } from '@/components/primitives';
+import { Button } from '@/components/primitives';
 
 const DEFAULT_ROUNDS = [
   {
@@ -173,13 +173,15 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
     );
 
     const isCorrect = distance <= radius;
+    const roundNumber = currentRoundIdx + 1;
 
     try {
       if (isCorrect) {
-        if (currentRoundIdx + 1 >= totalRounds) {
+        if (roundNumber >= totalRounds) {
+          // FINAL ROUND - submit to server, this completes the GeoGuessr game (clue #3)
           const { data, error } = await supabase.rpc('submit_team_answer', {
             p_team_id: teamId,
-            p_answer: `${pin.x},${pin.y},${currentRoundIdx + 1}`
+            p_answer: `${pin.x},${pin.y},${roundNumber}`
           });
 
           if (error) throw error;
@@ -191,11 +193,12 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
               onSolved();
             }, 1800);
           } else {
-            setErrorMsg(data.error || 'Failed to submit final answer to server.');
+            setErrorMsg(data.error || 'Failed to submit answer to server.');
             submittingRef.current = false;
           }
         } else {
-          setSuccessMsg(`Correct location! Advancing to Round ${currentRoundIdx + 2}/${totalRounds}...`);
+          // Intermediate round - advance locally, NO server call yet
+          setSuccessMsg(`Correct location! Advancing to Round ${roundNumber + 1}/${totalRounds}...`);
           setTimeout(() => {
             submittingRef.current = false;
             setCurrentRoundIdx(prev => prev + 1);
@@ -208,6 +211,7 @@ export default function CampusGeoguessrGame({ teamId, colorTheme, gameData, onSo
           }, 1500);
         }
       } else {
+        // Wrong guess - submit 'wrong' to record penalty immediately
         const { error } = await supabase.rpc('submit_team_answer', {
           p_team_id: teamId,
           p_answer: 'wrong'
