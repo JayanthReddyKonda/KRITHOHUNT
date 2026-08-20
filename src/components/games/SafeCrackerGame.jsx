@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { AlertTriangle, CheckCircle2, Loader2, Lock, Unlock, ScrollText } from 'lucide-react';
-import { Card, Button, KeypadButton, SafeDigitDisplay } from '@/components/primitives';
+import { Button, KeypadButton, SafeDigitDisplay } from '@/components/primitives';
 
 const LOCAL_SAFE_CLUES = {
   red: {

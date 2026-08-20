@@ -492,7 +492,7 @@ INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) 
 ('red', 2, 'Search for the circle that speaks in many tongues, yet whispers one truth.', 'campus_geoguessr',
  'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('red', 3, 'He bears a yoke of stone and a patient silence. Find the seated bull who guards the grounds.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('red', 4, 'Down the slope, before you pass, seek the gate that stands in your path.', 'safe_cracker', '4826', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"(9 x 2) - 14 = ?","answer":"4"},{"type":"digit_sum","question":"Sum of digits in 998","answer":"8"},{"type":"riddle","question":"I am the number of wheels on a bicycle. What digit am I?","answer":"2"},{"type":"roman","question":"VI = ?","answer":"6"}]}'),
+('red', 4, 'Down the slope, before you pass, seek the gate that stands in your path.', 'safe_cracker', '4826', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the remainder when 1000 is divided by 9?","answer":"4"},{"type":"digit_sum","question":"What do the digits of 1024 sum to?","answer":"8"},{"type":"riddle","question":"What digit represents the number of planets in our solar system?","answer":"2"},{"type":"roman","question":"In Roman numerals, what does VI equal?","answer":"6"}]}'),
 
 -- BLUE PATH (cyan)
 ('blue', 0, 'With wisdom in silence and a trunk held high, a guardian of beginnings stands nearby.', 'sudoku',
@@ -501,7 +501,7 @@ INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) 
  '7x7_valid', '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('blue', 2, 'A cube that hums with talk and heat; where quiet leaves and boiling waters greet.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('blue', 3, 'A wall where things find new hands and hearts grow a little warmer—look there.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('blue', 4, 'Where liquid brews fuel late assignments and quick hangouts.', 'safe_cracker', '1773', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"(8 + 5) - 12 = ?","answer":"1"},{"type":"digit_sum","question":"Sum of digits in 349","answer":"7"},{"type":"riddle","question":"I am the number of days in a week. What digit am I?","answer":"7"},{"type":"roman","question":"III = ?","answer":"3"}]}'),
+('blue', 4, 'Where liquid brews fuel late assignments and quick hangouts.', 'safe_cracker', '1773', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the product of 9 and 3 minus 26?","answer":"1"},{"type":"digit_sum","question":"What is the sum of the digits in 1111111?","answer":"7"},{"type":"riddle","question":"How many continents share their name with a cardinal direction?","answer":"7"},{"type":"roman","question":"What is the Roman numeral for the atomic number of lithium?","answer":"3"}]}'),
 
 -- GREEN PATH (emerald)
 ('green', 0, 'Not a bank, but still where you get your money back — find this room!', 'sudoku',
@@ -510,7 +510,7 @@ INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) 
  '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('green', 2, 'Where the path takes a rounding swerve, find the bold affection spelled out on the curve.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('green', 3, 'I''m not a plug for your phone or tab; but I give energy — that''s my fab. No fuel, no smoke, just silent might.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('green', 4, 'Where countless journeys pause to refuel, seventeen silent visions stand watch nearby.', 'safe_cracker', '3628', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"(4 x 2) - 5 = ?","answer":"3"},{"type":"digit_sum","question":"Sum of digits in 699","answer":"6"},{"type":"riddle","question":"I am the only even prime number. What digit am I?","answer":"2"},{"type":"roman","question":"VIII = ?","answer":"8"}]}'),
+('green', 4, 'Where countless journeys pause to refuel, seventeen silent visions stand watch nearby.', 'safe_cracker', '3628', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the cube root of 27?","answer":"3"},{"type":"digit_sum","question":"How many faces does a cube have?","answer":"6"},{"type":"riddle","question":"What number is the base of binary?","answer":"2"},{"type":"roman","question":"In Roman numerals, what does VIII equal?","answer":"8"}]}'),
 
 -- YELLOW PATH (amber)
 ('yellow', 0, 'Where wheels come to rest and footsteps begin, look for something that stands tall and straight.', 'sudoku',
@@ -519,7 +519,7 @@ INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) 
  '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('yellow', 2, 'Where dark strokes cover the wall, the workshop nearby holds your next call.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('yellow', 3, 'Where the ultimate human creation is forbidden and yet cold drinks flow, your next clue waits where you go.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('yellow', 4, 'At the start of the trio of blocks, where green touches stone, your answer rests.', 'safe_cracker', '7159', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"(6 + 4) - 3 = ?","answer":"7"},{"type":"digit_sum","question":"Sum of digits in 334","answer":"1"},{"type":"riddle","question":"I am the number of fingers on one hand. What digit am I?","answer":"5"},{"type":"roman","question":"IX = ?","answer":"9"}]}'),
+('yellow', 4, 'At the start of the trio of blocks, where green touches stone, your answer rests.', 'safe_cracker', '7159', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the atomic number of nitrogen?","answer":"7"},{"type":"digit_sum","question":"What is the first digit of pi?","answer":"1"},{"type":"riddle","question":"How many senses do humans typically have?","answer":"5"},{"type":"roman","question":"What Roman numeral represents the atomic number of fluorine?","answer":"9"}]}'),
 
 -- PURPLE PATH (violet)
 ('purple', 0, 'Made of stone, with trunk held high; I rest in the shade of the national tree.', 'sudoku',
@@ -528,7 +528,7 @@ INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) 
  '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('purple', 2, 'Where voices rise and crowds gather near, seek the fruit that ripens every season here.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('purple', 3, 'A place of sprays and scans, where safety meets identity—find where this once happened quietly.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('purple', 4, 'When the mind needs fuel, look for the silent keeper of little rewards.', 'safe_cracker', '8492', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"(3 x 4) - 4 = ?","answer":"8"},{"type":"digit_sum","question":"Sum of digits in 499","answer":"4"},{"type":"riddle","question":"I am one less than ten. What digit am I?","answer":"9"},{"type":"roman","question":"II = ?","answer":"2"}]}'),
+('purple', 4, 'When the mind needs fuel, look for the silent keeper of little rewards.', 'safe_cracker', '8492', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is 2 to the power of 3?","answer":"8"},{"type":"digit_sum","question":"How many suits are in a standard deck of cards?","answer":"4"},{"type":"riddle","question":"What single digit is the sum of 3 and 6?","answer":"9"},{"type":"roman","question":"What Roman numeral represents the number of eyes on a typical face?","answer":"2"}]}'),
 
 -- ORANGE PATH (orange)
 ('orange', 0, 'When the call is made and everyone must meet, find where scattered footsteps become one, beside a place that keeps the campus fed.', 'sudoku',
@@ -537,7 +537,7 @@ INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) 
  '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
 ('orange', 2, 'Among the scattered stones, where benches invite you to stay, seek the wall where greenery climbs its way.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('orange', 3, 'Where performers take the stage and smoke meets its end, find the silent warning waiting around the bend.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('orange', 4, 'Where Shiva watches in stillness, look for the giant with a trunk.', 'safe_cracker', '6205', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"(9 - 1) - 2 = ?","answer":"6"},{"type":"digit_sum","question":"Sum of digits in 2000","answer":"2"},{"type":"riddle","question":"Add nothing to five and I stay the same. What digit am I?","answer":"0"},{"type":"roman","question":"V = ?","answer":"5"}]}')
+('orange', 4, 'Where Shiva watches in stillness, look for the giant with a trunk.', 'safe_cracker', '6205', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the smallest perfect number?","answer":"6"},{"type":"digit_sum","question":"What is the smallest prime number?","answer":"2"},{"type":"riddle","question":"What digit represents nothing in our number system?","answer":"0"},{"type":"roman","question":"What is the Roman numeral for the number of days in a work week?","answer":"5"}]}')
 ON CONFLICT (color, clue_number) DO UPDATE SET
   clue_text = EXCLUDED.clue_text, game_type = EXCLUDED.game_type,
   answer = EXCLUDED.answer, game_data = EXCLUDED.game_data;

@@ -223,11 +223,6 @@ export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved
     }
   };
 
-  const handleResetColor = (cid) => {
-    setPaths(prev => ({ ...prev, [cid]: [] }));
-    setErrorMsg('');
-    setSuccessMsg('');
-  };
 
   const checkPuzzleSolved = async () => {
     setLoading(true);
