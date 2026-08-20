@@ -37,6 +37,17 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
         setErrorMsg('');
         setSuccessMsg('');
         try {
+          const hanoiPenalty = Math.max(0, moves - 7);
+
+          if (hanoiPenalty > 0) {
+            for (let i = 0; i < hanoiPenalty; i++) {
+              await supabase.rpc('submit_team_answer', {
+                p_team_id: teamId,
+                p_answer: 'wrong'
+              });
+            }
+          }
+
           const { data, error } = await supabase.rpc('submit_team_answer', {
             p_team_id: teamId,
             p_answer: 'hanoi_solved'
@@ -46,7 +57,8 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
 
           if (data.success) {
             localStorage.removeItem(storageKey);
-            setSuccessMsg(`Tower of Hanoi solved!\nYou solved it in ${moves} moves.`);
+            const penaltyNotice = hanoiPenalty > 0 ? ` (+${hanoiPenalty} penalty)` : '';
+            setSuccessMsg(`Tower of Hanoi solved!\nYou solved it in ${moves} moves${penaltyNotice}.`);
             setTimeout(() => {
               onSolved();
             }, 2000);
@@ -136,7 +148,7 @@ export default function TowerOfHanoiGame({ teamId, colorTheme, onSolved, onIncor
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-widest text-accent-brand">Puzzle 4</p>
         <h4 className="text-[1.05rem] font-semibold text-primary">Tower of Hanoi</h4>
-        <p className="text-[0.8125rem] text-secondary mt-0.5">Move all 3 disks from A to C. Larger disks cannot go on smaller ones.</p>
+        <p className="text-[0.8125rem] text-secondary mt-0.5">Move all 3 disks from A to C. Larger disks cannot go on smaller ones. Complete the game in minimum 7 moves, extra moves add +1 penalty.</p>
       </div>
 
       <div className="flex flex-col items-center select-none w-full">

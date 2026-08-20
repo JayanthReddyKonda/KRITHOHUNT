@@ -495,19 +495,21 @@ export default function PlayScreen({ teamId, onReset }) {
                   </div>
 
                   {/* Clue Card Frame */}
-                  <div className="bg-surface-2/50 border border-border-subtle/80 rounded-2xl p-5 space-y-3.5 shadow-inner">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2.5 rounded-xl bg-surface-3/80 border border-border-subtle shrink-0 mt-0.5">
-                        <MapPin className="w-4 h-4 text-accent-brand" />
+                  <div className="bg-surface-2/70 border border-border-subtle/90 rounded-2xl p-6 shadow-lg space-y-4 relative overflow-hidden backdrop-blur-sm">
+                    <div className="flex items-center gap-2.5 text-accent-brand text-[0.8125rem] font-semibold tracking-wide uppercase">
+                      <div className="p-2 rounded-xl bg-accent-brand/10 border border-accent-brand/20 shrink-0">
+                        <MapPin className="w-4.5 h-4.5 text-accent-brand" />
                       </div>
-                      <div className="space-y-1.5">
-                        <h3 className="text-[0.95rem] font-semibold text-primary leading-snug">
-                          {clue ? clue.clue_text : 'Find the next location.'}
-                        </h3>
-                        <p className="text-[0.75rem] text-secondary leading-relaxed">
-                          Find and scan the QR code for this clue.
-                        </p>
-                      </div>
+                      <span>Location Clue</span>
+                    </div>
+
+                    <p className="text-[1.15rem] sm:text-[1.25rem] font-medium text-primary leading-relaxed tracking-tight italic">
+                      "{clue ? clue.clue_text : 'Find the next location.'}"
+                    </p>
+
+                    <div className="pt-3 border-t border-border-subtle/50 flex items-center justify-between text-[0.75rem] text-secondary">
+                      <span>Find & scan QR at this location</span>
+                      <span className="font-mono text-muted text-micro">Clue #{team.clues_solved + 1}</span>
                     </div>
                   </div>
 

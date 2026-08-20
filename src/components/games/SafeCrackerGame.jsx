@@ -6,7 +6,7 @@ import { Button, KeypadButton, SafeDigitDisplay } from '@/components/primitives'
 const LOCAL_SAFE_CLUES = {
   red: {
     completionTitle: 'FINAL CLUE',
-    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    completionMessage: 'Return to the Start Point where the hunt began.',
     clues: [
       { type: 'math', question: 'Solve for x: 4^(x - 1) = 64. What digit is x?', answer: '4' },
       { type: 'digit_sum', question: 'What is the single-digit digital root of 2987?', answer: '8' },
@@ -16,7 +16,7 @@ const LOCAL_SAFE_CLUES = {
   },
   blue: {
     completionTitle: 'FINAL CLUE',
-    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    completionMessage: 'Return to the Start Point where the hunt began.',
     clues: [
       { type: 'math', question: 'Solve for x: 5x - 13 = 2x - 10. What digit is x?', answer: '1' },
       { type: 'digit_sum', question: 'What is the single-digit digital root of 3499?', answer: '7' },
@@ -26,7 +26,7 @@ const LOCAL_SAFE_CLUES = {
   },
   green: {
     completionTitle: 'FINAL CLUE',
-    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    completionMessage: 'Return to the Start Point where the hunt began.',
     clues: [
       { type: 'math', question: 'Solve for x: 3^(x + 1) = 81. What digit is x?', answer: '3' },
       { type: 'digit_sum', question: 'What is the single-digit digital root of 6873?', answer: '6' },
@@ -36,7 +36,7 @@ const LOCAL_SAFE_CLUES = {
   },
   yellow: {
     completionTitle: 'FINAL CLUE',
-    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    completionMessage: 'Return to the Start Point where the hunt began.',
     clues: [
       { type: 'math', question: 'Solve for x: 4x - 9 = x + 12. What digit is x?', answer: '7' },
       { type: 'digit_sum', question: 'What is the single-digit digital root of 589?', answer: '4' },
@@ -46,7 +46,7 @@ const LOCAL_SAFE_CLUES = {
   },
   purple: {
     completionTitle: 'FINAL CLUE',
-    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    completionMessage: 'Return to the Start Point where the hunt began.',
     clues: [
       { type: 'math', question: 'Solve for x: 2^(x - 1) = 128. What digit is x?', answer: '8' },
       { type: 'digit_sum', question: 'What is the single-digit digital root of 787?', answer: '4' },
@@ -56,7 +56,7 @@ const LOCAL_SAFE_CLUES = {
   },
   orange: {
     completionTitle: 'FINAL CLUE',
-    completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
+    completionMessage: 'Return to the Start Point where the hunt began.',
     clues: [
       { type: 'math', question: 'Solve for x: 6x - 14 = 2x + 10. What digit is x?', answer: '6' },
       { type: 'digit_sum', question: 'What is the single-digit digital root of 2900?', answer: '2' },

@@ -770,10 +770,11 @@ export default function AdminDashboard() {
                                     </span>
                                     <span className="text-micro text-muted font-semibold uppercase">{team.clues_solved} / 5 Solved</span>
                                     {getStageTimes(team).some(Boolean) && (
-                                      <div className="flex flex-wrap gap-1 mt-1">
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                         {getStageTimes(team).map((t, i) => t ? (
-                                          <span key={i} title={`Game ${i + 1} completed`} className="text-[0.625rem] font-mono text-secondary bg-surface-3/50 border border-border-subtle px-1.5 py-0.5 rounded">
-                                            G{i + 1}: <span className="text-primary">{t}</span>
+                                          <span key={i} title={`Game ${i + 1} completed in ${t}`} className="inline-flex items-center gap-1 text-[0.6875rem] font-mono text-secondary bg-surface-3/60 border border-border-subtle/80 px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">
+                                            <span className="text-muted font-semibold">G{i + 1}:</span>
+                                            <span className="text-primary font-medium">{t}</span>
                                           </span>
                                         ) : null)}
                                       </div>
@@ -893,6 +894,17 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         </div>
+
+                        {getStageTimes(team).some(Boolean) && (
+                          <div className="border-t border-border-subtle/40 px-4 py-2 bg-surface-2/20 flex flex-wrap items-center gap-1.5">
+                            {getStageTimes(team).map((t, i) => t ? (
+                              <span key={i} title={`Game ${i + 1} completed in ${t}`} className="inline-flex items-center gap-1 text-[0.6875rem] font-mono text-secondary bg-surface-3/60 border border-border-subtle/80 px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">
+                                <span className="text-muted font-semibold">G{i + 1}:</span>
+                                <span className="text-primary font-medium">{t}</span>
+                              </span>
+                            ) : null)}
+                          </div>
+                        )}
 
                         <div className="border-t border-border-subtle/50 px-4 py-3 bg-surface-2/30 flex justify-end gap-2">
                           {!isCompleted && !isClosed && (
