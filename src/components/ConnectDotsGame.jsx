@@ -3,17 +3,17 @@ import { supabase } from '../supabaseClient';
 import { AlertTriangle, CheckCircle2, Loader2, RotateCcw } from 'lucide-react';
 
 export default function ConnectDotsGame({ teamId, colorTheme, gameData, onSolved, onIncorrect }) {
-  const rows = gameData?.rows || 7;
-  const cols = gameData?.cols || 7;
+  const rows = gameData?.rows || 5;
+  const cols = gameData?.cols || 5;
 
   // Endpoint dots from DB or fallback
   // Format: [[row, col, colorId], ...]
   // Colors: 1 = Red, 2 = Blue, 3 = Green, 4 = Yellow
   const initialDots = gameData?.dots || [
-    [0, 1, 1], [4, 5, 1], // Red
-    [1, 5, 2], [5, 1, 2], // Blue
-    [2, 0, 3], [4, 2, 3], // Green
-    [3, 5, 4], [6, 2, 4]  // Yellow
+    [2, 3, 1], [3, 0, 1], // Red
+    [0, 2, 2], [2, 2, 2], // Blue
+    [1, 1, 3], [0, 4, 3], // Green
+    [4, 0, 4], [1, 4, 4]  // Yellow
   ];
 
   const storageKey = `krithohunt_connectdots_paths_${teamId}_${rows}x${cols}`;

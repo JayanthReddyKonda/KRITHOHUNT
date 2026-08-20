@@ -8,60 +8,60 @@ const LOCAL_SAFE_CLUES = {
     completionTitle: 'FINAL CLUE',
     completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
     clues: [
-      { type: 'math', question: '(9 × 2) - 14 = ?', answer: '4' },
-      { type: 'digit_sum', question: '998', answer: '8' },
-      { type: 'riddle', question: 'I am the number of wheels on a bicycle. What digit am I?', answer: '2' },
-      { type: 'roman', question: 'VI', answer: '6' },
+      { type: 'math', question: 'Solve for x: 4^(x - 1) = 64. What digit is x?', answer: '4' },
+      { type: 'digit_sum', question: 'What is the single-digit digital root of 2987?', answer: '8' },
+      { type: 'riddle', question: 'Three digits A < B < C form an arithmetic progression. Given A + B + C = 15 and A × C = 21, what is the largest digit C?', answer: '7' },
+      { type: 'roman', question: 'In Roman numerals, what digit does VI represent?', answer: '6' },
     ],
   },
   blue: {
     completionTitle: 'FINAL CLUE',
     completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
     clues: [
-      { type: 'math', question: '(8 + 5) - 12 = ?', answer: '1' },
-      { type: 'digit_sum', question: '349', answer: '7' },
-      { type: 'riddle', question: 'I am the number of days in a week. What digit am I?', answer: '7' },
-      { type: 'roman', question: 'III', answer: '3' },
+      { type: 'math', question: 'Solve for x: 5x - 13 = 2x - 10. What digit is x?', answer: '1' },
+      { type: 'digit_sum', question: 'What is the single-digit digital root of 3499?', answer: '7' },
+      { type: 'riddle', question: 'Three digits P < Q < R form an arithmetic progression. Given P + Q + R = 18 and P × R = 32, what is the middle digit Q?', answer: '6' },
+      { type: 'roman', question: 'In Roman numerals, what digit does III represent?', answer: '3' },
     ],
   },
   green: {
     completionTitle: 'FINAL CLUE',
     completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
     clues: [
-      { type: 'math', question: '(4 × 2) - 5 = ?', answer: '3' },
-      { type: 'digit_sum', question: '699', answer: '6' },
-      { type: 'riddle', question: 'I am the only even prime number. What digit am I?', answer: '2' },
-      { type: 'roman', question: 'VIII', answer: '8' },
+      { type: 'math', question: 'Solve for x: 3^(x + 1) = 81. What digit is x?', answer: '3' },
+      { type: 'digit_sum', question: 'What is the single-digit digital root of 6873?', answer: '6' },
+      { type: 'riddle', question: 'Three digits X < Y < Z form an arithmetic progression. Given X + Y + Z = 18 and X × Z = 32, what is the largest digit Z?', answer: '8' },
+      { type: 'roman', question: 'In Roman numerals, what digit does V represent?', answer: '5' },
     ],
   },
   yellow: {
     completionTitle: 'FINAL CLUE',
     completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
     clues: [
-      { type: 'math', question: '(6 + 4) - 3 = ?', answer: '7' },
-      { type: 'digit_sum', question: '334', answer: '1' },
-      { type: 'riddle', question: 'I am the number of fingers on one hand. What digit am I?', answer: '5' },
-      { type: 'roman', question: 'IX', answer: '9' },
+      { type: 'math', question: 'Solve for x: 4x - 9 = x + 12. What digit is x?', answer: '7' },
+      { type: 'digit_sum', question: 'What is the single-digit digital root of 589?', answer: '4' },
+      { type: 'riddle', question: 'Three distinct digits A < B < C satisfy A + B + C = 15 and A × C = 16. If B is the arithmetic mean of A and C, what is the middle digit B?', answer: '5' },
+      { type: 'roman', question: 'In Roman numerals, what digit does IX represent?', answer: '9' },
     ],
   },
   purple: {
     completionTitle: 'FINAL CLUE',
     completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
     clues: [
-      { type: 'math', question: '(3 × 4) - 4 = ?', answer: '8' },
-      { type: 'digit_sum', question: '499', answer: '4' },
-      { type: 'riddle', question: 'I am one less than ten. What digit am I?', answer: '9' },
-      { type: 'roman', question: 'II', answer: '2' },
+      { type: 'math', question: 'Solve for x: 2^(x - 1) = 128. What digit is x?', answer: '8' },
+      { type: 'digit_sum', question: 'What is the single-digit digital root of 787?', answer: '4' },
+      { type: 'riddle', question: 'Three digits A < B < C form an arithmetic progression. Given A + B + C = 15 and A × C = 21, what is the largest digit C?', answer: '7' },
+      { type: 'roman', question: 'In Roman numerals, what digit does II represent?', answer: '2' },
     ],
   },
   orange: {
     completionTitle: 'FINAL CLUE',
     completionMessage: 'Return to the Start Point where the hunt began. Your next clue is waiting there.',
     clues: [
-      { type: 'math', question: '(9 - 1) - 2 = ?', answer: '6' },
-      { type: 'digit_sum', question: '2000', answer: '2' },
-      { type: 'riddle', question: 'Add nothing to five and I stay the same. What digit am I?', answer: '0' },
-      { type: 'roman', question: 'V', answer: '5' },
+      { type: 'math', question: 'Solve for x: 6x - 14 = 2x + 10. What digit is x?', answer: '6' },
+      { type: 'digit_sum', question: 'What is the single-digit digital root of 2900?', answer: '2' },
+      { type: 'riddle', question: 'Three digits X < Y < Z form an arithmetic progression. Given X + Y + Z = 21 and X × Z = 45, what is the largest digit Z?', answer: '9' },
+      { type: 'roman', question: 'In Roman numerals, what digit does V represent?', answer: '5' },
     ],
   },
 };
@@ -246,7 +246,7 @@ export default function SafeCrackerGame({ teamId, colorTheme, gameData, onSolved
     }
   };
 
-  const LABELS = ['Math', 'Digital Root', 'Riddle', 'Roman numeral'];
+  const LABELS = ['Math', 'Digital Root', 'Logic Deduction', 'Roman numeral'];
 
   return (
     <div className="w-full max-w-md mx-auto space-y-5 px-1 pb-6">

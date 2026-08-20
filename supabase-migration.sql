@@ -488,56 +488,56 @@ INSERT INTO clues (color, clue_number, clue_text, game_type, answer, game_data) 
  '[[1,2,3,4],[3,4,1,2],[2,1,4,3],[4,3,2,1]]',
  '{"puzzle":[[1,0,3,0],[0,4,0,2],[2,0,4,0],[0,3,0,1]]}'),
 ('red', 1, 'Just past the threshold facing the country''s hanging branches, a metal coil hums, waiting to trade a coin for a falling prize.', 'connect_dots',
- '7x7_valid', '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
+ '5x5_valid', '{"rows":5,"cols":5,"dots":[[2,3,1],[3,0,1],[0,2,2],[2,2,2],[1,1,3],[0,4,3],[4,0,4],[1,4,4]]}'),
 ('red', 2, 'Search for the circle that speaks in many tongues, yet whispers one truth.', 'campus_geoguessr',
  'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('red', 3, 'He bears a yoke of stone and a patient silence. Find the seated bull who guards the grounds.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('red', 4, 'Down the slope, before you pass, seek the gate that stands in your path.', 'safe_cracker', '4826', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the remainder when 1000 is divided by 9?","answer":"4"},{"type":"digit_sum","question":"What do the digits of 1024 sum to?","answer":"8"},{"type":"riddle","question":"What digit represents the number of planets in our solar system?","answer":"2"},{"type":"roman","question":"In Roman numerals, what does VI equal?","answer":"6"}]}'),
+('red', 4, 'Down the slope, before you pass, seek the gate that stands in your path.', 'safe_cracker', '4876', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"Solve for x: 4^(x - 1) = 64. What digit is x?","answer":"4"},{"type":"digit_sum","question":"What is the single-digit digital root of 2987?","answer":"8"},{"type":"riddle","question":"Three digits A < B < C form an arithmetic progression. Given A + B + C = 15 and A × C = 21, what is the largest digit C?","answer":"7"},{"type":"roman","question":"In Roman numerals, what digit does VI represent?","answer":"6"}]}'),
 
 -- BLUE PATH (cyan)
 ('blue', 0, 'With wisdom in silence and a trunk held high, a guardian of beginnings stands nearby.', 'sudoku',
  '[[2,3,4,1],[4,1,2,3],[3,2,1,4],[1,4,3,2]]', '{"puzzle":[[2,0,4,0],[0,1,0,3],[3,0,1,0],[0,4,0,2]]}'),
 ('blue', 1, 'Where wagging tails might pause for a treat, your next clue waits near their feet.', 'connect_dots',
- '7x7_valid', '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
+ '5x5_valid', '{"rows":5,"cols":5,"dots":[[2,3,1],[3,0,1],[0,2,2],[2,2,2],[1,1,3],[0,4,3],[4,0,4],[1,4,4]]}'),
 ('blue', 2, 'A cube that hums with talk and heat; where quiet leaves and boiling waters greet.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('blue', 3, 'A wall where things find new hands and hearts grow a little warmer—look there.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('blue', 4, 'Where liquid brews fuel late assignments and quick hangouts.', 'safe_cracker', '1773', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the product of 9 and 3 minus 26?","answer":"1"},{"type":"digit_sum","question":"What is the sum of the digits in 1111111?","answer":"7"},{"type":"riddle","question":"How many continents share their name with a cardinal direction?","answer":"7"},{"type":"roman","question":"What is the Roman numeral for the atomic number of lithium?","answer":"3"}]}'),
+('blue', 4, 'Where liquid brews fuel late assignments and quick hangouts.', 'safe_cracker', '1763', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"Solve for x: 5x - 13 = 2x - 10. What digit is x?","answer":"1"},{"type":"digit_sum","question":"What is the single-digit digital root of 3499?","answer":"7"},{"type":"riddle","question":"Three digits P < Q < R form an arithmetic progression. Given P + Q + R = 18 and P × R = 32, what is the middle digit Q?","answer":"6"},{"type":"roman","question":"In Roman numerals, what digit does III represent?","answer":"3"}]}'),
 
 -- GREEN PATH (emerald)
 ('green', 0, 'Not a bank, but still where you get your money back — find this room!', 'sudoku',
  '[[3,4,1,2],[1,2,3,4],[4,3,2,1],[2,1,4,3]]', '{"puzzle":[[0,4,0,2],[1,0,3,0],[0,3,0,1],[2,0,4,0]]}'),
-('green', 1, 'I don''t talk much, just three words I say; I helped forge what breaks the storm; now I rest where hunger takes flight.', 'connect_dots', '7x7_valid',
- '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
+('green', 1, 'I don''t talk much, just three words I say; I helped forge what breaks the storm; now I rest where hunger takes flight.', 'connect_dots', '5x5_valid',
+ '{"rows":5,"cols":5,"dots":[[2,3,1],[3,0,1],[0,2,2],[2,2,2],[1,1,3],[0,4,3],[4,0,4],[1,4,4]]}'),
 ('green', 2, 'Where the path takes a rounding swerve, find the bold affection spelled out on the curve.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('green', 3, 'I''m not a plug for your phone or tab; but I give energy — that''s my fab. No fuel, no smoke, just silent might.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('green', 4, 'Where countless journeys pause to refuel, seventeen silent visions stand watch nearby.', 'safe_cracker', '3628', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the cube root of 27?","answer":"3"},{"type":"digit_sum","question":"How many faces does a cube have?","answer":"6"},{"type":"riddle","question":"What number is the base of binary?","answer":"2"},{"type":"roman","question":"In Roman numerals, what does VIII equal?","answer":"8"}]}'),
+('green', 4, 'Where countless journeys pause to refuel, seventeen silent visions stand watch nearby.', 'safe_cracker', '3685', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"Solve for x: 3^(x + 1) = 81. What digit is x?","answer":"3"},{"type":"digit_sum","question":"What is the single-digit digital root of 6873?","answer":"6"},{"type":"riddle","question":"Three digits X < Y < Z form an arithmetic progression. Given X + Y + Z = 18 and X × Z = 32, what is the largest digit Z?","answer":"8"},{"type":"roman","question":"In Roman numerals, what digit does V represent?","answer":"5"}]}'),
 
 -- YELLOW PATH (amber)
 ('yellow', 0, 'Where wheels come to rest and footsteps begin, look for something that stands tall and straight.', 'sudoku',
  '[[4,1,2,3],[2,3,4,1],[1,2,3,4],[3,4,1,2]]', '{"puzzle":[[0,1,0,3],[2,0,4,0],[0,2,0,4],[3,0,1,0]]}'),
-('yellow', 1, 'I don''t move, yet control your pace, standing guard near a sloping place.', 'connect_dots', '7x7_valid',
- '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
+('yellow', 1, 'I don''t move, yet control your pace, standing guard near a sloping place.', 'connect_dots', '5x5_valid',
+ '{"rows":5,"cols":5,"dots":[[2,3,1],[3,0,1],[0,2,2],[2,2,2],[1,1,3],[0,4,3],[4,0,4],[1,4,4]]}'),
 ('yellow', 2, 'Where dark strokes cover the wall, the workshop nearby holds your next call.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('yellow', 3, 'Where the ultimate human creation is forbidden and yet cold drinks flow, your next clue waits where you go.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('yellow', 4, 'At the start of the trio of blocks, where green touches stone, your answer rests.', 'safe_cracker', '7159', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the atomic number of nitrogen?","answer":"7"},{"type":"digit_sum","question":"What is the first digit of pi?","answer":"1"},{"type":"riddle","question":"How many senses do humans typically have?","answer":"5"},{"type":"roman","question":"What Roman numeral represents the atomic number of fluorine?","answer":"9"}]}'),
+('yellow', 4, 'At the start of the trio of blocks, where green touches stone, your answer rests.', 'safe_cracker', '7459', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"Solve for x: 4x - 9 = x + 12. What digit is x?","answer":"7"},{"type":"digit_sum","question":"What is the single-digit digital root of 589?","answer":"4"},{"type":"riddle","question":"Three distinct digits A < B < C satisfy A + B + C = 15 and A × C = 16. If B is the arithmetic mean of A and C, what is the middle digit B?","answer":"5"},{"type":"roman","question":"In Roman numerals, what digit does IX represent?","answer":"9"}]}'),
 
 -- PURPLE PATH (violet)
 ('purple', 0, 'Made of stone, with trunk held high; I rest in the shade of the national tree.', 'sudoku',
  '[[1,3,2,4],[2,4,1,3],[4,2,3,1],[3,1,4,2]]', '{"puzzle":[[1,0,2,0],[0,4,0,3],[4,0,3,0],[0,1,0,2]]}'),
-('purple', 1, 'Where journeys pause beneath a leafy crown, your next clue can be found.', 'connect_dots', '7x7_valid',
- '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
+('purple', 1, 'Where journeys pause beneath a leafy crown, your next clue can be found.', 'connect_dots', '5x5_valid',
+ '{"rows":5,"cols":5,"dots":[[2,3,1],[3,0,1],[0,2,2],[2,2,2],[1,1,3],[0,4,3],[4,0,4],[1,4,4]]}'),
 ('purple', 2, 'Where voices rise and crowds gather near, seek the fruit that ripens every season here.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('purple', 3, 'A place of sprays and scans, where safety meets identity—find where this once happened quietly.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('purple', 4, 'When the mind needs fuel, look for the silent keeper of little rewards.', 'safe_cracker', '8492', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is 2 to the power of 3?","answer":"8"},{"type":"digit_sum","question":"How many suits are in a standard deck of cards?","answer":"4"},{"type":"riddle","question":"What single digit is the sum of 3 and 6?","answer":"9"},{"type":"roman","question":"What Roman numeral represents the number of eyes on a typical face?","answer":"2"}]}'),
+('purple', 4, 'When the mind needs fuel, look for the silent keeper of little rewards.', 'safe_cracker', '8472', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"Solve for x: 2^(x - 1) = 128. What digit is x?","answer":"8"},{"type":"digit_sum","question":"What is the single-digit digital root of 787?","answer":"4"},{"type":"riddle","question":"Three digits A < B < C form an arithmetic progression. Given A + B + C = 15 and A × C = 21, what is the largest digit C?","answer":"7"},{"type":"roman","question":"In Roman numerals, what digit does II represent?","answer":"2"}]}'),
 
 -- ORANGE PATH (orange)
 ('orange', 0, 'When the call is made and everyone must meet, find where scattered footsteps become one, beside a place that keeps the campus fed.', 'sudoku',
  '[[4,2,3,1],[3,1,4,2],[2,4,1,3],[1,3,2,4]]', '{"puzzle":[[0,2,0,1],[3,0,4,0],[0,4,0,3],[1,0,2,0]]}'),
-('orange', 1, 'Heisenberg says you can''t know it all—find the gateway where his name stands tall.', 'connect_dots', '7x7_valid',
- '{"rows":7,"cols":7,"dots":[[0,1,1],[4,5,1],[1,5,2],[5,1,2],[2,0,3],[4,2,3],[3,5,4],[6,2,4]]}'),
+('orange', 1, 'Heisenberg says you can''t know it all—find the gateway where his name stands tall.', 'connect_dots', '5x5_valid',
+ '{"rows":5,"cols":5,"dots":[[2,3,1],[3,0,1],[0,2,2],[2,2,2],[1,1,3],[0,4,3],[4,0,4],[1,4,4]]}'),
 ('orange', 2, 'Among the scattered stones, where benches invite you to stay, seek the wall where greenery climbs its way.', 'campus_geoguessr', 'geo_5', '{"map_image":"/geo/campus-satellite.png"}'),
 ('orange', 3, 'Where performers take the stage and smoke meets its end, find the silent warning waiting around the bend.', 'tower_hanoi', 'hanoi_solved', '{}'),
-('orange', 4, 'Where Shiva watches in stillness, look for the giant with a trunk.', 'safe_cracker', '6205', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"What is the smallest perfect number?","answer":"6"},{"type":"digit_sum","question":"What is the smallest prime number?","answer":"2"},{"type":"riddle","question":"What digit represents nothing in our number system?","answer":"0"},{"type":"roman","question":"What is the Roman numeral for the number of days in a work week?","answer":"5"}]}')
+('orange', 4, 'Where Shiva watches in stillness, look for the giant with a trunk.', 'safe_cracker', '6295', '{"instructions":"Combine the four digits to unlock the safe.", "clues":[{"type":"math","question":"Solve for x: 6x - 14 = 2x + 10. What digit is x?","answer":"6"},{"type":"digit_sum","question":"What is the single-digit digital root of 2900?","answer":"2"},{"type":"riddle","question":"Three digits X < Y < Z form an arithmetic progression. Given X + Y + Z = 21 and X × Z = 45, what is the largest digit Z?","answer":"9"},{"type":"roman","question":"In Roman numerals, what digit does V represent?","answer":"5"}]}')
 ON CONFLICT (color, clue_number) DO UPDATE SET
   clue_text = EXCLUDED.clue_text, game_type = EXCLUDED.game_type,
   answer = EXCLUDED.answer, game_data = EXCLUDED.game_data;
