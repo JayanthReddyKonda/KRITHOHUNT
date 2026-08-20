@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import GameRenderer from './GameRenderer';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Trophy, Clock, Skull, RefreshCw, Loader2, MapPin, CheckCircle, Camera, AlertTriangle, CheckCircle2, XCircle, ChevronLeft, X } from 'lucide-react';
+import { Trophy, Clock, Skull, RefreshCw, Loader2, MapPin, Camera, AlertTriangle, CheckCircle2, XCircle, ChevronLeft, X } from 'lucide-react';
 import { Card, Button, BottomSheet } from '@/components/primitives';
 
 const PATH_BADGES = {

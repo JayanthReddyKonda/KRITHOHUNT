@@ -15,7 +15,7 @@ export default function SudokuGame({ teamId, colorTheme, gameData, onSolved, onI
   const [board, setBoard] = useState(() => {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try { return JSON.parse(saved); } catch { /* ignore */ }
     }
     return JSON.parse(JSON.stringify(initialPuzzle));
   });

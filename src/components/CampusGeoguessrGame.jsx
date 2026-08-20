@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import { AlertTriangle, CheckCircle2, Loader2, MapPin, ZoomIn, ZoomOut, ChevronRight } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Card, Button } from '@/components/primitives';
+import { Button } from '@/components/primitives';
 
 const DEFAULT_ROUNDS = [
   {
