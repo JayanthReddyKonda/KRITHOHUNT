@@ -8,7 +8,7 @@ KRITHOHUNT is a mobile-first React treasure hunt for campus events. Teams choose
 - Thirty seeded clues: five stages per path.
 - Server-generated five-digit team IDs allow duplicate team names and resume on another device.
 - Random 36-character location QR tokens are checked server-side.
-- Every team receives a server-authoritative 45-minute deadline from registration. Expired sessions close with their current progress preserved.
+- Hunt time tracks team progress continuously until all challenges are completed or the session is closed by organizers.
 - Sudoku, Connect Dots, Campus GeoGuessr, Tower of Hanoi, and Safe Cracker.
 - Organizer dashboard with polling, search, filtering, CSV export, team actions, and printable QR sheets.
 - Local persistence for the active team and unfinished Sudoku/Connect Dots input.

@@ -61,7 +61,6 @@ export default function PlayScreen({ teamId, onReset }) {
     if (isRefresh) setRefreshing(true);
     try {
       setError('');
-      await withTimeout(supabase.rpc('expire_overdue_teams'), 'Server error. Try again.').catch(() => null);
       const { data: teamData, error: teamError } = await withTimeout(supabase
         .from('teams')
         .select('*')
@@ -112,28 +111,13 @@ export default function PlayScreen({ teamId, onReset }) {
 
     const updateTimer = () => {
       const startTime = new Date(team.start_time).getTime();
-      const limitMs = 45 * 60 * 1000;
-      const elapsedMs = Date.now() - startTime;
-      const remainingMs = Math.max(0, limitMs - elapsedMs);
+      const elapsedMs = Math.max(0, Date.now() - startTime);
 
-      if (remainingMs <= 0) {
-        setTimeLeft('00:00');
-        setTimerAlert('critical');
-        return;
-      }
-
-      const totalSecs = Math.floor(remainingMs / 1000);
+      const totalSecs = Math.floor(elapsedMs / 1000);
       const minutes = Math.floor(totalSecs / 60);
       const seconds = totalSecs % 60;
       setTimeLeft(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
-
-      if (minutes < 5) {
-        setTimerAlert('critical');
-      } else if (minutes < 15) {
-        setTimerAlert('warning');
-      } else {
-        setTimerAlert('normal');
-      }
+      setTimerAlert('normal');
     };
 
     updateTimer();
@@ -359,7 +343,7 @@ export default function PlayScreen({ teamId, onReset }) {
             </div>
           ) : (
             <div className="p-4 bg-feedback-error/10 border border-feedback-error/20 rounded-xl text-caption text-feedback-error">
-              {team.close_reason || 'Game closed by organizer or time limit reached.'}
+              {team.close_reason || 'Game closed by organizer.'}
             </div>
           )}
 

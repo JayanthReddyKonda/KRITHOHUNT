@@ -136,7 +136,6 @@ export default function AdminDashboard() {
     if (showRefreshIndicator) setRefreshing(true);
     try {
       setError('');
-      await supabase.rpc('expire_overdue_teams');
       const { data, error: fetchError } = await supabase
         .from('teams')
         .select('*');
@@ -364,7 +363,7 @@ export default function AdminDashboard() {
 
   const getStatusText = (team) => {
     if (team.finish_time) return 'Finished';
-    if (team.closed_at) return team.close_reason === 'time_limit' ? 'Time Expired' : 'Closed by Organizer';
+    if (team.closed_at) return 'Closed by Organizer';
     if (team.clues_solved === 5) return 'Finished';
     if (team.waiting_for_qr) return 'Waiting for QR';
     return 'Playing';
@@ -378,9 +377,13 @@ export default function AdminDashboard() {
   };
 
   const getTimeLimitText = (team) => {
-    if (team.closed_at || team.finish_time) return 'Closed';
-    const remaining = Math.max(0, new Date(team.deadline_at) - Date.now());
-    return `${Math.floor(remaining / 60000)}m ${Math.floor((remaining % 60000) / 1000)}s left`;
+    if (team.finish_time) return getDurationText(team.start_time, team.finish_time);
+    if (team.closed_at) return 'Closed';
+    if (!team.start_time) return 'N/A';
+    const elapsed = Math.max(0, Date.now() - new Date(team.start_time).getTime());
+    const mins = Math.floor(elapsed / 60000);
+    const secs = Math.floor((elapsed % 60000) / 1000);
+    return `${mins}m ${secs}s`;
   };
 
   const sortedTeams = [...teams].sort((a, b) => {
@@ -729,7 +732,7 @@ export default function AdminDashboard() {
                             <th className="py-4 px-4">Start Time</th>
                             <th className="py-4 px-4">Progress</th>
                             <th className="py-4 px-4 text-center">Penalties</th>
-                            <th className="py-4 px-4">Time Limit</th>
+                            <th className="py-4 px-4">Duration</th>
                             <th className="py-4 px-4">Status</th>
                             <th className="py-4 px-5 text-right">Actions</th>
                           </tr>
